@@ -16,7 +16,7 @@
   <a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-f97316.svg" alt="Apache-2.0 license" /></a>
-  <img src="https://img.shields.io/badge/release-v0.1.0--alpha.0-8b5cf6.svg" alt="v0.1.0 alpha" />
+  <img src="https://img.shields.io/badge/release-v0.1.0--alpha.1-8b5cf6.svg" alt="v0.1.0 alpha" />
   <img src="https://img.shields.io/badge/Node.js-%E2%89%A522-22c55e.svg" alt="Node.js 22 or newer" />
   <a href="https://github.com/XAGI-Lab/atlas-mcp/discussions"><img src="https://img.shields.io/badge/discussions-join-2563eb.svg" alt="GitHub Discussions" /></a>
 </p>
@@ -26,7 +26,7 @@
 </p>
 
 > [!WARNING]
-> `0.1.0-alpha.0` is an engineering preview. The local stdio runtime works and is
+> `0.1.0-alpha.1` is an engineering preview. The local stdio runtime works and is
 > tested end to end, but its schemas and package layout may change before `1.0`.
 > Review every approval request and use an isolated workspace for untrusted tasks.
 
@@ -109,6 +109,14 @@ See [installation and client setup](docs/INSTALLATION.md) for Claude Desktop,
 Cursor, VS Code, generic clients, and Docker.
 
 ## Docker 🐳
+
+Run the published multi-architecture image:
+
+```bash
+docker run --rm ghcr.io/xagi-lab/atlas-mcp:v0.1.0-alpha.1 doctor
+```
+
+Or build it locally:
 
 ```bash
 docker build -t atlas-mcp:local .

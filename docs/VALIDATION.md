@@ -4,7 +4,7 @@
 
 Date: 2026-07-28
 
-Version: `0.1.0-alpha.0`
+Version: `0.1.0-alpha.1`
 
 Host exercised locally: macOS arm64, Node.js 24.10, Python 3.11
 
@@ -21,6 +21,8 @@ Host exercised locally: macOS arm64, Node.js 24.10, Python 3.11
 | Official TypeScript SDK over real stdio | 6 end-to-end cases passed |
 | Installed Chrome browser fixture | navigation and page verification passed |
 | Docker image build | passed |
+| Released Linux AMD64 image | passed through hardened MCP stdio smoke |
+| Released Linux ARM64 image | pending immutable `v0.1.0-alpha.1` workflow |
 | Container doctor | Node, workspace, data, SQLite, browser, policy passed |
 | Official SDK through hardened Docker stdio | discovery, execution, receipt passed |
 

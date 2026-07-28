@@ -1,6 +1,6 @@
 {
   "name": "@atlas-mcp/server",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Official six-tool Model Context Protocol server for ATLAS MCP.",
   "license": "Apache-2.0",
   "type": "module",

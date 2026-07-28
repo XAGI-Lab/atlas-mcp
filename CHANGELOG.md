@@ -6,6 +6,16 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] - 2026-07-28
+
+### Fixed
+
+- Publish the GitHub Container Registry image for both Linux AMD64 and ARM64.
+- Allow the hardened container smoke test to select an explicit platform when
+  validating a single-platform image.
+
+## [0.1.0-alpha.0] - 2026-07-28
+
 ### Added
 
 - Compact six-tool MCP stdio server.
@@ -27,4 +37,6 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/atlas-mcp/compare/main...HEAD
+[Unreleased]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.1.0-alpha.1...HEAD
+[0.1.0-alpha.1]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.1.0-alpha.0...v0.1.0-alpha.1
+[0.1.0-alpha.0]: https://github.com/XAGI-Lab/atlas-mcp/releases/tag/v0.1.0-alpha.0

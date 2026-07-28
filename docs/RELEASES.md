@@ -33,7 +33,7 @@ The tag workflow:
 - generates signed Sigstore-backed GitHub provenance attestations;
 - publishes the artifacts to the GitHub release;
 - builds and publishes the container to GitHub Container Registry with
-  provenance.
+  provenance for Linux AMD64 and ARM64.
 
 Verify downloaded artifacts:
 
