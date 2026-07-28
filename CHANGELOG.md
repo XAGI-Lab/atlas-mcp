@@ -11,6 +11,14 @@ All notable changes are documented here. The format follows
 - Optional speaker, episode ID, and sequence metadata for memory records.
 - Bounded adjacent-turn context expansion and query-aware speaker matching in
   the deterministic local memory ranker.
+- Browser-agent evaluation harness (`benchmarks/browser-agent`) with a 125-task
+  MiniWoB development suite, a pre-registered
+  `WebArena-Verified Hard-30 registered subset`, deterministic subset selection,
+  paired aggregate statistics, and a fail-closed publication gate.
+- Opt-in browser instrumentation for benchmark and diagnostic harnesses:
+  `ATLAS_MCP_BROWSER_CDP_ENDPOINT`, `ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX`, and
+  `ATLAS_MCP_BROWSER_HAR_PATH`. Unset by default, so the isolated
+  launch-our-own-browser behavior is unchanged.
 
 ### Changed
 
@@ -22,6 +30,9 @@ All notable changes are documented here. The format follows
 
 - Speaker and episode metadata pass through secret redaction before
   persistence.
+- Attaching over CDP and recording a HAR are mutually exclusive, and a HAR path
+  must be absolute. Raw HAR, screenshots, video, and provider transcripts are
+  Git-ignored and rejected by the benchmark publication gate.
 
 ## [0.2.0-alpha.1] - 2026-07-28
 

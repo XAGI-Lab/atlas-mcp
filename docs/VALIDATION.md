@@ -56,6 +56,43 @@ The container smoke test uses a read-only root filesystem, drops all Linux
 capabilities, sets `no-new-privileges`, and permits writes only to an explicit
 workspace, data directory, and bounded temporary filesystem.
 
+## Browser-agent benchmark harness evidence
+
+Date: 2026-07-29
+
+Branch: `coder/representative-browser-benchmark`
+
+Host exercised locally: macOS arm64 (Darwin 25.5.0), Node.js 24, Python 3.11.14
+
+| Gate | Result |
+|---|---|
+| `pnpm check` | passed (versions, strict typecheck, tests, Python) |
+| TypeScript/Vitest cases | 76 passed |
+| `pnpm evals` | 22 of 22 scenarios passed, 0 failed |
+| `pnpm e2e` | 7 end-to-end cases passed over real stdio |
+| `pnpm pack:check` | passed |
+| `pnpm security:audit` | no known vulnerabilities, Node and Python |
+| `pnpm benchmark:browser:check` | ruff clean, 24 pytest cases passed |
+| `pnpm benchmark:browser:verify-upstream` | `suite=webarena-verified-hard-30-v1 tasks=30 unique_templates=30` |
+| Both benchmark extras installed | `browsergym-miniwob==0.14.3` and `webarena-verified==1.2.3` resolve; 24 pytest cases passed |
+
+This verifies the harness, not a browser-agent score.
+
+**No representative browser-agent result is published, and none is claimed.**
+`docs/research/results/` deliberately contains no
+`browser-agent-benchmark.json`. Two prerequisites are outstanding and are both
+approval-gated by design:
+
+- the 125-task MiniWoB development run needs an authorized model and a
+  credential in the environment named by the agent configuration;
+- the `WebArena-Verified Hard-30 registered subset` run needs the six official
+  site containers, which require roughly two orders of magnitude more free disk
+  than this host currently has, so it needs an explicitly authorized
+  environment.
+
+Until both complete, the run manifest stays unfrozen and the publication gate
+has nothing to accept. Any score quoted before then is unsupported.
+
 ## Reproduce
 
 ```bash
@@ -65,6 +102,9 @@ pnpm check
 pnpm evals
 pnpm e2e
 pnpm pack:check
+pnpm security:audit
+pnpm benchmark:browser:check
+pnpm benchmark:browser:verify-upstream
 docker build -t atlas-mcp:local .
 docker run --rm atlas-mcp:local doctor
 pnpm docker:smoke

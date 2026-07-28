@@ -1346,8 +1346,20 @@ Run:
 uv run --project benchmarks/browser-agent --extra miniwob \
   atlas-browser-bench run-miniwob \
   --manifest benchmarks/browser-agent/manifests/miniwob-125-v1.json \
-  --run-dir benchmarks/browser-agent/runs/miniwob-candidate
+  --run-dir benchmarks/browser-agent/runs/miniwob-candidate \
+  --workspace benchmarks/browser-agent/runs/workspaces-candidate \
+  --base-url "$MINIWOB_BASE_URL" \
+  --browser-executable "$ATLAS_MCP_BROWSER" \
+  --implementation-commit "$(git rev-parse HEAD)" \
+  --agent-config benchmarks/browser-agent/runs/config/agent.json
 ```
+
+`--workspace`, `--base-url`, `--browser-executable`, `--implementation-commit`,
+and `--agent-config` are all required. `MINIWOB_BASE_URL` must serve the
+MiniWoB++ pages at the `assets_revision` pinned in the manifest, and
+`--agent-config` must contain exactly `base_url`, `api_key_env`, and `model_id`,
+with the named key present in the environment. `pnpm build` must have produced
+`apps/cli/dist/index.js` first; the run drives every action through that server.
 
 Expected: 125 task records and zero infrastructure omissions. Any failed task
 remains in the denominator.
@@ -1421,8 +1433,15 @@ Run:
 
 ```bash
 atlas-browser-bench preflight-hard30 \
-  --manifest benchmarks/browser-agent/manifests/webarena-verified-hard-30-run.json
+  --manifest benchmarks/browser-agent/manifests/webarena-verified-hard-30-run.json \
+  --config benchmarks/browser-agent/runs/config/environment.json \
+  --image-config benchmarks/browser-agent/runs/config/images.json
 ```
+
+`--config` is the environment-control configuration consumed by
+`WebArenaEnvironment.from_config`; `--image-config` maps each site name to an
+immutable `sha256:<64 hex>` image digest. Both are required, and the command
+exits non-zero when any site is not ready.
 
 Expected: all six site families healthy, container digests match, baseline and
 candidate commands resolve to their pinned commits, model identity matches,
@@ -1436,8 +1455,18 @@ Run:
 uv run --project benchmarks/browser-agent --extra webarena \
   atlas-browser-bench run-hard30 \
   --manifest benchmarks/browser-agent/manifests/webarena-verified-hard-30-run.json \
-  --run-dir benchmarks/browser-agent/runs/hard30-paired
+  --config benchmarks/browser-agent/runs/config/environment.json \
+  --image-config benchmarks/browser-agent/runs/config/images.json \
+  --run-dir benchmarks/browser-agent/runs/hard30-paired \
+  --baseline-runner benchmarks/browser-agent/runs/config/baseline-runner \
+  --candidate-runner benchmarks/browser-agent/runs/config/candidate-runner
 ```
+
+`--baseline-runner` and `--candidate-runner` are executable files. Each is
+invoked as `<runner> --task-id N --config <path> --output-dir <path>` and must
+print a final JSON line carrying `infrastructure_failure`, `official_status`,
+`official_score`, `evaluator_checksum`, and `data_checksum`. Any missing or
+malformed field marks that side infrastructure-invalid rather than failed.
 
 Expected: 60 side records, 30 valid pairs, no omitted task IDs, and raw HAR
 only under the ignored run directory.
