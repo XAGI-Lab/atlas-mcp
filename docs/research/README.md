@@ -9,7 +9,7 @@ a component microbenchmark is not a task leaderboard.
 
 | Layer | Public measurement | Result | Artifact |
 |---|---|---:|---|
-| Memory | LoCoMo objective evidence retrieval, 1,982 questions | coverage@20 `0.629117` | [JSON](results/locomo-retrieval.json) |
+| Memory | LoCoMo objective evidence retrieval, 1,982 questions | coverage@20 `0.759652`; +20.75% relative vs v1 | [JSON](results/locomo-retrieval.json) |
 | Memory | planted-fact local regression, 1,000 records / 100 queries | Recall@1 `1.0`; p50 `3.621 ms` | [JSON](results/core-microbenchmarks.json) |
 | Browser | condition-based DOM settling, 10 iterations per cell | static p50 `183.703 ms`; slow correctness `1.0` | [JSON](results/core-microbenchmarks.json) |
 | Terminal | shell-free local process execution | `30/30`; p50 `48.087 ms` | [JSON](results/core-microbenchmarks.json) |

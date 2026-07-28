@@ -12,7 +12,7 @@ Host exercised locally: macOS arm64, Node.js 24.10, Python 3.11
 |---|---|
 | Package-version consistency | passed |
 | TypeScript build and strict typecheck | passed across 15 packages/apps |
-| TypeScript/Vitest cases | 63 passed |
+| TypeScript/Vitest cases | 72 passed |
 | Deterministic evaluation scenarios | 22 of 22 passed |
 | Python lint | passed |
 | Python SDK interoperability test | 1 passed |
@@ -34,7 +34,9 @@ The end-to-end suite verifies:
 - exact task-scoped approval for a file mutation;
 - shell-free terminal execution with exit-code and stdout predicates;
 - scoped memory persistence and retrieval;
-- hybrid memory ranking, expiry, and supersession behavior;
+- hybrid memory ranking, episode context, speaker matching, expiry, and
+  supersession behavior;
+- in-place migration from the previous SQLite memory schema;
 - real installed-browser navigation with URL and page-text evidence;
 - read-only computer adapter capability discovery;
 - receipt retrieval and a 64-character SHA-256 certificate digest.
@@ -42,7 +44,8 @@ The end-to-end suite verifies:
 Public benchmark artifacts were also regenerated:
 
 - LoCoMo objective evidence retrieval: 1,982 questions, coverage@20
-  `0.629117`, p50 `20.699 ms`, zero model/embedding/network calls;
+  `0.759652`, complete evidence recall@20 `0.716448`, p50 `21.060 ms`,
+  zero model/embedding/network calls;
 - planted-fact memory regression: 100/100 Recall@1;
 - browser stable-DOM fixture: static p50 `183.703 ms` and slow-render
   correctness 10/10;

@@ -60,10 +60,12 @@ Actions: `put`, `search`, `list`, `delete`, `clear`.
 
 Scopes: `session`, `task`, `project`, `workspace`, `user`, `procedural`.
 
-- Stored records include source, confidence, and timestamps.
+- Stored records include source, confidence, timestamps, and optional speaker,
+  episode ID, and sequence metadata.
 - Common API keys, bearer tokens, passwords, and GitHub tokens are redacted.
 - Search is local and scoped with BM25-style lexical evidence, exact phrases,
-  confidence, freshness, and bounded head diversity.
+  explicit speaker matching, bounded adjacent episode context, confidence,
+  freshness, and bounded head diversity.
 - Search ranks at most the 5,000 most recently updated in-scope candidates per
   query and returns at most 100 results.
 - Records can expire or supersede older facts. Expired and superseded records

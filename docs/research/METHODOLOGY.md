@@ -35,11 +35,13 @@ Committed results include:
 
 ## Determinism
 
-The current memory scorer makes no model, embedding, or network calls. The
-LoCoMo run therefore has no reader or judge variance. Browser fixtures use a
-local synthetic page with fixed mutation schedules. Terminal measurements use
-the current Node executable and exact argument separation. Computer
-microbenchmarks perform read-only capability probes.
+The current memory scorer makes no model, embedding, or network calls. LoCoMo
+turns are ingested with their published dialogue ID, speaker, session ID, and
+order; the scorer uses the explicit session and order only for bounded
+adjacent-turn expansion. The run therefore has no reader or judge variance.
+Browser fixtures use a local synthetic page with fixed mutation schedules.
+Terminal measurements use the current Node executable and exact argument
+separation. Computer microbenchmarks perform read-only capability probes.
 
 ## Why public numbers differ from future agent scores
 

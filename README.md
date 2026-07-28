@@ -42,7 +42,7 @@ ATLAS MCP turns a tool call into a durable, inspectable task:
 | 🗂️ **Files** | Root-confined read, hash, atomic write, move, mkdir, and delete with symlink-escape defenses |
 | 💻 **Terminal** | Shell-free foreground and supervised background processes with allowlists, timeouts, cancellation, and redaction |
 | 🌐 **Browser** | Isolated Playwright sessions, semantic DOM targets, bounded artifacts, network policy, and condition-based post-action settling |
-| 🧠 **Memory** | Scoped SQLite memory with hybrid lexical ranking, confidence, freshness, diversity, expiry, supersession, provenance, and redaction |
+| 🧠 **Memory** | Scoped SQLite memory with hybrid lexical ranking, episode context, speaker matching, confidence, freshness, diversity, expiry, supersession, provenance, and redaction |
 | 🖥️ **Computer** | Capability discovery plus governed screenshot, pointer, keyboard, and scroll adapters on macOS and supported Linux/X11 setups |
 
 Every layer passes through the same policy, approval, budget, verification,
@@ -56,7 +56,7 @@ universally “the best” or that unlike benchmarks are directly comparable.
 
 | Capability | Current public result | What it means |
 |---|---:|---|
-| 🧠 LoCoMo retrieval | **0.6291 mean evidence coverage @20** | 1,982 evidence-bearing questions; dialogue-turn ingest; zero model, embedding, or network calls |
+| 🧠 LoCoMo retrieval | **0.7597 mean evidence coverage @20** | 1,982 evidence-bearing questions; +20.75% relative over the previous public ranker; zero model, embedding, or network calls |
 | 🧠 Synthetic recall | **100/100 Recall@1** | Deterministic planted-fact regression over 1,000 records |
 | 🌐 Static-page settle | **183.7 ms p50 vs 301.3 ms** | 39% less waiting with identical 10/10 correct reads |
 | 🌐 Slow-render settle | **10/10 vs 0/10 correct** | Condition-based waiting observes the final DOM; fixed 300 ms reads too early |
