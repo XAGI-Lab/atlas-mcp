@@ -267,6 +267,34 @@ async def run_task(
         )
 
 
+def failed_task_record(
+    *,
+    task_id: str,
+    run_input_digest: str,
+    error: BaseException,
+    started: float,
+) -> BrowserTaskRecord:
+    """Record for a task the harness itself could not complete.
+
+    The suite reports a fixed denominator, so a task whose environment, driver,
+    or agent raises must still produce a record. Aborting the run instead would
+    silently shrink the denominator and make the remaining tasks look absent
+    rather than failed. The exception type is kept as the failure category so
+    these are groupable without exposing a message that may quote page text.
+    """
+    if not re.fullmatch(r"[a-f0-9]{64}", run_input_digest):
+        raise ValueError("run_input_digest_invalid")
+    return _record(
+        task_id=task_id,
+        run_input_digest=run_input_digest,
+        success=False,
+        reward=0.0,
+        failure_category=f"harness_{type(error).__name__}",
+        started=started,
+        history=[],
+    )
+
+
 def write_task_record(run_directory: Path, record: BrowserTaskRecord) -> Path:
     run_directory.mkdir(parents=True, exist_ok=True)
     safe_task_id = re.sub(r"[^A-Za-z0-9._-]", "_", record.task_id)
@@ -345,23 +373,36 @@ async def run_miniwob_suite(
             continue
         task_workspace = workspace_root / safe_task_id
         task_workspace.mkdir(parents=True, exist_ok=True)
-        async with (
-            MiniWobEnvironment.open(
-                task_id,
-                base_url=base_url,
-                browser_executable=browser_executable,
-                workspace=task_workspace,
-                seed=seed,
-            ) as environment,
-            environment.atlas_driver() as driver,
-        ):
-            record = await run_task(
+        started = time.perf_counter()
+        try:
+            async with (
+                MiniWobEnvironment.open(
+                    task_id,
+                    base_url=base_url,
+                    browser_executable=browser_executable,
+                    workspace=task_workspace,
+                    seed=seed,
+                ) as environment,
+                environment.atlas_driver() as driver,
+            ):
+                record = await run_task(
+                    task_id=task_id,
+                    run_input_digest=run_input_digest,
+                    environment=environment,
+                    agent=agent,
+                    driver=driver,
+                    limits=limits,
+                )
+        except Exception as error:  # noqa: BLE001
+            # Deliberately broad: this is the per-task harness boundary. Any
+            # environment, driver, or agent failure must become a recorded
+            # failure so the denominator stays fixed at the manifest size.
+            # BaseException (cancellation, KeyboardInterrupt) still propagates.
+            record = failed_task_record(
                 task_id=task_id,
                 run_input_digest=run_input_digest,
-                environment=environment,
-                agent=agent,
-                driver=driver,
-                limits=limits,
+                error=error,
+                started=started,
             )
         write_task_record(run_directory, record)
         results.append(record)

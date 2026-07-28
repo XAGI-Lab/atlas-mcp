@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from atlas_browser_bench.miniwob import MiniWobStep
 from atlas_browser_bench.runner import (
     RunLimits,
     build_run_input_digest,
+    failed_task_record,
     load_resumable_task_record,
     run_task,
     write_task_record,
@@ -118,3 +120,27 @@ def test_run_input_digest_is_canonical_and_sensitive() -> None:
     )
     assert first == reordered
     assert first != changed
+
+
+def test_failed_task_record_keeps_the_task_in_the_denominator() -> None:
+    record = failed_task_record(
+        task_id="browsergym/miniwob.click-test",
+        run_input_digest="a" * 64,
+        error=TimeoutError("chrome_cdp_endpoint_timeout"),
+        started=time.perf_counter(),
+    )
+    assert record.success is False
+    assert record.reward == 0.0
+    assert record.failure_category == "harness_TimeoutError"
+    assert record.agent_steps == 0
+    assert record.mcp_calls == 0
+    assert record.history == ()
+    # Categories must not carry the exception message: it can quote page text.
+    assert "chrome_cdp_endpoint_timeout" not in record.failure_category
+    with pytest.raises(ValueError, match="run_input_digest_invalid"):
+        failed_task_record(
+            task_id="browsergym/miniwob.click-test",
+            run_input_digest="not-a-digest",
+            error=RuntimeError("x"),
+            started=time.perf_counter(),
+        )
