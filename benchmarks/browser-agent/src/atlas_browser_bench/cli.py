@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -15,11 +17,13 @@ from .manifest import (
     parse_environment_identity,
     write_manifest,
 )
+from .runner import BrowserTaskRecord, RunLimits, run_miniwob_suite
 from .sanitize import publish_run, verify_public_artifact
 from .selection import verify_upstream
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _REGISTERED_HARD30 = _PROJECT_ROOT / "manifests" / "webarena-verified-hard-30-v1.json"
+_REGISTERED_MINIWOB = _PROJECT_ROOT / "manifests" / "miniwob-125-v1.json"
 
 
 def _json_object(path: Path) -> dict[str, object]:
@@ -47,6 +51,19 @@ def _parser() -> argparse.ArgumentParser:
     publish = commands.add_parser("publish")
     publish.add_argument("--run-dir", type=Path, required=True)
     publish.add_argument("--output", type=Path, required=True)
+
+    miniwob = commands.add_parser("run-miniwob")
+    miniwob.add_argument("--manifest", type=Path, default=_REGISTERED_MINIWOB)
+    miniwob.add_argument("--run-dir", type=Path, required=True)
+    miniwob.add_argument("--workspace", type=Path, required=True)
+    miniwob.add_argument("--base-url", required=True)
+    miniwob.add_argument("--browser-executable", type=Path, required=True)
+    miniwob.add_argument("--implementation-commit", required=True)
+    miniwob.add_argument("--agent-config", type=Path, required=True)
+    miniwob.add_argument("--max-steps", type=int, default=15)
+    miniwob.add_argument("--task-timeout-seconds", type=float, default=180)
+    miniwob.add_argument("--seed", type=int, default=0)
+    miniwob.add_argument("--task-limit", type=int)
 
     freeze = commands.add_parser("freeze-run")
     freeze.add_argument("--registered", type=Path, required=True)
@@ -116,6 +133,69 @@ def main(argv: Sequence[str] | None = None) -> int:
                 {
                     "output": str(args.output),
                     "publishable": True,
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+
+    if args.command == "run-miniwob":
+        agent_config = _json_object(args.agent_config)
+        required = {"base_url", "api_key_env", "model_id"}
+        if set(agent_config) != required:
+            raise ValueError("agent_config_fields_invalid")
+        if not all(isinstance(agent_config[field], str) for field in required):
+            raise TypeError("agent_config_values_invalid")
+        api_key_environment = str(agent_config["api_key_env"])
+        api_key = os.environ.get(api_key_environment)
+        if api_key is None:
+            raise RuntimeError(f"agent_api_key_environment_missing:{api_key_environment}")
+
+        def progress(task_id: str, record: BrowserTaskRecord | dict[str, object]) -> None:
+            success = (
+                record.success
+                if isinstance(record, BrowserTaskRecord)
+                else bool(record.get("success"))
+            )
+            print(
+                json.dumps(
+                    {"task": task_id, "success": success},
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+
+        records = asyncio.run(
+            run_miniwob_suite(
+                manifest_path=args.manifest,
+                run_directory=args.run_dir,
+                workspace_root=args.workspace,
+                base_url=args.base_url,
+                browser_executable=args.browser_executable,
+                implementation_commit=args.implementation_commit,
+                agent_base_url=str(agent_config["base_url"]),
+                api_key=api_key,
+                model_id=str(agent_config["model_id"]),
+                limits=RunLimits(
+                    max_steps=args.max_steps,
+                    task_timeout_seconds=args.task_timeout_seconds,
+                ),
+                seed=args.seed,
+                task_limit=args.task_limit,
+                progress=progress,
+            )
+        )
+        successes = sum(
+            record.success if isinstance(record, BrowserTaskRecord) else bool(record.get("success"))
+            for record in records
+        )
+        print(
+            json.dumps(
+                {
+                    "suite": "miniwob-125-v1",
+                    "tasks": len(records),
+                    "successes": successes,
+                    "complete": len(records) == 125,
                 },
                 sort_keys=True,
             )
