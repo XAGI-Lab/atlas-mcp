@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0.0",
+  "suite": "webarena-verified-hard-30-v1",
+  "publication_state": "registered",
+  "upstream": {
+    "name": "WebArena-Verified Hard",
+    "version": "1.2.3",
+    "source_revision": "6473f72db5dcefc97b5725b59e734504edc28a21",
+    "task_data_url": "https://raw.githubusercontent.com/ServiceNow/webarena-verified/6473f72db5dcefc97b5725b59e734504edc28a21/assets/dataset/webarna-verfied-hard.json",
+    "task_data_sha256": "4fccaef496870558a0c65ae97c7350c625b498688df87051afd254db7899a76f",
+    "subset_manifest_url": "https://raw.githubusercontent.com/ServiceNow/webarena-verified/6473f72db5dcefc97b5725b59e734504edc28a21/assets/dataset/subsets/webarena-verified-hard.json",
+    "subset_manifest_sha256": "3b0a4df231bb5a0c642215e521c3fa97701a384f52a734dc2db8f617ad0591a7"
+  },
+  "selection": {
+    "seed": "atlas-mcp-webarena-verified-hard-30-v1",
+    "quotas": [
+      { "site_family": "cross-site", "task_type": "MUTATE", "count": 3 },
+      { "site_family": "cross-site", "task_type": "NAVIGATE", "count": 2 },
+      { "site_family": "cross-site", "task_type": "RETRIEVE", "count": 1 },
+      { "site_family": "gitlab", "task_type": "MUTATE", "count": 4 },
+      { "site_family": "gitlab", "task_type": "NAVIGATE", "count": 1 },
+      { "site_family": "gitlab", "task_type": "RETRIEVE", "count": 2 },
+      { "site_family": "reddit", "task_type": "MUTATE", "count": 4 },
+      { "site_family": "reddit", "task_type": "RETRIEVE", "count": 1 },
+      { "site_family": "shopping", "task_type": "MUTATE", "count": 2 },
+      { "site_family": "shopping", "task_type": "NAVIGATE", "count": 1 },
+      { "site_family": "shopping", "task_type": "RETRIEVE", "count": 3 },
+      { "site_family": "shopping_admin", "task_type": "MUTATE", "count": 3 },
+      { "site_family": "shopping_admin", "task_type": "NAVIGATE", "count": 1 },
+      { "site_family": "shopping_admin", "task_type": "RETRIEVE", "count": 2 }
+    ]
+  },
+  "baseline": {
+    "commit": "a8a0a0907a7eed29249b94c89af3449efbcec4c3",
+    "source_commit": "a8a0a0907a7eed29249b94c89af3449efbcec4c3",
+    "instrumentation_commit": null
+  },
+  "candidate": null,
+  "agent": null,
+  "environment": null,
+  "tasks": [
+    { "task_id": 15, "sites": ["shopping_admin"], "site_family": "shopping_admin", "task_type": "RETRIEVE", "intent_template_id": 288 },
+    { "task_id": 21, "sites": ["shopping"], "site_family": "shopping", "task_type": "RETRIEVE", "intent_template_id": 222 },
+    { "task_id": 67, "sites": ["reddit"], "site_family": "reddit", "task_type": "RETRIEVE", "intent_template_id": 17 },
+    { "task_id": 105, "sites": ["gitlab"], "site_family": "gitlab", "task_type": "NAVIGATE", "intent_template_id": 349 },
+    { "task_id": 113, "sites": ["shopping_admin"], "site_family": "shopping_admin", "task_type": "RETRIEVE", "intent_template_id": 245 },
+    { "task_id": 166, "sites": ["shopping"], "site_family": "shopping", "task_type": "RETRIEVE", "intent_template_id": 136 },
+    { "task_id": 172, "sites": ["gitlab"], "site_family": "gitlab", "task_type": "RETRIEVE", "intent_template_id": 289 },
+    { "task_id": 226, "sites": ["shopping"], "site_family": "shopping", "task_type": "RETRIEVE", "intent_template_id": 370 },
+    { "task_id": 268, "sites": ["wikipedia", "map"], "site_family": "cross-site", "task_type": "RETRIEVE", "intent_template_id": 85 },
+    { "task_id": 284, "sites": ["shopping"], "site_family": "shopping", "task_type": "NAVIGATE", "intent_template_id": 207 },
+    { "task_id": 430, "sites": ["wikipedia", "map"], "site_family": "cross-site", "task_type": "NAVIGATE", "intent_template_id": 371 },
+    { "task_id": 446, "sites": ["gitlab"], "site_family": "gitlab", "task_type": "MUTATE", "intent_template_id": 999 },
+    { "task_id": 528, "sites": ["shopping"], "site_family": "shopping", "task_type": "MUTATE", "intent_template_id": 154 },
+    { "task_id": 544, "sites": ["shopping_admin"], "site_family": "shopping_admin", "task_type": "MUTATE", "intent_template_id": 251 },
+    { "task_id": 556, "sites": ["gitlab", "wikipedia"], "site_family": "cross-site", "task_type": "MUTATE", "intent_template_id": 87 },
+    { "task_id": 566, "sites": ["gitlab", "reddit"], "site_family": "cross-site", "task_type": "MUTATE", "intent_template_id": 88 },
+    { "task_id": 577, "sites": ["gitlab"], "site_family": "gitlab", "task_type": "MUTATE", "intent_template_id": 351 },
+    { "task_id": 603, "sites": ["reddit"], "site_family": "reddit", "task_type": "MUTATE", "intent_template_id": 3765 },
+    { "task_id": 638, "sites": ["reddit"], "site_family": "reddit", "task_type": "MUTATE", "intent_template_id": 6100 },
+    { "task_id": 646, "sites": ["reddit"], "site_family": "reddit", "task_type": "MUTATE", "intent_template_id": 19 },
+    { "task_id": 658, "sites": ["gitlab"], "site_family": "gitlab", "task_type": "MUTATE", "intent_template_id": 327 },
+    { "task_id": 675, "sites": ["shopping", "reddit"], "site_family": "cross-site", "task_type": "MUTATE", "intent_template_id": 101 },
+    { "task_id": 701, "sites": ["shopping_admin"], "site_family": "shopping_admin", "task_type": "MUTATE", "intent_template_id": 258 },
+    { "task_id": 708, "sites": ["shopping_admin"], "site_family": "shopping_admin", "task_type": "NAVIGATE", "intent_template_id": 268 },
+    { "task_id": 733, "sites": ["reddit"], "site_family": "reddit", "task_type": "MUTATE", "intent_template_id": 27 },
+    { "task_id": 738, "sites": ["wikipedia", "map"], "site_family": "cross-site", "task_type": "NAVIGATE", "intent_template_id": 94 },
+    { "task_id": 780, "sites": ["shopping_admin"], "site_family": "shopping_admin", "task_type": "MUTATE", "intent_template_id": 742 },
+    { "task_id": 788, "sites": ["gitlab"], "site_family": "gitlab", "task_type": "RETRIEVE", "intent_template_id": 316 },
+    { "task_id": 795, "sites": ["shopping"], "site_family": "shopping", "task_type": "MUTATE", "intent_template_id": 191 },
+    { "task_id": 799, "sites": ["gitlab"], "site_family": "gitlab", "task_type": "MUTATE", "intent_template_id": 600 }
+  ]
+}

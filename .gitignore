@@ -14,3 +14,8 @@ tmp/
 .atlas-mcp/
 artifacts/
 evals/results/
+benchmarks/browser-agent/runs/
+benchmarks/browser-agent/**/*.har
+benchmarks/browser-agent/**/*.png
+benchmarks/browser-agent/**/*.webm
+benchmarks/browser-agent/**/*transcript*.json
