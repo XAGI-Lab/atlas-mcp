@@ -4,7 +4,7 @@
 import { z } from "zod";
 
 export const PROTOCOL_VERSION = "2025-11-25";
-export const PRODUCT_VERSION = "0.1.0-alpha.1";
+export const PRODUCT_VERSION = "0.2.0-alpha.1";
 
 const boundedPath = z.string().min(1).max(4096);
 const boundedText = z.string().max(200_000);
@@ -80,6 +80,8 @@ export const BrowserOperationSchema = z
     tabIndex: z.number().int().min(0).max(100).optional(),
     fullPage: z.boolean().default(false),
     timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
+    settleQuietMs: z.number().int().min(25).max(2_000).default(180),
+    settleTimeoutMs: z.number().int().min(25).max(10_000).default(1_500),
     maxChars: z.number().int().min(100).max(200_000).default(20_000),
   })
   .strict();
@@ -105,7 +107,50 @@ export const MemoryOperationSchema = z
     query: z.string().max(10_000).optional(),
     source: z.string().max(4_096).optional(),
     confidence: z.number().min(0).max(1).default(1),
+    tags: z.array(z.string().min(1).max(128)).max(50).default([]),
+    expiresAt: z.string().datetime().optional(),
+    supersedesId: z.string().uuid().optional(),
+    includeSuperseded: z.boolean().default(false),
     limit: z.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+
+export const ComputerOperationSchema = z
+  .object({
+    kind: z.literal("computer"),
+    action: z.enum([
+      "capabilities",
+      "screenshot",
+      "click",
+      "move",
+      "type",
+      "key",
+      "scroll",
+    ]),
+    coordinateSpace: z.enum(["normalized", "pixel"]).default("normalized"),
+    x: z.number().min(0).max(100_000).optional(),
+    y: z.number().min(0).max(100_000).optional(),
+    text: z.string().max(100_000).optional(),
+    key: z
+      .enum([
+        "ENTER",
+        "TAB",
+        "SPACE",
+        "BACKSPACE",
+        "ESCAPE",
+        "LEFT",
+        "RIGHT",
+        "DOWN",
+        "UP",
+        "HOME",
+        "END",
+        "PAGEUP",
+        "PAGEDOWN",
+        "DELETE",
+      ])
+      .optional(),
+    deltaY: z.number().int().min(-2_000).max(2_000).optional(),
+    timeoutMs: z.number().int().min(100).max(30_000).default(10_000),
   })
   .strict();
 
@@ -121,6 +166,7 @@ export const OperationSchema = z.discriminatedUnion("kind", [
   TerminalOperationSchema,
   BrowserOperationSchema,
   MemoryOperationSchema,
+  ComputerOperationSchema,
   SystemOperationSchema,
 ]);
 
@@ -128,6 +174,7 @@ export type FileOperation = z.infer<typeof FileOperationSchema>;
 export type TerminalOperation = z.infer<typeof TerminalOperationSchema>;
 export type BrowserOperation = z.infer<typeof BrowserOperationSchema>;
 export type MemoryOperation = z.infer<typeof MemoryOperationSchema>;
+export type ComputerOperation = z.infer<typeof ComputerOperationSchema>;
 export type SystemOperation = z.infer<typeof SystemOperationSchema>;
 export type Operation = z.infer<typeof OperationSchema>;
 
@@ -214,6 +261,7 @@ export const TaskRequestSchema = z
   .strict();
 
 export type TaskRequest = z.infer<typeof TaskRequestSchema>;
+export type TaskRequestInput = z.input<typeof TaskRequestSchema>;
 export type TaskBudget = z.infer<typeof TaskBudgetSchema>;
 
 export const EffectSchema = z.enum(["read", "mutate", "destructive"]);

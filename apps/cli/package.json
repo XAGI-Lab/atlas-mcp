@@ -1,6 +1,6 @@
 {
   "name": "@atlas-mcp/cli",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "description": "ATLAS MCP local execution runtime and command-line interface.",
   "license": "Apache-2.0",
   "type": "module",
@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@atlas-mcp/browser-runtime": "workspace:*",
+    "@atlas-mcp/computer-runtime": "workspace:*",
     "@atlas-mcp/policy-core": "workspace:*",
     "@atlas-mcp/protocol": "workspace:*",
     "@atlas-mcp/server": "workspace:*",

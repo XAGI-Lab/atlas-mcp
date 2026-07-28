@@ -17,12 +17,48 @@ export interface MemoryRecord {
   value: string;
   source: string;
   confidence: number;
+  tags: string[];
+  expiresAt?: string;
+  supersedesId?: string;
+  supersededBy?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 interface JsonRow {
   data: string;
+}
+
+interface MemoryRow {
+  id: string;
+  scope: MemoryScope;
+  key: string;
+  value: string;
+  source: string;
+  confidence: number;
+  tags: string;
+  expiresAt: string | null;
+  supersedesId: string | null;
+  supersededBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function toMemoryRecord(row: MemoryRow): MemoryRecord {
+  return {
+    id: row.id,
+    scope: row.scope,
+    key: row.key,
+    value: row.value,
+    source: row.source,
+    confidence: row.confidence,
+    tags: JSON.parse(row.tags) as string[],
+    ...(row.expiresAt === null ? {} : { expiresAt: row.expiresAt }),
+    ...(row.supersedesId === null ? {} : { supersedesId: row.supersedesId }),
+    ...(row.supersededBy === null ? {} : { supersededBy: row.supersededBy }),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 export class SqliteStore {
@@ -67,12 +103,37 @@ export class SqliteStore {
         value TEXT NOT NULL,
         source TEXT NOT NULL,
         confidence REAL NOT NULL,
+        tags TEXT NOT NULL DEFAULT '[]',
+        expires_at TEXT,
+        supersedes_id TEXT,
+        superseded_by TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS memories_scope ON memories(scope);
       CREATE INDEX IF NOT EXISTS memories_key ON memories(key);
     `);
+    this.addColumnIfMissing("memories", "tags", "TEXT NOT NULL DEFAULT '[]'");
+    this.addColumnIfMissing("memories", "expires_at", "TEXT");
+    this.addColumnIfMissing("memories", "supersedes_id", "TEXT");
+    this.addColumnIfMissing("memories", "superseded_by", "TEXT");
+    this.database.exec(`
+      CREATE INDEX IF NOT EXISTS memories_expiry ON memories(expires_at);
+      CREATE INDEX IF NOT EXISTS memories_superseded_by ON memories(superseded_by);
+    `);
+  }
+
+  private addColumnIfMissing(
+    table: string,
+    column: string,
+    definition: string,
+  ): void {
+    const columns = this.database
+      .prepare(`PRAGMA table_info(${table})`)
+      .all() as unknown as Array<{ name: string }>;
+    if (!columns.some((entry) => entry.name === column)) {
+      this.database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    }
   }
 
   saveTask(task: TaskRecord): void {
@@ -157,14 +218,21 @@ export class SqliteStore {
   putMemory(memory: MemoryRecord): void {
     this.database
       .prepare(`
-        INSERT INTO memories(id, scope, key, value, source, confidence, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO memories(
+          id, scope, key, value, source, confidence, tags, expires_at,
+          supersedes_id, superseded_by, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           scope = excluded.scope,
           key = excluded.key,
           value = excluded.value,
           source = excluded.source,
           confidence = excluded.confidence,
+          tags = excluded.tags,
+          expires_at = excluded.expires_at,
+          supersedes_id = excluded.supersedes_id,
+          superseded_by = excluded.superseded_by,
           updated_at = excluded.updated_at
       `)
       .run(
@@ -174,6 +242,10 @@ export class SqliteStore {
         memory.value,
         memory.source,
         memory.confidence,
+        JSON.stringify(memory.tags),
+        memory.expiresAt ?? null,
+        memory.supersedesId ?? null,
+        memory.supersededBy ?? null,
         memory.createdAt,
         memory.updatedAt,
       );
@@ -182,44 +254,83 @@ export class SqliteStore {
   getMemory(id: string): MemoryRecord | undefined {
     const row = this.database
       .prepare(`
-        SELECT id, scope, key, value, source, confidence,
+        SELECT id, scope, key, value, source, confidence, tags,
+               expires_at AS expiresAt, supersedes_id AS supersedesId,
+               superseded_by AS supersededBy,
                created_at AS createdAt, updated_at AS updatedAt
         FROM memories WHERE id = ?
       `)
-      .get(id) as MemoryRecord | undefined;
-    return row;
+      .get(id) as MemoryRow | undefined;
+    return row === undefined ? undefined : toMemoryRecord(row);
   }
 
-  listMemories(scope: MemoryScope, limit: number): MemoryRecord[] {
-    return this.database
+  listMemories(
+    scope: MemoryScope,
+    limit: number,
+    includeSuperseded = false,
+  ): MemoryRecord[] {
+    const rows = this.database
       .prepare(`
-        SELECT id, scope, key, value, source, confidence,
+        SELECT id, scope, key, value, source, confidence, tags,
+               expires_at AS expiresAt, supersedes_id AS supersedesId,
+               superseded_by AS supersededBy,
                created_at AS createdAt, updated_at AS updatedAt
         FROM memories
         WHERE scope = ?
+          AND (expires_at IS NULL OR expires_at > ?)
+          AND (? = 1 OR superseded_by IS NULL)
         ORDER BY updated_at DESC
         LIMIT ?
       `)
-      .all(scope, limit) as unknown as MemoryRecord[];
+      .all(
+        scope,
+        new Date().toISOString(),
+        includeSuperseded ? 1 : 0,
+        limit,
+      ) as unknown as MemoryRow[];
+    return rows.map(toMemoryRecord);
   }
 
-  searchMemories(
+  memoryCandidates(
     scope: MemoryScope,
-    query: string,
     limit: number,
+    includeSuperseded = false,
   ): MemoryRecord[] {
-    const pattern = `%${query.toLowerCase().replaceAll("%", "\\%").replaceAll("_", "\\_")}%`;
-    return this.database
+    const rows = this.database
       .prepare(`
-        SELECT id, scope, key, value, source, confidence,
+        SELECT id, scope, key, value, source, confidence, tags,
+               expires_at AS expiresAt, supersedes_id AS supersedesId,
+               superseded_by AS supersededBy,
                created_at AS createdAt, updated_at AS updatedAt
         FROM memories
         WHERE scope = ?
-          AND (lower(key) LIKE ? ESCAPE '\\' OR lower(value) LIKE ? ESCAPE '\\')
-        ORDER BY confidence DESC, updated_at DESC
+          AND (expires_at IS NULL OR expires_at > ?)
+          AND (? = 1 OR superseded_by IS NULL)
+        ORDER BY updated_at DESC
         LIMIT ?
       `)
-      .all(scope, pattern, pattern, limit) as unknown as MemoryRecord[];
+      .all(
+        scope,
+        new Date().toISOString(),
+        includeSuperseded ? 1 : 0,
+        limit,
+      ) as unknown as MemoryRow[];
+    return rows.map(toMemoryRecord);
+  }
+
+  supersedeMemory(
+    id: string,
+    scope: MemoryScope,
+    supersededBy: string,
+  ): boolean {
+    const result = this.database
+      .prepare(`
+        UPDATE memories
+        SET superseded_by = ?, updated_at = ?
+        WHERE id = ? AND scope = ? AND superseded_by IS NULL
+      `)
+      .run(supersededBy, new Date().toISOString(), id, scope);
+    return Number(result.changes) > 0;
   }
 
   deleteMemory(id: string, scope: MemoryScope): boolean {

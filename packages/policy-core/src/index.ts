@@ -179,6 +179,20 @@ export function classifyOperation(operation: Operation): {
         }`,
       };
     }
+    case "computer": {
+      const read =
+        operation.action === "capabilities" ||
+        operation.action === "screenshot";
+      return {
+        effect: read ? "read" : "mutate",
+        risk: read ? "low" : "high",
+        capability: `computer.${operation.action}`,
+        target:
+          operation.action === "click" || operation.action === "move"
+            ? `${operation.coordinateSpace}:${operation.x ?? "?"},${operation.y ?? "?"}`
+            : "active-desktop",
+      };
+    }
     case "system":
       return {
         effect: "read",

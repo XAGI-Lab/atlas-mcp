@@ -17,6 +17,9 @@ importers:
       '@types/node':
         specifier: 22.15.30
         version: 22.15.30
+      playwright-core:
+        specifier: 1.61.0
+        version: 1.61.0
       tsx:
         specifier: 4.20.6
         version: 4.20.6
@@ -32,6 +35,9 @@ importers:
       '@atlas-mcp/browser-runtime':
         specifier: workspace:*
         version: link:../../packages/browser-runtime
+      '@atlas-mcp/computer-runtime':
+        specifier: workspace:*
+        version: link:../../packages/computer-runtime
       '@atlas-mcp/policy-core':
         specifier: workspace:*
         version: link:../../packages/policy-core
@@ -62,6 +68,12 @@ importers:
       playwright-core:
         specifier: 1.61.0
         version: 1.61.0
+
+  packages/computer-runtime:
+    dependencies:
+      '@atlas-mcp/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/file-runtime:
     dependencies:
@@ -124,6 +136,9 @@ importers:
       '@atlas-mcp/browser-runtime':
         specifier: workspace:*
         version: link:../browser-runtime
+      '@atlas-mcp/computer-runtime':
+        specifier: workspace:*
+        version: link:../computer-runtime
       '@atlas-mcp/file-runtime':
         specifier: workspace:*
         version: link:../file-runtime

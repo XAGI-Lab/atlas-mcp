@@ -13,6 +13,7 @@ import {
 import { join, resolve } from "node:path";
 import type { Operation } from "@atlas-mcp/protocol";
 import { BrowserRuntime } from "@atlas-mcp/browser-runtime";
+import { ComputerRuntime } from "@atlas-mcp/computer-runtime";
 import { FileRuntime } from "@atlas-mcp/file-runtime";
 import { LocalMemory } from "@atlas-mcp/memory";
 import {
@@ -41,6 +42,7 @@ export class RuntimeRouter implements OperationExecutor {
     private readonly files: FileRuntime,
     private readonly terminal: TerminalRuntime,
     private readonly browser: BrowserRuntime,
+    private readonly computer: ComputerRuntime,
     private readonly memory: LocalMemory,
   ) {}
 
@@ -58,6 +60,8 @@ export class RuntimeRouter implements OperationExecutor {
         return await this.browser.execute(operation);
       case "memory":
         return this.memory.execute(operation);
+      case "computer":
+        return await this.computer.execute(operation, signal);
       case "system":
         return {
           platform: platform(),
@@ -116,7 +120,10 @@ export async function createAtlasRuntime(
       : { headless: options.browserHeadless }),
   });
   const memory = new LocalMemory(store);
-  const router = new RuntimeRouter(files, terminal, browser, memory);
+  const computer = new ComputerRuntime({
+    artifactDirectory: join(dataDirectory, "artifacts"),
+  });
+  const router = new RuntimeRouter(files, terminal, browser, computer, memory);
   const controller = new TaskController(
     store,
     policy,

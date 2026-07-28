@@ -79,6 +79,15 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
             "close",
           ],
           memory: ["put", "search", "list", "delete", "clear"],
+          computer: [
+            "capabilities",
+            "screenshot",
+            "click",
+            "move",
+            "type",
+            "key",
+            "scroll",
+          ],
           system: ["info"],
         },
         policy: {
