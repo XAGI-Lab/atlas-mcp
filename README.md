@@ -148,8 +148,7 @@ ATLAS MCP works with any MCP client that can launch a local stdio server.
 | **Claude Desktop** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
 | **Cursor** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
 | **VS Code** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
-| **Codex** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
-| **Generic stdio client** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
+| **Any stdio MCP client** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
 
 </div>
 

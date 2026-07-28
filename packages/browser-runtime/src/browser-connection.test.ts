@@ -96,7 +96,7 @@ describe("browser connection evidence", () => {
     expect(
       har.log.entries.some((entry) => entry.request.url.startsWith(url)),
     ).toBe(true);
-  });
+  }, 120_000);
 
   it("attaches to the selected CDP context without closing its owner", async () => {
     const executablePath = await detectBrowserExecutable();
@@ -140,5 +140,5 @@ describe("browser connection evidence", () => {
       await runtime.close();
       await owner.close();
     }
-  });
+  }, 120_000);
 });

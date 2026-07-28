@@ -78,6 +78,24 @@ Host exercised locally: macOS arm64 (Darwin 25.5.0), Node.js 24, Python 3.11.14
 
 This verifies the harness, not a browser-agent score.
 
+### Accepted dependency risk
+
+One advisory is knowingly allowed in the dependency-review gate:
+**GHSA-vfmq-68hx-4jfw** (`lxml < 6.1.0`, high) — XXE through the default
+`iterparse()` and `ETCompatXMLParser()` configuration.
+
+| Question | Answer |
+|---|---|
+| How does it enter? | Transitively via `browsergym-core`, behind the optional `miniwob` extra of `benchmarks/browser-agent` |
+| Is it in a shipped artifact? | No. Neither the published CLI nor the Python SDK installs it |
+| Why not patch it? | `browsergym-core==0.14.3` requires `lxml>=4.9,<6.0.0`; the fix lands in 6.1.0, and the browsergym version is frozen by the pre-registered manifests |
+| What would patching cost? | Invalidating the registered upstream selection that `verify-upstream` enforces |
+| Exposure | XML parsed from a local MiniWoB instance on a developer machine, not untrusted input |
+| Exit condition | Revisit when `browsergym-core` relaxes its `lxml` cap, re-register the upstream pins, then remove the allowance |
+
+The allowance names exactly one GHSA, so any other advisory in the benchmark
+dependency tree still fails the gate.
+
 **No representative browser-agent result is published, and none is claimed.**
 `docs/research/results/` deliberately contains no
 `browser-agent-benchmark.json`. Two prerequisites are outstanding and are both
