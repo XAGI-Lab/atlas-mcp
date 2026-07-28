@@ -1,0 +1,23 @@
+{
+  "goal": "Remember the repository test command",
+  "operation": {
+    "kind": "memory",
+    "action": "put",
+    "scope": "project",
+    "key": "test command",
+    "value": "Run pnpm check before opening a pull request.",
+    "source": "user-provided project procedure",
+    "confidence": 1,
+    "tags": [
+      "testing",
+      "procedure"
+    ]
+  },
+  "requiredEvidence": [
+    {
+      "type": "result_equals",
+      "path": "stored",
+      "value": true
+    }
+  ]
+}

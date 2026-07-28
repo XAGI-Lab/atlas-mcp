@@ -18,7 +18,7 @@
     "build": "pnpm -r build",
     "clean": "pnpm -r clean",
     "dev": "pnpm --filter @atlas-mcp/cli dev",
-    "atlas": "pnpm --filter @atlas-mcp/cli start",
+    "atlas": "tsx apps/cli/src/index.ts",
     "e2e": "pnpm --filter @atlas-mcp/server test:e2e",
     "docker:smoke": "node scripts/docker-smoke.mjs",
     "benchmark:core": "pnpm build && node scripts/bench-core.mjs",

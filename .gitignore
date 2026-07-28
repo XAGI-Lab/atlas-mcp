@@ -16,6 +16,7 @@ artifacts/
 evals/results/
 benchmarks/browser-agent/runs/
 benchmarks/browser-agent/**/*.har
+!benchmarks/browser-agent/tests/fixtures/**/*.har
 benchmarks/browser-agent/**/*.png
 benchmarks/browser-agent/**/*.webm
 benchmarks/browser-agent/**/*transcript*.json

@@ -48,6 +48,49 @@ ATLAS MCP turns a tool call into a durable, inspectable task:
 Every layer passes through the same policy, approval, budget, verification,
 receipt, and certificate pipeline.
 
+## Where you can use ATLAS MCP 🛠️
+
+ATLAS MCP works with coding assistants and other MCP clients that can launch a
+local stdio server. Claude Desktop, Cursor, VS Code, Codex, and generic stdio
+clients can use the [documented setup](docs/INSTALLATION.md); released-client
+verification status is tracked separately in
+[COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+| Use case | Small example | Verified outcome |
+|---|---|---|
+| 👩‍💻 **Coding clients** | Inspect a repository, run `pnpm check`, write a bounded file change | Exit code, file existence, content, or hash |
+| 🌐 **Browser workflows** | Open an allowlisted page, inspect it, fill a form after approval | Final URL and page content |
+| 💻 **Terminal automation** | Run a shell-free build or supervise a background process | Exit code and bounded stdout |
+| 🖥️ **Computer use** | Discover local support, capture a screenshot, approve pointer or keyboard input | Adapter result plus declared evidence |
+| 🧠 **Project memory** | Store a test command, architectural decision, or operating procedure | Scoped record with provenance and redaction |
+
+For example, a coding client can submit one governed terminal operation:
+
+```json
+{
+  "goal": "Run the repository checks",
+  "operation": {
+    "kind": "terminal",
+    "action": "run",
+    "command": "pnpm",
+    "args": ["check"]
+  },
+  "requiredEvidence": [
+    { "type": "exit_code", "value": 0 }
+  ]
+}
+```
+
+Or keep a project procedure locally:
+
+```bash
+pnpm atlas run --request examples/07-project-decision-memory/task.json
+```
+
+See all [runnable examples](examples/README.md), including browser inspection,
+verified file writes, terminal checks, scoped memory, and computer capability
+discovery.
+
 ## Evidence, not leaderboard theatre 📊
 
 The numbers below come from committed scripts and JSON artifacts on an Apple
@@ -209,6 +252,21 @@ git clone https://github.com/snap-research/locomo.git /tmp/locomo
 pnpm benchmark:locomo -- \
   --dataset /tmp/locomo/data/locomo10.json \
   --output docs/research/results/locomo-retrieval.json
+
+# browser benchmark contract and registered upstream selection
+pnpm benchmark:browser:check
+pnpm benchmark:browser:verify-upstream
+
+# MiniWoB development suite (requires pinned MiniWoB++ assets and agent config)
+uv run --project benchmarks/browser-agent --extra miniwob \
+  atlas-browser-bench run-miniwob \
+  --manifest benchmarks/browser-agent/manifests/miniwob-125-v1.json \
+  --run-dir benchmarks/browser-agent/runs/miniwob-candidate \
+  --workspace benchmarks/browser-agent/runs/workspaces \
+  --base-url "$MINIWOB_URL" \
+  --browser-executable "$ATLAS_MCP_BROWSER" \
+  --implementation-commit "$(git rev-parse HEAD)" \
+  --agent-config benchmarks/browser-agent/runs/agent-config.json
 ```
 
 Benchmark artifacts include dataset hashes, environment details, sample

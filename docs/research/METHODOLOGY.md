@@ -43,12 +43,44 @@ Browser fixtures use a local synthetic page with fixed mutation schedules.
 Terminal measurements use the current Node executable and exact argument
 separation. Computer microbenchmarks perform read-only capability probes.
 
-## Why public numbers differ from future agent scores
+## Representative browser protocol
+
+MiniWoB is the development suite. The manifest pins BrowserGym MiniWoB
+`0.14.3`, the BrowserGym source revision, the MiniWoB++ asset revision, and all
+125 registered task names. The compatibility test refuses task additions,
+removals, duplicates, or renames.
+
+The registered evaluation is labeled exactly
+`WebArena-Verified Hard-30 registered subset`. It contains 30 unique intent
+templates: 16 mutate, 5 navigate, and 9 retrieve tasks across GitLab, Reddit,
+Shopping, Shopping Admin, and cross-site work. It is not a full WebArena score
+or an official leaderboard submission.
+
+For the paired run:
+
+1. Baseline and candidate use the same frozen model, prompt, tool schema,
+   browser, environment images, task order, and limits.
+2. Both include the same benchmark-only CDP/HAR instrumentation.
+3. Sorted task positions alternate which implementation runs first.
+4. Every required site is reset before every side.
+5. An infrastructure failure on either side invalidates that pair.
+6. Process exit, model text, and successful browser actions do not count as
+   task success.
+7. Only `webarena-verified==1.2.3` score `1` counts as success.
+8. Aggregate success, Wilson intervals, paired outcomes, exact McNemar value,
+   latency, steps, MCP calls, and available token counts use the fixed
+   registered denominator.
+
+Raw HAR files and transcripts remain local. The public artifact contains only
+sanitized aggregate and per-task fields and must pass the repository's secret,
+query-value, and absolute-path publication gate.
+
+## Why public numbers differ from agent scores
 
 An MCP runtime controls execution; an agent or model still selects goals,
 operations, and evidence. End-to-end results depend on the model, prompt,
-context policy, environment state, and evaluator. Future WebArena, OSWorld,
-OSWorld-MCP, and LongMemEval runs must pin all of those inputs.
+context policy, environment state, and evaluator. WebArena, OSWorld,
+OSWorld-MCP, and LongMemEval results must pin all of those inputs.
 
 ## Updating a result
 
