@@ -13,6 +13,10 @@ const workspace = join(root, "workspace");
 const data = join(root, "data");
 await mkdir(workspace);
 await mkdir(data);
+const userArgs =
+  process.getuid === undefined || process.getgid === undefined
+    ? []
+    : ["--user", `${process.getuid()}:${process.getgid()}`];
 
 const childEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(
@@ -24,6 +28,7 @@ const transport = new StdioClientTransport({
   args: [
     "run",
     "--rm",
+    ...userArgs,
     "-i",
     "--read-only",
     "--security-opt",
