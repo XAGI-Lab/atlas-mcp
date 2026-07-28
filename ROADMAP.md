@@ -33,7 +33,7 @@ promise of stable API compatibility.
 - [ ] Resolver pinning or a browser proxy for complete DNS-rebinding defense.
 - [ ] Persistent opt-in browser profiles.
 - [ ] Deterministic browser recording and replay.
-- [ ] Chrome DevTools Protocol adapter in addition to Playwright.
+- [x] Opt-in Chrome DevTools Protocol attachment for shared benchmark sessions.
 
 ### Memory
 
@@ -91,7 +91,8 @@ promise of stable API compatibility.
 - [ ] Interactive terminal and pseudo-TTY support.
 - [ ] Package-installation and network-effect classifiers.
 - [x] Local fixed-wait versus condition-wait correctness/latency benchmark.
-- [ ] Representative BrowserGym reliability and token-cost benchmark.
+- [x] Pinned MiniWoB-125 development and WebArena-Verified Hard-30 harnesses.
+- [ ] Completed representative BrowserGym reliability and token-cost result.
 
 ### Transport and identity
 

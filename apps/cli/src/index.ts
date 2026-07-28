@@ -4,7 +4,6 @@
 
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { DatabaseSync } from "node:sqlite";
@@ -21,30 +20,10 @@ import {
 import { detectBrowserExecutable } from "@atlas-mcp/browser-runtime";
 import { createSystemComputerAdapter } from "@atlas-mcp/computer-runtime";
 import { createDefaultPolicy, evaluatePolicy } from "@atlas-mcp/policy-core";
-
-interface CliEnvironment {
-  workspaceRoot: string;
-  dataDirectory: string;
-  policyPath?: string;
-  browserExecutablePath?: string;
-}
-
-function environment(): CliEnvironment {
-  const workspaceRoot = resolve(process.env.ATLAS_MCP_WORKSPACE ?? process.cwd());
-  const dataDirectory = resolve(
-    process.env.ATLAS_MCP_HOME ?? join(homedir(), ".atlas-mcp"),
-  );
-  return {
-    workspaceRoot,
-    dataDirectory,
-    ...(process.env.ATLAS_MCP_POLICY === undefined
-      ? {}
-      : { policyPath: resolve(process.env.ATLAS_MCP_POLICY) }),
-    ...(process.env.ATLAS_MCP_BROWSER === undefined
-      ? {}
-      : { browserExecutablePath: resolve(process.env.ATLAS_MCP_BROWSER) }),
-  };
-}
+import {
+  type CliEnvironment,
+  parseCliEnvironment,
+} from "./environment.js";
 
 async function existingPolicyPath(env: CliEnvironment): Promise<string | undefined> {
   if (env.policyPath !== undefined) return env.policyPath;
@@ -66,6 +45,15 @@ async function runtime(env: CliEnvironment): Promise<AtlasRuntime> {
     ...(env.browserExecutablePath === undefined
       ? {}
       : { browserExecutablePath: env.browserExecutablePath }),
+    ...(env.browserCdpEndpoint === undefined
+      ? {}
+      : { browserCdpEndpoint: env.browserCdpEndpoint }),
+    ...(env.browserCdpContextIndex === undefined
+      ? {}
+      : { browserCdpContextIndex: env.browserCdpContextIndex }),
+    ...(env.browserHarPath === undefined
+      ? {}
+      : { browserHarPath: env.browserHarPath }),
   });
 }
 
@@ -292,12 +280,15 @@ Environment:
   ATLAS_MCP_HOME       Local database and artifact directory
   ATLAS_MCP_POLICY     Optional local policy JSON
   ATLAS_MCP_BROWSER    Optional Chrome/Chromium/Edge executable
+  ATLAS_MCP_BROWSER_CDP_ENDPOINT       Optional HTTP(S) CDP endpoint
+  ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX  External context index (-1 is last)
+  ATLAS_MCP_BROWSER_HAR_PATH           Absolute HAR output path
 `);
 }
 
 async function main(): Promise<void> {
   const [command = "help", ...args] = process.argv.slice(2);
-  const env = environment();
+  const env = parseCliEnvironment(process.env);
   switch (command) {
     case "doctor":
       process.exitCode = await doctor(env);

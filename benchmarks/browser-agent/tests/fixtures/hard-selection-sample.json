@@ -1,0 +1,57 @@
+[
+  {
+    "sites": ["gitlab"],
+    "task_id": 7,
+    "intent_template_id": 101,
+    "eval": [
+      {
+        "evaluator": "AgentResponseEvaluator",
+        "expected": { "task_type": "MUTATE" }
+      }
+    ]
+  },
+  {
+    "sites": ["gitlab"],
+    "task_id": 11,
+    "intent_template_id": 103,
+    "eval": [
+      {
+        "evaluator": "AgentResponseEvaluator",
+        "expected": { "task_type": "MUTATE" }
+      }
+    ]
+  },
+  {
+    "sites": ["gitlab"],
+    "task_id": 13,
+    "intent_template_id": 201,
+    "eval": [
+      {
+        "evaluator": "AgentResponseEvaluator",
+        "expected": { "task_type": "MUTATE" }
+      }
+    ]
+  },
+  {
+    "sites": ["gitlab"],
+    "task_id": 17,
+    "intent_template_id": 201,
+    "eval": [
+      {
+        "evaluator": "AgentResponseEvaluator",
+        "expected": { "task_type": "MUTATE" }
+      }
+    ]
+  },
+  {
+    "sites": ["reddit"],
+    "task_id": 19,
+    "intent_template_id": 201,
+    "eval": [
+      {
+        "evaluator": "AgentResponseEvaluator",
+        "expected": { "task_type": "RETRIEVE" }
+      }
+    ]
+  }
+]

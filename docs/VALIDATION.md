@@ -56,6 +56,61 @@ The container smoke test uses a read-only root filesystem, drops all Linux
 capabilities, sets `no-new-privileges`, and permits writes only to an explicit
 workspace, data directory, and bounded temporary filesystem.
 
+## Browser-agent benchmark harness evidence
+
+Date: 2026-07-29
+
+Branch: `coder/representative-browser-benchmark`
+
+Host exercised locally: macOS arm64 (Darwin 25.5.0), Node.js 24, Python 3.11.14
+
+| Gate | Result |
+|---|---|
+| `pnpm check` | passed (versions, strict typecheck, tests, Python) |
+| TypeScript/Vitest cases | 76 passed |
+| `pnpm evals` | 22 of 22 scenarios passed, 0 failed |
+| `pnpm e2e` | 7 end-to-end cases passed over real stdio |
+| `pnpm pack:check` | passed |
+| `pnpm security:audit` | no known vulnerabilities, Node and Python |
+| `pnpm benchmark:browser:check` | ruff clean, 24 pytest cases passed |
+| `pnpm benchmark:browser:verify-upstream` | `suite=webarena-verified-hard-30-v1 tasks=30 unique_templates=30` |
+| Both benchmark extras installed | `browsergym-miniwob==0.14.3` and `webarena-verified==1.2.3` resolve; 24 pytest cases passed |
+
+This verifies the harness, not a browser-agent score.
+
+### Accepted dependency risk
+
+One advisory is knowingly allowed in the dependency-review gate:
+**GHSA-vfmq-68hx-4jfw** (`lxml < 6.1.0`, high) — XXE through the default
+`iterparse()` and `ETCompatXMLParser()` configuration.
+
+| Question | Answer |
+|---|---|
+| How does it enter? | Transitively via `browsergym-core`, behind the optional `miniwob` extra of `benchmarks/browser-agent` |
+| Is it in a shipped artifact? | No. Neither the published CLI nor the Python SDK installs it |
+| Why not patch it? | `browsergym-core==0.14.3` requires `lxml>=4.9,<6.0.0`; the fix lands in 6.1.0, and the browsergym version is frozen by the pre-registered manifests |
+| What would patching cost? | Invalidating the registered upstream selection that `verify-upstream` enforces |
+| Exposure | XML parsed from a local MiniWoB instance on a developer machine, not untrusted input |
+| Exit condition | Revisit when `browsergym-core` relaxes its `lxml` cap, re-register the upstream pins, then remove the allowance |
+
+The allowance names exactly one GHSA, so any other advisory in the benchmark
+dependency tree still fails the gate.
+
+**No representative browser-agent result is published, and none is claimed.**
+`docs/research/results/` deliberately contains no
+`browser-agent-benchmark.json`. Two prerequisites are outstanding and are both
+approval-gated by design:
+
+- the 125-task MiniWoB development run needs an authorized model and a
+  credential in the environment named by the agent configuration;
+- the `WebArena-Verified Hard-30 registered subset` run needs the six official
+  site containers, which require roughly two orders of magnitude more free disk
+  than this host currently has, so it needs an explicitly authorized
+  environment.
+
+Until both complete, the run manifest stays unfrozen and the publication gate
+has nothing to accept. Any score quoted before then is unsupported.
+
 ## Reproduce
 
 ```bash
@@ -65,6 +120,9 @@ pnpm check
 pnpm evals
 pnpm e2e
 pnpm pack:check
+pnpm security:audit
+pnpm benchmark:browser:check
+pnpm benchmark:browser:verify-upstream
 docker build -t atlas-mcp:local .
 docker run --rm atlas-mcp:local doctor
 pnpm docker:smoke

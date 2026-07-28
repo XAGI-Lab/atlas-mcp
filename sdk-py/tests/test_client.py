@@ -29,6 +29,15 @@ async def test_python_sdk_uses_the_real_stdio_server(tmp_path: Path) -> None:
             "PATH": os.environ["PATH"],
         },
     ) as atlas:
+        direct_capabilities = await atlas.call_tool("atlas_capabilities", {})
+        assert direct_capabilities["tools"] == [
+            "atlas_capabilities",
+            "atlas_plan",
+            "atlas_execute",
+            "atlas_task_status",
+            "atlas_task_cancel",
+            "atlas_receipt",
+        ]
         capabilities = await atlas.capabilities()
         assert capabilities["product"] == "ATLAS MCP"
         task = await atlas.plan(

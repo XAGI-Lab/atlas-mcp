@@ -35,6 +35,9 @@ export interface AtlasRuntimeOptions {
   policyPath?: string;
   browserExecutablePath?: string;
   browserHeadless?: boolean;
+  browserCdpEndpoint?: string;
+  browserCdpContextIndex?: number;
+  browserHarPath?: string;
 }
 
 export class RuntimeRouter implements OperationExecutor {
@@ -118,6 +121,15 @@ export async function createAtlasRuntime(
     ...(options.browserHeadless === undefined
       ? {}
       : { headless: options.browserHeadless }),
+    ...(options.browserCdpEndpoint === undefined
+      ? {}
+      : { cdpEndpoint: options.browserCdpEndpoint }),
+    ...(options.browserCdpContextIndex === undefined
+      ? {}
+      : { cdpContextIndex: options.browserCdpContextIndex }),
+    ...(options.browserHarPath === undefined
+      ? {}
+      : { recordHarPath: options.browserHarPath }),
   });
   const memory = new LocalMemory(store);
   const computer = new ComputerRuntime({

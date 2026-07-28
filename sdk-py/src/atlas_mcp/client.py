@@ -68,7 +68,8 @@ class AtlasClient:
             raise RuntimeError("AtlasClient must be used as an async context manager")
         return self._session
 
-    async def _call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Call one ATLAS MCP tool and parse its JSON text result."""
         result = await self.session.call_tool(name, arguments)
         text = next(
             (
@@ -86,10 +87,10 @@ class AtlasClient:
         return parsed
 
     async def capabilities(self) -> dict[str, Any]:
-        return await self._call("atlas_capabilities", {})
+        return await self.call_tool("atlas_capabilities", {})
 
     async def plan(self, request: dict[str, Any]) -> dict[str, Any]:
-        return await self._call("atlas_plan", request)
+        return await self.call_tool("atlas_plan", request)
 
     async def execute(
         self,
@@ -99,13 +100,13 @@ class AtlasClient:
         arguments: dict[str, Any] = {"taskId": task_id}
         if approval is not None:
             arguments["approval"] = approval
-        return await self._call("atlas_execute", arguments)
+        return await self.call_tool("atlas_execute", arguments)
 
     async def status(self, task_id: str) -> dict[str, Any]:
-        return await self._call("atlas_task_status", {"taskId": task_id})
+        return await self.call_tool("atlas_task_status", {"taskId": task_id})
 
     async def cancel(self, task_id: str) -> dict[str, Any]:
-        return await self._call("atlas_task_cancel", {"taskId": task_id})
+        return await self.call_tool("atlas_task_cancel", {"taskId": task_id})
 
     async def receipt(
         self,
@@ -120,4 +121,4 @@ class AtlasClient:
             arguments["taskId"] = task_id
         if receipt_id is not None:
             arguments["receiptId"] = receipt_id
-        return await self._call("atlas_receipt", arguments)
+        return await self.call_tool("atlas_receipt", arguments)

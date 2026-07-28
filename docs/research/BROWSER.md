@@ -39,5 +39,39 @@ result: a fixed wait is fast but reads stale state every time.
 - Live-site and template-specific success must not be presented as a
   representative browser leaderboard.
 
-Representative end-to-end evaluation remains future work through the official
-[BrowserGym](https://github.com/ServiceNow/BrowserGym) environments.
+## Representative evaluation harness
+
+The repository now includes two separate browser-agent evaluation tracks:
+
+- a development suite containing all 125 tasks registered by
+  `browsergym-miniwob==0.14.3`;
+- a pre-registered `WebArena-Verified Hard-30 registered subset` evaluated by
+  `webarena-verified==1.2.3`.
+
+The MiniWoB integration launches a pinned Chrome process, places BrowserGym's
+official task page in the shared CDP context, and drives each browser action
+through the real ATLAS MCP stdio server. BrowserGym—not the action return
+value—determines task reward. Records are bounded, append-only, and resumable
+only when their frozen input digest matches.
+
+The Hard-30 harness checks the registered task IDs and intent templates against
+the official dataset, verifies environment-control readiness and immutable
+image digests, resets every site before each implementation side, alternates
+baseline/candidate order, and accepts only the official evaluator score as task
+success. Raw HAR, cookies, form data, and provider transcripts are ignored by
+Git and must not be published.
+
+No representative score is claimed yet. A score will be added only after the
+full fixed-denominator run completes without infrastructure-invalid pairs and
+its sanitized aggregate artifact passes the publication gate.
+
+Reproduce the harness checks:
+
+```bash
+pnpm benchmark:browser:check
+pnpm benchmark:browser:verify-upstream
+
+uv run --project benchmarks/browser-agent \
+  --extra miniwob --extra webarena --group test \
+  pytest benchmarks/browser-agent -q
+```

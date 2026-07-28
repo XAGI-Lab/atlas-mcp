@@ -71,16 +71,25 @@ describe("TerminalRuntime", () => {
       }),
     );
     expect(started.started).toBe(true);
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
-    const output = await runtime.execute(
-      TerminalOperationSchema.parse({
-        kind: "terminal",
-        action: "output",
-        jobId: started.jobId,
-      }),
-    );
+    // The child writes its output and then exits on its own. How long that
+    // takes depends on process startup under CI load, so poll for completion
+    // rather than assuming it finishes within a fixed wall-clock delay.
+    const deadline = Date.now() + 10_000;
+    const readOutput = async () =>
+      runtime.execute(
+        TerminalOperationSchema.parse({
+          kind: "terminal",
+          action: "output",
+          jobId: started.jobId,
+        }),
+      );
+    let output = await readOutput();
+    while (output.running === true && Date.now() < deadline) {
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
+      output = await readOutput();
+    }
     expect(output.stdout).toContain("background-ready");
     expect(output.running).toBe(false);
     runtime.close();
-  });
+  }, 30_000);
 });

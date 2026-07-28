@@ -1,0 +1,12 @@
+{
+  "headers": {
+    "Authorization": "Bearer secret-token",
+    "Cookie": "session_cookie"
+  },
+  "url": "https://example.test/form?password=example&safe=value",
+  "path": "/Users/example/project/artifacts/screenshot.png",
+  "typed": "typed private text",
+  "trace": {
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  }
+}

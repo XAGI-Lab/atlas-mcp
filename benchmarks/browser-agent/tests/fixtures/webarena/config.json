@@ -1,0 +1,9 @@
+{
+  "environments": {
+    "shopping_admin": {
+      "urls": [
+        "http://shopping-admin.test"
+      ]
+    }
+  }
+}

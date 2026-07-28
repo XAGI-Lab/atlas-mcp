@@ -40,6 +40,20 @@ ATLAS MCP uses these environment variables:
 | `ATLAS_MCP_POLICY` | Optional local policy JSON | safe built-in policy |
 | `ATLAS_MCP_BROWSER` | Chrome, Chromium, or Edge executable | auto-detected |
 
+These three variables exist for benchmark and diagnostic harnesses. Leave them
+unset for normal use, which keeps the default isolated browser behavior:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `ATLAS_MCP_BROWSER_CDP_ENDPOINT` | Attach to an already-running browser over CDP instead of launching one. Must be an `http`/`https` URL with no credentials, query, or fragment. | unset (ATLAS launches its own browser) |
+| `ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX` | Which existing browser context to use, or `-1` for the default context. Requires `ATLAS_MCP_BROWSER_CDP_ENDPOINT`. | unset |
+| `ATLAS_MCP_BROWSER_HAR_PATH` | Absolute path for an HTTP archive recording of the session. | unset (no recording) |
+
+Attaching over CDP and recording a HAR are mutually exclusive; setting both
+fails at startup. A HAR captures full request and response data, including
+cookies, headers, and form bodies — treat the file as a secret and never commit
+it.
+
 Generate a safe starter policy and a client configuration:
 
 ```bash

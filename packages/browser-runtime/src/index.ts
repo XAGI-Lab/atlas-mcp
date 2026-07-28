@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createHash, randomUUID } from "node:crypto";
-import { access, mkdir, readFile, realpath, stat } from "node:fs/promises";
-import { constants } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { mkdir, readFile, realpath, stat } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type {
   Browser,
   BrowserContext,
   Locator,
   Page,
+  Route,
 } from "playwright-core";
-import { chromium } from "playwright-core";
 import type { BrowserOperation } from "@atlas-mcp/protocol";
+import {
+  connectBrowser,
+  type BrowserConnection,
+} from "./browser-connection.js";
 import {
   assertSafeUrl,
   type NetworkPolicy,
@@ -24,44 +27,17 @@ export interface BrowserRuntimeOptions extends NetworkPolicy {
   workspaceRoot: string;
   executablePath?: string;
   headless?: boolean;
-}
-
-const CHROME_PATHS: Partial<Record<NodeJS.Platform, string[]>> = {
-  darwin: [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-  ],
-  linux: [
-    "/usr/bin/google-chrome",
-    "/usr/bin/google-chrome-stable",
-    "/usr/bin/chromium",
-    "/usr/bin/chromium-browser",
-    "/usr/bin/microsoft-edge",
-  ],
-  win32: [
-    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-  ],
-};
-
-export async function detectBrowserExecutable(): Promise<string | undefined> {
-  for (const path of CHROME_PATHS[process.platform] ?? []) {
-    try {
-      await access(path, constants.X_OK);
-      return path;
-    } catch {
-      // Continue to the next supported browser location.
-    }
-  }
-  return undefined;
+  cdpEndpoint?: string;
+  cdpContextIndex?: number;
+  recordHarPath?: string;
 }
 
 export class BrowserRuntime {
   private browser: Browser | undefined;
   private context: BrowserContext | undefined;
   private activePage: Page | undefined;
+  private connection: BrowserConnection | undefined;
+  private routeHandler: ((route: Route) => Promise<void>) | undefined;
 
   constructor(private readonly options: BrowserRuntimeOptions) {}
 
@@ -97,24 +73,29 @@ export class BrowserRuntime {
 
   private async ensureContext(): Promise<BrowserContext> {
     if (this.context !== undefined) return this.context;
-    const executablePath =
-      this.options.executablePath ?? (await detectBrowserExecutable());
-    if (executablePath === undefined) {
-      throw new Error(
-        "browser_not_found: install Chrome, Chromium, or Edge and rerun atlas-mcp doctor",
-      );
-    }
     await mkdir(this.options.artifactDirectory, { recursive: true });
-    this.browser = await chromium.launch({
-      executablePath,
+    if (this.options.recordHarPath !== undefined) {
+      await mkdir(dirname(this.options.recordHarPath), { recursive: true });
+    }
+    const connection = await connectBrowser({
+      ...(this.options.executablePath === undefined
+        ? {}
+        : { executablePath: this.options.executablePath }),
       headless: this.options.headless ?? true,
+      ...(this.options.cdpEndpoint === undefined
+        ? {}
+        : { cdpEndpoint: this.options.cdpEndpoint }),
+      ...(this.options.cdpContextIndex === undefined
+        ? {}
+        : { cdpContextIndex: this.options.cdpContextIndex }),
+      ...(this.options.recordHarPath === undefined
+        ? {}
+        : { recordHarPath: this.options.recordHarPath }),
     });
-    this.context = await this.browser.newContext({
-      acceptDownloads: true,
-      viewport: { width: 1280, height: 800 },
-      serviceWorkers: "block",
-    });
-    await this.context.route("**/*", async (route) => {
+    this.connection = connection;
+    this.browser = connection.browser;
+    this.context = connection.context;
+    this.routeHandler = async (route) => {
       const requestUrl = route.request().url();
       if (
         requestUrl.startsWith("data:") ||
@@ -130,7 +111,8 @@ export class BrowserRuntime {
       } catch {
         await route.abort("blockedbyclient");
       }
-    });
+    };
+    await this.context.route("**/*", this.routeHandler);
     this.context.on("close", () => {
       this.context = undefined;
       this.activePage = undefined;
@@ -373,13 +355,30 @@ export class BrowserRuntime {
   }
 
   async close(): Promise<void> {
-    await this.context?.close().catch(() => undefined);
-    await this.browser?.close().catch(() => undefined);
+    const connection = this.connection;
+    if (
+      connection !== undefined &&
+      !connection.ownsContext &&
+      this.routeHandler !== undefined
+    ) {
+      await connection.context
+        .unroute("**/*", this.routeHandler)
+        .catch(() => undefined);
+    }
+    if (connection?.ownsContext === true) {
+      await connection.context.close().catch(() => undefined);
+    }
+    if (connection?.ownsBrowser === true) {
+      await connection.browser.close().catch(() => undefined);
+    }
     this.activePage = undefined;
     this.context = undefined;
     this.browser = undefined;
+    this.connection = undefined;
+    this.routeHandler = undefined;
   }
 }
 
 export * from "./network-policy.js";
 export * from "./stable-dom.js";
+export * from "./browser-connection.js";

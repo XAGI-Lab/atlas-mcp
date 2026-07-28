@@ -1,81 +1,258 @@
-<p align="center">
-  <img src="docs/assets/atlas-mcp-logo.png" alt="ATLAS MCP logo" width="156" />
-</p>
+<div align="center">
 
-<h1 align="center">ATLAS MCP</h1>
+<img src="docs/assets/atlas-mcp-logo.png" alt="ATLAS MCP logo" width="150" />
 
-<p align="center">
-  <strong>Safe execution. Durable memory. Verified outcomes.</strong>
-</p>
+# ATLAS MCP
 
-<p align="center">
-  An open-source Model Context Protocol runtime for files, terminal, browser,
-  memory, and computer use—with policy checks, bounded execution, and evidence
-  for every result.
-</p>
+### Safe execution · Durable memory · Verified outcomes
 
-<p align="center">
-  <a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" /></a>
-  <a href="https://github.com/XAGI-Lab/atlas-mcp/releases"><img src="https://img.shields.io/github/v/release/XAGI-Lab/atlas-mcp?include_prereleases&color=8b5cf6" alt="Latest release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-f97316.svg" alt="Apache-2.0 license" /></a>
-  <img src="https://img.shields.io/badge/evals-22%2F22-22c55e.svg" alt="22 of 22 deterministic evaluations passing" />
-  <img src="https://img.shields.io/badge/telemetry-off-0f172a.svg" alt="Telemetry off" />
-  <a href="https://github.com/XAGI-Lab/atlas-mcp/discussions"><img src="https://img.shields.io/badge/discussions-join-2563eb.svg" alt="GitHub Discussions" /></a>
-</p>
+An open-source **Model Context Protocol** runtime for files, terminal, browser,
+memory, and computer use — with policy checks, bounded execution, and
+cryptographic evidence for every result.
 
-<p align="center">
-  <img src="docs/assets/atlas-mcp-hero.png" alt="ATLAS MCP governed execution flow" width="100%" />
-</p>
+<br />
+
+<!-- Build & quality -->
+<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
+<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL status" /></a>
+<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/audit.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/audit.yml/badge.svg" alt="Dependency audit status" /></a>
+<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/container.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/container.yml/badge.svg" alt="Container build status" /></a>
+
+<!-- Evidence -->
+<img src="https://img.shields.io/badge/evals-22%2F22_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="22 of 22 deterministic evaluations passing" />
+<img src="https://img.shields.io/badge/unit_tests-76_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="76 unit tests passing" />
+<img src="https://img.shields.io/badge/e2e-7_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="7 end-to-end cases passing" />
+<img src="https://img.shields.io/badge/vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known vulnerabilities" />
+
+<br />
+
+<!-- Stack -->
+<img src="https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript strict" />
+<img src="https://img.shields.io/badge/Node.js-22_%7C_24-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22 and 24" />
+<img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11 or newer" />
+<img src="https://img.shields.io/badge/pnpm-9.5-F69220?style=flat-square&logo=pnpm&logoColor=white" alt="pnpm 9.5" />
+<img src="https://img.shields.io/badge/SQLite-local_state-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite local state" />
+<img src="https://img.shields.io/badge/Playwright-browser-2EAD33?style=flat-square&logo=playwright&logoColor=white" alt="Playwright browser runtime" />
+<img src="https://img.shields.io/badge/Docker-hardened-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Hardened Docker image" />
+
+<br />
+
+<!-- Platform & project -->
+<img src="https://img.shields.io/badge/macOS-supported-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS supported" />
+<img src="https://img.shields.io/badge/Linux-supported-FCC624?style=flat-square&logo=linux&logoColor=black" alt="Linux supported" />
+<img src="https://img.shields.io/badge/Windows-supported-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Windows supported" />
+<img src="https://img.shields.io/badge/transport-stdio-475569?style=flat-square" alt="Local stdio transport" />
+<img src="https://img.shields.io/badge/telemetry-off-0f172a?style=flat-square" alt="Telemetry off" />
+
+<br />
+
+<a href="https://github.com/XAGI-Lab/atlas-mcp/releases"><img src="https://img.shields.io/github/v/release/XAGI-Lab/atlas-mcp?include_prereleases&style=flat-square&color=8b5cf6&logo=github" alt="Latest release" /></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-f97316?style=flat-square" alt="Apache-2.0 license" /></a>
+<a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/DCO-required-6366f1?style=flat-square&logo=git&logoColor=white" alt="DCO sign-off required" /></a>
+<a href="https://github.com/XAGI-Lab/atlas-mcp/discussions"><img src="https://img.shields.io/badge/discussions-join-2563eb?style=flat-square&logo=github" alt="GitHub Discussions" /></a>
+<a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-ec4899?style=flat-square" alt="Pull requests welcome" /></a>
+
+<br /><br />
+
+<img src="docs/assets/atlas-mcp-hero.png" alt="ATLAS MCP governed execution flow" width="100%" />
+
+</div>
+
+<br />
 
 > [!WARNING]
-> ATLAS MCP is an alpha release. Its local stdio runtime is tested end to end,
-> but APIs may change before `1.0`. Use an isolated workspace, keep domain and
-> command allowlists narrow, and review every consequential approval.
+> **ATLAS MCP is an alpha release.** Its local stdio runtime is tested end to
+> end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
+> and command allowlists narrow, and review every consequential approval.
+
+---
+
+## Contents
+
+| | | |
+|---|---|---|
+| [Why ATLAS MCP](#why-atlas-mcp) | [Execution layers](#one-runtime-five-execution-layers-) | [Where to use it](#where-you-can-use-atlas-mcp-) |
+| [Quickstart](#quickstart-) | [MCP tool surface](#a-deliberately-small-mcp-surface-) | [How execution works](#how-execution-works-) |
+| [Evidence](#evidence-not-leaderboard-theatre-) | [Safe defaults](#safe-defaults-) | [Reproduce the scores](#reproduce-the-scores-) |
+| [SDKs](#sdks-and-implementation-languages-) | [Repository map](#repository-map-) | [Documentation](#documentation-) |
+
+---
+
+## Why ATLAS MCP
+
+Most MCP servers hand a model a tool and hope for the best. A command runs, a
+click lands, a file is written — and "it returned without an error" is treated
+as success.
+
+ATLAS MCP separates **the action succeeded** from **the goal was achieved**.
+
+<table>
+<tr>
+<th width="50%">🚫 Typical tool server</th>
+<th width="50%">✅ ATLAS MCP</th>
+</tr>
+<tr>
+<td>
+
+- Tool call executes immediately
+- Success = no exception thrown
+- Policy, if any, checked once
+- Mutations are indistinguishable from reads
+- Output is trusted
+- No durable record
+
+</td>
+<td>
+
+- **Plan** and **execute** are separate tool calls
+- Success = declared evidence predicates passed
+- Policy re-evaluated **at execution time**
+- Mutations need evidence **and** an exact approval phrase
+- Page content is explicitly marked untrusted
+- Redacted receipt + SHA-256 execution certificate
+
+</td>
+</tr>
+</table>
+
+If a mutation succeeds but its required evidence is missing or false, the task
+is `partial` — **never** `verified_success`.
+
+---
 
 ## One runtime, five execution layers 🧭
 
 ATLAS MCP turns a tool call into a durable, inspectable task:
 
-| Layer | What is implemented |
-|---|---|
-| 🗂️ **Files** | Root-confined read, hash, atomic write, move, mkdir, and delete with symlink-escape defenses |
-| 💻 **Terminal** | Shell-free foreground and supervised background processes with allowlists, timeouts, cancellation, and redaction |
-| 🌐 **Browser** | Isolated Playwright sessions, semantic DOM targets, bounded artifacts, network policy, and condition-based post-action settling |
-| 🧠 **Memory** | Scoped SQLite memory with hybrid lexical ranking, episode context, speaker matching, confidence, freshness, diversity, expiry, supersession, provenance, and redaction |
-| 🖥️ **Computer** | Capability discovery plus governed screenshot, pointer, keyboard, and scroll adapters on macOS and supported Linux/X11 setups |
+| | Layer | What is implemented |
+|:--:|---|---|
+| 🗂️ | **Files** | Root-confined read, hash, atomic write, move, mkdir, and delete with symlink-escape defenses |
+| 💻 | **Terminal** | Shell-free foreground and supervised background processes with allowlists, timeouts, cancellation, and redaction |
+| 🌐 | **Browser** | Isolated Playwright sessions, semantic DOM targets, bounded artifacts, network policy, and condition-based post-action settling |
+| 🧠 | **Memory** | Scoped SQLite memory with hybrid lexical ranking, episode context, speaker matching, confidence, freshness, diversity, expiry, supersession, provenance, and redaction |
+| 🖥️ | **Computer** | Capability discovery plus governed screenshot, pointer, keyboard, and scroll adapters on macOS and supported Linux/X11 setups |
 
 Every layer passes through the same policy, approval, budget, verification,
 receipt, and certificate pipeline.
 
-## Evidence, not leaderboard theatre 📊
+---
 
-The numbers below come from committed scripts and JSON artifacts on an Apple
-Silicon Mac. They are component measurements, not a claim that ATLAS MCP is
-universally “the best” or that unlike benchmarks are directly comparable.
+## Where you can use ATLAS MCP 🛠️
 
-| Capability | Current public result | What it means |
-|---|---:|---|
-| 🧠 LoCoMo retrieval | **0.7597 mean evidence coverage @20** | 1,982 evidence-bearing questions; +20.75% relative over the previous public ranker; zero model, embedding, or network calls |
-| 🧠 Synthetic recall | **100/100 Recall@1** | Deterministic planted-fact regression over 1,000 records |
-| 🌐 Static-page settle | **183.7 ms p50 vs 301.3 ms** | 39% less waiting with identical 10/10 correct reads |
-| 🌐 Slow-render settle | **10/10 vs 0/10 correct** | Condition-based waiting observes the final DOM; fixed 300 ms reads too early |
-| 💻 Terminal | **30/30 verified executions** | Shell-free process launch; 48.1 ms p50 on the measured machine |
-| 🖥️ Computer control plane | **30/30 capability probes** | 0.032 ms p50 adapter discovery; this is not a desktop task-success score |
-| ✅ Safety/execution evals | **22/22 passing** | Deterministic policy, traversal, terminal, memory, computer, cancellation, and verification scenarios |
+ATLAS MCP works with any MCP client that can launch a local stdio server.
 
-Read the [research index](docs/research/README.md), the
-[benchmark methodology](docs/research/METHODOLOGY.md), and the raw
-[microbenchmark](docs/research/results/core-microbenchmarks.json) and
-[LoCoMo](docs/research/results/locomo-retrieval.json) artifacts.
+<div align="center">
 
-> [!IMPORTANT]
-> ATLAS MCP has **not** run an official OSWorld, OSWorld-MCP, WebArena, or
-> LongMemEval end-to-end submission. Those scores remain unclaimed until the
-> exact public harness, environment, model policy, and evaluator are released
-> with the result.
+| Client | Setup | Status |
+|---|:--:|:--:|
+| **Claude Desktop** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
+| **Cursor** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
+| **VS Code** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
+| **Any stdio MCP client** | [docs](docs/INSTALLATION.md) | <img src="https://img.shields.io/badge/documented-2563eb?style=flat-square" alt="documented" /> |
+
+</div>
+
+> [!NOTE]
+> A named client is marked **verified** only after the *released artifact* —
+> not a source checkout — passes discovery, planning, approval, execution,
+> cancellation, and receipt retrieval in that client. Current per-client status
+> is tracked in [COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+### What people actually do with it
+
+| | Use case | Small example | Verified outcome |
+|:--:|---|---|---|
+| 👩‍💻 | **Coding clients** | Inspect a repository, run `pnpm check`, write a bounded file change | Exit code, file existence, content, or hash |
+| 🌐 | **Browser workflows** | Open an allowlisted page, inspect it, fill a form after approval | Final URL and page content |
+| 💻 | **Terminal automation** | Run a shell-free build or supervise a background process | Exit code and bounded stdout |
+| 🖥️ | **Computer use** | Discover local support, capture a screenshot, approve pointer or keyboard input | Adapter result plus declared evidence |
+| 🧠 | **Project memory** | Store a test command, architectural decision, or operating procedure | Scoped record with provenance and redaction |
+
+<details>
+<summary><b>Show a governed terminal operation</b></summary>
+
+<br />
+
+A coding client submits one bounded operation with the evidence it expects:
+
+```json
+{
+  "goal": "Run the repository checks",
+  "operation": {
+    "kind": "terminal",
+    "action": "run",
+    "command": "pnpm",
+    "args": ["check"]
+  },
+  "requiredEvidence": [
+    { "type": "exit_code", "value": 0 }
+  ]
+}
+```
+
+The task reaches `verified_success` only if the process exits `0`. A process
+that runs and exits `1` is a completed action with failed evidence — reported
+as `partial`.
+
+</details>
+
+<details>
+<summary><b>Show scoped project memory</b></summary>
+
+<br />
+
+```bash
+pnpm atlas run --request examples/07-project-decision-memory/task.json
+```
+
+Records are scoped, provenance-tagged, and pass through secret redaction before
+they are persisted.
+
+</details>
+
+See all [runnable examples](examples/README.md) — browser inspection, verified
+file writes, terminal checks, scoped memory, and computer capability discovery.
+
+---
+
+## Quickstart 🚀
+
+**Requirements:** Node.js 22+, pnpm 9.5, and optionally Chrome, Chromium, or
+Edge for browser work.
+
+```bash
+git clone https://github.com/XAGI-Lab/atlas-mcp.git
+cd atlas-mcp
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+pnpm atlas doctor
+pnpm atlas init --client generic
+```
+
+<table>
+<tr><th>Goal</th><th>Command</th></tr>
+<tr><td>Start the stdio server</td><td><code>pnpm atlas serve</code></td></tr>
+<tr><td>Run a read-only system task</td><td><code>pnpm atlas run --request examples/01-system-info/task.json</code></td></tr>
+<tr><td>Run a verified mutation</td><td><code>pnpm atlas run --request examples/02-verified-file-write/task.json</code></td></tr>
+<tr><td>Inspect a stored receipt</td><td><code>pnpm atlas inspect &lt;task-id&gt;</code></td></tr>
+<tr><td>Test a policy file</td><td><code>pnpm atlas policy test</code></td></tr>
+</table>
+
+Mutations pause for an exact, expiring, task-scoped approval phrase. See
+[installation and client setup](docs/INSTALLATION.md) for Claude Desktop,
+Cursor, VS Code, generic clients, Python, and Docker.
+
+> [!CAUTION]
+> The npm package `atlas-mcp` and the PyPI package `atlas-mcp` are **unrelated
+> third-party projects**. Install only from this repository or from official
+> [XAGI-Lab releases](https://github.com/XAGI-Lab/atlas-mcp/releases).
+
+---
 
 ## A deliberately small MCP surface ✨
+
+Six tools, in front of five capability runtimes:
 
 | MCP tool | Purpose |
 |---|---|
@@ -89,61 +266,7 @@ Read the [research index](docs/research/README.md), the
 High-level tools keep schemas compact while the operation contract carries the
 specific file, terminal, browser, memory, computer, or system action.
 
-## Quickstart 🚀
-
-Requirements: Node.js 22 or newer, pnpm 9.5, and optionally Chrome, Chromium,
-or Edge for browser work.
-
-```bash
-git clone https://github.com/XAGI-Lab/atlas-mcp.git
-cd atlas-mcp
-corepack enable
-pnpm install --frozen-lockfile
-pnpm build
-pnpm atlas doctor
-pnpm atlas init --client generic
-```
-
-Start the stdio server:
-
-```bash
-pnpm atlas serve
-```
-
-Run a read-only system task:
-
-```bash
-pnpm atlas run --request examples/01-system-info/task.json
-```
-
-Run a verified mutation:
-
-```bash
-pnpm atlas run --request examples/02-verified-file-write/task.json
-```
-
-Mutations pause for an exact, expiring, task-scoped approval phrase. See
-[installation and client setup](docs/INSTALLATION.md) for Claude Desktop,
-Cursor, VS Code, generic clients, Python, and Docker.
-
-## Example: inspect computer-use support 🖥️
-
-Computer input is never silently assumed. Discover the adapter first:
-
-```json
-{
-  "goal": "Inspect local computer-use support",
-  "operation": {
-    "kind": "computer",
-    "action": "capabilities"
-  }
-}
-```
-
-Screenshots are read-only. Pointer, typing, key, and scroll actions are
-high-risk mutations: they require declared evidence and a scoped approval.
-macOS also requires Screen Recording or Accessibility permission for the
-corresponding action. Linux input currently requires `xdotool` and X11.
+---
 
 ## How execution works ⚙️
 
@@ -162,39 +285,87 @@ flowchart LR
     Partial --> Receipt
 ```
 
+Task lifecycle:
+
 ```text
 planned → awaiting_approval → running → verifying
                                      ↘ verified_success
                                      ↘ partial | failed | cancelled | budget_exhausted
 ```
 
-A successful process or click is not automatically a successful goal. If a
-mutation succeeds but its required evidence is missing or false, the task is
-`partial`, never `verified_success`.
+Policy is evaluated **twice** — once when the plan is persisted and again at
+execution — so a stale plan can never ride a since-tightened policy.
+
+---
+
+## Evidence, not leaderboard theatre 📊
+
+The numbers below come from committed scripts and JSON artifacts measured on an
+Apple Silicon Mac. They are **component measurements**, not a claim that ATLAS
+MCP is universally "the best" or that unlike benchmarks are comparable.
+
+| | Capability | Current public result | What it means |
+|:--:|---|---:|---|
+| 🧠 | LoCoMo retrieval | **0.7597** mean evidence coverage@20 | 1,982 evidence-bearing questions; +20.75% relative over the previous public ranker; zero model, embedding, or network calls |
+| 🧠 | Synthetic recall | **100/100** Recall@1 | Deterministic planted-fact regression over 1,000 records |
+| 🌐 | Static-page settle | **183.7 ms** p50 vs 301.3 ms | 39% less waiting with identical 10/10 correct reads |
+| 🌐 | Slow-render settle | **10/10** vs 0/10 correct | Condition-based waiting observes the final DOM; fixed 300 ms reads too early |
+| 💻 | Terminal | **30/30** verified executions | Shell-free process launch; 48.1 ms p50 on the measured machine |
+| 🖥️ | Computer control plane | **30/30** capability probes | 0.032 ms p50 adapter discovery; this is *not* a desktop task-success score |
+| ✅ | Safety/execution evals | **22/22** passing | Deterministic policy, traversal, terminal, memory, computer, cancellation, and verification scenarios |
+
+Read the [research index](docs/research/README.md), the
+[benchmark methodology](docs/research/METHODOLOGY.md), and the raw
+[microbenchmark](docs/research/results/core-microbenchmarks.json) and
+[LoCoMo](docs/research/results/locomo-retrieval.json) artifacts.
+
+### Browser-agent evaluation — harness registered, score not yet claimed
+
+The repository contains a pre-registered browser-agent evaluation harness:
+
+| Track | Status |
+|---|---|
+| MiniWoB-125 development suite (`browsergym-miniwob==0.14.3`) | <img src="https://img.shields.io/badge/harness-ready-2563eb?style=flat-square" alt="harness ready" /> |
+| WebArena-Verified Hard-30 registered subset (`webarena-verified==1.2.3`) | <img src="https://img.shields.io/badge/harness-ready-2563eb?style=flat-square" alt="harness ready" /> |
+| Published representative score | <img src="https://img.shields.io/badge/not_yet_run-64748b?style=flat-square" alt="not yet run" /> |
+
+Task IDs, upstream revisions, and dataset hashes are frozen in
+[`benchmarks/browser-agent/manifests/`](benchmarks/browser-agent/manifests) and
+enforced by `pnpm benchmark:browser:verify-upstream`. A score will be published
+only after a full fixed-denominator run completes without infrastructure-invalid
+pairs *and* its sanitized artifact passes the publication gate.
+
+> [!IMPORTANT]
+> ATLAS MCP has **not** run an official OSWorld, OSWorld-MCP, WebArena, or
+> LongMemEval end-to-end submission. Those scores remain unclaimed until the
+> exact public harness, environment, model policy, and evaluator are released
+> with the result.
+
+---
 
 ## Safe defaults 🔒
 
-- Local-only stdio transport; no account or hosted service is required.
-- Telemetry is off.
-- Shell interpreters, privilege escalation, and arbitrary desktop key names
-  are denied.
-- Paths and terminal working directories remain inside the configured root.
-- Browser domains start deny-by-default; private, link-local, loopback, and
-  cloud-metadata destinations stay blocked unless explicitly permitted.
-- Browser output is marked untrusted; page content never changes policy.
-- Mutations require both declared evidence and exact task-scoped approval.
-- Raw secret patterns are redacted before terminal output, memory, tasks, or
-  receipts are persisted.
-- Computer actions use bounded typed fields and platform adapters—not a
-  user-supplied shell command.
+| | Default |
+|:--:|---|
+| 🏠 | Local-only stdio transport; no account or hosted service required |
+| 📴 | Telemetry is **off** |
+| 🚫 | Shell interpreters, privilege escalation, and arbitrary desktop key names are denied |
+| 📁 | Paths and terminal working directories stay inside the configured root |
+| 🌐 | Browser domains start **deny-by-default**; private, link-local, loopback, and cloud-metadata destinations stay blocked unless explicitly permitted |
+| ⚠️ | Browser output is marked untrusted; page content never changes policy |
+| ✍️ | Mutations require **both** declared evidence and an exact task-scoped approval |
+| 🔑 | Secret patterns are redacted before terminal output, memory, tasks, or receipts are persisted |
+| 🎛️ | Computer actions use bounded typed fields and platform adapters — not a user-supplied shell command |
 
 See the [threat model](docs/THREAT_MODEL.md) and
 [security policy](SECURITY.md) for residual risks.
 
+---
+
 ## Reproduce the scores 🧪
 
 ```bash
-# full validation
+# full validation gate
 pnpm check
 pnpm evals
 pnpm e2e
@@ -203,29 +374,75 @@ pnpm security:audit
 
 # local memory, browser, terminal, and computer microbenchmarks
 pnpm benchmark:core
+```
 
-# official LoCoMo data is intentionally not vendored (CC BY-NC 4.0)
+<details>
+<summary><b>LoCoMo memory retrieval</b> — dataset intentionally not vendored (CC BY-NC 4.0)</summary>
+
+<br />
+
+```bash
 git clone https://github.com/snap-research/locomo.git /tmp/locomo
 pnpm benchmark:locomo -- \
   --dataset /tmp/locomo/data/locomo10.json \
   --output docs/research/results/locomo-retrieval.json
 ```
 
-Benchmark artifacts include dataset hashes, environment details, sample
-counts, latency percentiles, and claim boundaries.
+</details>
+
+<details>
+<summary><b>Browser-agent harness</b> — contract checks and the MiniWoB development suite</summary>
+
+<br />
+
+Contract and registered-selection checks run with no model and no network
+environment:
+
+```bash
+pnpm benchmark:browser:check
+pnpm benchmark:browser:verify-upstream
+```
+
+The MiniWoB development suite additionally needs the pinned MiniWoB++ assets, a
+built CLI (`pnpm build`), and an agent configuration whose `api_key_env` names a
+variable present in the environment:
+
+```bash
+uv run --project benchmarks/browser-agent --extra miniwob \
+  atlas-browser-bench run-miniwob \
+  --manifest benchmarks/browser-agent/manifests/miniwob-125-v1.json \
+  --run-dir benchmarks/browser-agent/runs/miniwob-candidate \
+  --workspace benchmarks/browser-agent/runs/workspaces \
+  --base-url "$MINIWOB_BASE_URL" \
+  --browser-executable "$ATLAS_MCP_BROWSER" \
+  --implementation-commit "$(git rev-parse HEAD)" \
+  --agent-config benchmarks/browser-agent/runs/config/agent.json
+```
+
+Run outputs — HAR, screenshots, video, and transcripts — are Git-ignored and
+must never be committed.
+
+</details>
+
+Benchmark artifacts include dataset hashes, environment details, sample counts,
+latency percentiles, and explicit claim boundaries.
+
+---
 
 ## SDKs and implementation languages 🧩
 
-- [`@atlas-mcp/sdk`](packages/sdk-ts) — TypeScript client.
-- [`atlas-mcp`](sdk-py) — Python client.
-- [`@atlas-mcp/protocol`](packages/protocol) and
-  [`@atlas-mcp/receipt-schema`](packages/receipt-schema) — language-neutral
-  JSON contracts.
+| SDK | Package | Language |
+|---|---|:--:|
+| TypeScript client | [`@atlas-mcp/sdk`](packages/sdk-ts) | <img src="https://img.shields.io/badge/-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" /> |
+| Python client | [`atlas-mcp`](sdk-py) | <img src="https://img.shields.io/badge/-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" /> |
+| JSON contracts | [`@atlas-mcp/protocol`](packages/protocol) · [`@atlas-mcp/receipt-schema`](packages/receipt-schema) | <img src="https://img.shields.io/badge/-000000?style=flat-square&logo=json&logoColor=white" alt="JSON" /> |
 
 ATLAS MCP is capability-driven, not language-restricted. Rust, Go, Python,
-TypeScript, Swift, C#, or another language can be used when measurement shows
-a real improvement in isolation, portability, performance, reliability, or
+TypeScript, Swift, C#, or another language can be used when measurement shows a
+real improvement in isolation, portability, performance, reliability, or
 platform integration without fragmenting the public contracts.
+
+---
 
 ## Repository map 🗂️
 
@@ -245,38 +462,53 @@ packages/verifier-core/     deterministic evidence predicates
 packages/receipt-schema/    receipts and execution certificates
 packages/sdk-ts/            TypeScript client SDK
 sdk-py/                     Python client SDK
+benchmarks/browser-agent/   pre-registered browser-agent evaluation harness
 evals/                      deterministic evaluation harness
 scripts/                    benchmark and release checks
 docs/research/              methods, findings, and raw results
 examples/                   runnable task examples
 ```
 
+---
+
 ## Documentation 📚
 
-- [Installation and client setup](docs/INSTALLATION.md)
-- [Capabilities and limits](docs/CAPABILITIES.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Research and benchmarks](docs/research/README.md)
-- [Compatibility policy](docs/COMPATIBILITY.md)
-- [Validation evidence](docs/VALIDATION.md)
-- [Threat model](docs/THREAT_MODEL.md)
-- [Roadmap](ROADMAP.md)
+| | | |
+|---|---|---|
+| 📦 [Installation & client setup](docs/INSTALLATION.md) | 🧭 [Capabilities & limits](docs/CAPABILITIES.md) | 🏛️ [Architecture](docs/ARCHITECTURE.md) |
+| 🔬 [Research & benchmarks](docs/research/README.md) | 🔗 [Compatibility policy](docs/COMPATIBILITY.md) | ✅ [Validation evidence](docs/VALIDATION.md) |
+| 🛡️ [Threat model](docs/THREAT_MODEL.md) | 🗺️ [Roadmap](ROADMAP.md) | 📝 [Changelog](CHANGELOG.md) |
+
+---
 
 ## Contributing 🤝
 
 Code, adapters, benchmark harnesses, verifier predicates, documentation, and
-threat analysis are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md),
-sign commits under the DCO, and report vulnerabilities through
-[GitHub private vulnerability reporting](https://github.com/XAGI-Lab/atlas-mcp/security/advisories/new).
+threat analysis are all welcome.
+
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
+   [Code of Conduct](CODE_OF_CONDUCT.md).
+2. Sign your commits under the DCO (`git commit -s`).
+3. Run `pnpm check` before opening a pull request.
+4. Report vulnerabilities through
+   [GitHub private vulnerability reporting](https://github.com/XAGI-Lab/atlas-mcp/security/advisories/new)
+   — never in a public issue.
+
+---
 
 ## License 📄
 
 Software and documentation are licensed under the
 [Apache License 2.0](LICENSE). The official logo and hero artwork are licensed
-under [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt); see
-[BRAND.md](BRAND.md). Third-party benchmark datasets retain their own licenses
-and are not included in this repository.
+under [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt); see [BRAND.md](BRAND.md).
+Third-party benchmark datasets retain their own licenses and are not included
+in this repository.
 
-<p align="center">
-  Built in the open by <a href="https://github.com/XAGI-Lab">XAGI Labs</a>.
-</p>
+<div align="center">
+<br />
+
+**Built in the open by [XAGI Labs](https://github.com/XAGI-Lab).**
+
+<sub>ATLAS MCP brand assets © XAGI Labs Private Limited, licensed CC BY-ND 4.0.</sub>
+
+</div>

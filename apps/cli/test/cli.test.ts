@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import { parseCliEnvironment } from "../src/environment.js";
 
 const execute = promisify(execFile);
 const roots: string[] = [];
@@ -17,6 +18,72 @@ afterEach(async () => {
 });
 
 describe("atlas-mcp CLI", () => {
+  it("parses explicit benchmark browser connection options", () => {
+    const parsed = parseCliEnvironment(
+      {
+        ATLAS_MCP_WORKSPACE: "/tmp/atlas-workspace",
+        ATLAS_MCP_HOME: "/tmp/atlas-home",
+        ATLAS_MCP_BROWSER: "/Applications/Google Chrome",
+        ATLAS_MCP_BROWSER_CDP_ENDPOINT: "http://127.0.0.1:9222",
+        ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX: "-1",
+      },
+      {
+        cwd: "/tmp/fallback-workspace",
+        home: "/tmp/fallback-home",
+      },
+    );
+    expect(parsed).toEqual({
+      workspaceRoot: resolve("/tmp/atlas-workspace"),
+      dataDirectory: resolve("/tmp/atlas-home"),
+      browserExecutablePath: resolve("/Applications/Google Chrome"),
+      browserCdpEndpoint: "http://127.0.0.1:9222/",
+      browserCdpContextIndex: -1,
+    });
+    expect(
+      parseCliEnvironment(
+        { ATLAS_MCP_BROWSER_HAR_PATH: "/tmp/atlas-run/network.har" },
+        {
+          cwd: "/tmp/fallback-workspace",
+          home: "/tmp/fallback-home",
+        },
+      ).browserHarPath,
+    ).toBe(resolve("/tmp/atlas-run/network.har"));
+  });
+
+  it("rejects unsafe or ambiguous browser connection options", () => {
+    const defaults = {
+      cwd: "/tmp/fallback-workspace",
+      home: "/tmp/fallback-home",
+    };
+    expect(() =>
+      parseCliEnvironment(
+        { ATLAS_MCP_BROWSER_CDP_ENDPOINT: "ws://127.0.0.1:9222" },
+        defaults,
+      ),
+    ).toThrow("browser_cdp_endpoint_invalid");
+    expect(() =>
+      parseCliEnvironment(
+        { ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX: "-2" },
+        defaults,
+      ),
+    ).toThrow("browser_cdp_context_index_invalid");
+    expect(() =>
+      parseCliEnvironment(
+        { ATLAS_MCP_BROWSER_HAR_PATH: "relative/network.har" },
+        defaults,
+      ),
+    ).toThrow("browser_har_path_must_be_absolute");
+    expect(() =>
+      parseCliEnvironment(
+        {
+          ATLAS_MCP_BROWSER_CDP_ENDPOINT: "http://127.0.0.1:9222",
+          ATLAS_MCP_BROWSER_HAR_PATH: "/tmp/network.har",
+        },
+        defaults,
+      ),
+    ).toThrow("browser_cdp_cannot_start_har_recording");
+  });
+
   it("prints the product version", async () => {
     const result = await execute(process.execPath, [entry, "version"]);
     expect(result.stdout.trim()).toBe("0.2.0-alpha.1");

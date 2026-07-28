@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atlas-browser-bench"
+version = "0.1.0"
+description = "Representative browser-agent benchmarks for ATLAS MCP."
+requires-python = ">=3.11,<3.12"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "atlas-mcp",
+  "httpx>=0.28,<1",
+]
+
+[project.optional-dependencies]
+miniwob = ["browsergym-miniwob==0.14.3"]
+webarena = ["webarena-verified==1.2.3"]
+
+[dependency-groups]
+test = [
+  "pytest>=9,<10",
+  "pytest-asyncio>=1,<2",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+atlas-browser-bench = "atlas_browser_bench.cli:main"
+
+[tool.uv.sources]
+atlas-mcp = { path = "../../sdk-py" }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/atlas_browser_bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
