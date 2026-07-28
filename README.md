@@ -227,8 +227,12 @@ not a public issue.
 
 ## License 📄
 
-ATLAS MCP is licensed under the
+The software and documentation are licensed under the
 [Apache License 2.0](LICENSE).
+
+The official logo and hero artwork are licensed under
+[CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt). See the
+[brand guidelines](BRAND.md) for attribution and permitted use.
 
 <p align="center">
   Built in the open by <a href="https://github.com/XAGI-Lab">XAGI Labs</a>.
