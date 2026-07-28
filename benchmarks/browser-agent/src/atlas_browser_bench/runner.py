@@ -328,6 +328,7 @@ async def run_miniwob_suite(
     limits: RunLimits,
     seed: int = 0,
     task_limit: int | None = None,
+    requests_per_minute: int | None = None,
     progress: Callable[[str, BrowserTaskRecord | dict[str, object]], None] | None = None,
 ) -> tuple[BrowserTaskRecord | dict[str, object], ...]:
     raw_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -349,10 +350,15 @@ async def run_miniwob_suite(
         if task_limit < 1:
             raise ValueError("task_limit_must_be_positive")
         tasks = tasks[:task_limit]
+    if requests_per_minute is not None and requests_per_minute < 1:
+        raise ValueError("requests_per_minute_must_be_positive")
     agent = OpenAICompatibleAgent(
         base_url=agent_base_url,
         api_key=api_key,
         model_id=model_id,
+        min_request_interval_seconds=(
+            0 if requests_per_minute is None else 60 / requests_per_minute
+        ),
     )
     run_input_digest = build_run_input_digest(
         manifest=raw_manifest,

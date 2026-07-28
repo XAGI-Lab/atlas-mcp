@@ -254,3 +254,59 @@ async def test_agent_gives_up_after_bounded_rate_limit_attempts() -> None:
         with pytest.raises(httpx.HTTPStatusError):
             await agent.decide(_CONTEXT)
     assert _RateLimitedHandler.attempts == 3
+
+
+@pytest.mark.asyncio
+async def test_agent_paces_requests_to_respect_a_request_budget() -> None:
+    """A provider budget must be respected before it is exceeded.
+
+    Retrying after 429 is not enough on a small per-minute allowance: the
+    rejected requests keep the window saturated. The agent must space requests
+    so the budget is not exceeded in the first place.
+    """
+    waits: list[float] = []
+    now = [1000.0]
+
+    async def record(seconds: float) -> None:
+        waits.append(seconds)
+        now[0] += seconds
+
+    with rate_limited_server(rejections=0) as base_url:
+        agent = OpenAICompatibleAgent(
+            base_url=base_url,
+            api_key="test-only",
+            model_id="provider-model-snapshot-2026-07-28",
+            min_request_interval_seconds=3,
+            sleep=record,
+            clock=lambda: now[0],
+        )
+        await agent.decide(_CONTEXT)
+        assert waits == []  # first request is immediate
+        await agent.decide(_CONTEXT)
+        await agent.decide(_CONTEXT)
+    assert waits == [3, 3]
+    assert _RateLimitedHandler.attempts == 3
+
+
+@pytest.mark.asyncio
+async def test_agent_pacing_does_not_wait_when_enough_time_already_passed() -> None:
+    waits: list[float] = []
+    now = [1000.0]
+
+    async def record(seconds: float) -> None:
+        waits.append(seconds)
+        now[0] += seconds
+
+    with rate_limited_server(rejections=0) as base_url:
+        agent = OpenAICompatibleAgent(
+            base_url=base_url,
+            api_key="test-only",
+            model_id="provider-model-snapshot-2026-07-28",
+            min_request_interval_seconds=3,
+            sleep=record,
+            clock=lambda: now[0],
+        )
+        await agent.decide(_CONTEXT)
+        now[0] += 10  # caller was slow; no extra pacing needed
+        await agent.decide(_CONTEXT)
+    assert waits == []

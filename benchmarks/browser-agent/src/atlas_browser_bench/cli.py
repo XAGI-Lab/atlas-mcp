@@ -72,6 +72,7 @@ def _parser() -> argparse.ArgumentParser:
     miniwob.add_argument("--task-timeout-seconds", type=float, default=180)
     miniwob.add_argument("--seed", type=int, default=0)
     miniwob.add_argument("--task-limit", type=int)
+    miniwob.add_argument("--requests-per-minute", type=int)
 
     preflight_hard30 = commands.add_parser("preflight-hard30")
     preflight_hard30.add_argument("--manifest", type=Path, default=_REGISTERED_HARD30)
@@ -203,6 +204,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ),
                 seed=args.seed,
                 task_limit=args.task_limit,
+                requests_per_minute=args.requests_per_minute,
                 progress=progress,
             )
         )
