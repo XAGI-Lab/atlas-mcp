@@ -94,3 +94,33 @@ async def test_atlas_action_changes_the_page_browsergym_scores(tmp_path: Path) -
                 after = await environment.observe_after_mcp_action()
             assert after.reward == 1
             assert after.terminated is True
+
+
+@pytest.mark.asyncio
+async def test_consecutive_tasks_reuse_one_playwright_thread(tmp_path: Path) -> None:
+    """A suite runs many tasks in one process, so opening twice must work.
+
+    BrowserGym's sync Playwright is a process-global bound to whichever thread
+    first created it. Giving each task its own worker thread leaves that global
+    pointing at a thread that has exited, and the second task dies with
+    greenlet.error rather than running.
+    """
+    executable = browser_executable()
+    if executable is None:
+        pytest.skip("supported browser is not installed")
+    if not (ASSETS / "miniwob" / "html" / "miniwob" / "click-test.html").is_file():
+        pytest.skip("pinned MiniWoB++ assets are not installed")
+    with asset_server() as base_url:
+        for index, task in enumerate(
+            ("browsergym/miniwob.click-test", "browsergym/miniwob.click-button")
+        ):
+            workspace = tmp_path / str(index)
+            workspace.mkdir()
+            async with MiniWobEnvironment.open(
+                task,
+                base_url=base_url,
+                browser_executable=executable,
+                workspace=workspace,
+                seed=0,
+            ) as environment:
+                assert environment.initial.observation["goal"]
