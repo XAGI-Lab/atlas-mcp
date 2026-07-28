@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T16:26:36.337Z",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "node": "v24.10.0"
+  },
+  "memory": {
+    "corpusSize": 1000,
+    "queries": 100,
+    "recallAt1": 1,
+    "recallAt5": 1,
+    "latencyMs": {
+      "p50": 3.621,
+      "p95": 8.162
+    },
+    "modelCalls": 0,
+    "networkCalls": 0
+  },
+  "terminal": {
+    "executions": 30,
+    "verifiedExecutions": 30,
+    "successRate": 1,
+    "processLatencyMs": {
+      "p50": 48.087,
+      "p95": 54.492
+    },
+    "shell": false
+  },
+  "browser": {
+    "skipped": false,
+    "browserExecutable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "profiles": {
+      "static": {
+        "fixed300": {
+          "iterations": 10,
+          "waitMs": {
+            "p50": 301.259,
+            "p95": 301.471
+          },
+          "correctReadRate": 1
+        },
+        "condition": {
+          "iterations": 10,
+          "waitMs": {
+            "p50": 183.703,
+            "p95": 191.874
+          },
+          "correctReadRate": 1
+        }
+      },
+      "burst": {
+        "fixed300": {
+          "iterations": 10,
+          "waitMs": {
+            "p50": 301.221,
+            "p95": 304.772
+          },
+          "correctReadRate": 1
+        },
+        "condition": {
+          "iterations": 10,
+          "waitMs": {
+            "p50": 309.955,
+            "p95": 311.91
+          },
+          "correctReadRate": 1
+        }
+      },
+      "slow": {
+        "fixed300": {
+          "iterations": 10,
+          "waitMs": {
+            "p50": 301.247,
+            "p95": 302.059
+          },
+          "correctReadRate": 0
+        },
+        "condition": {
+          "iterations": 10,
+          "waitMs": {
+            "p50": 904.633,
+            "p95": 907.067
+          },
+          "correctReadRate": 1
+        }
+      }
+    }
+  },
+  "computer": {
+    "capabilityProbes": 30,
+    "successfulProbes": 30,
+    "probeLatencyMs": {
+      "p50": 0.032,
+      "p95": 0.052
+    },
+    "capabilities": {
+      "platform": "darwin",
+      "adapter": "macos-native",
+      "available": true,
+      "screenshot": true,
+      "pointer": true,
+      "keyboard": true,
+      "scroll": true,
+      "coordinateSpaces": [
+        "normalized",
+        "pixel"
+      ],
+      "limitations": [
+        "macOS Screen Recording permission is required for screenshots",
+        "macOS Accessibility permission is required for input actions",
+        "normalized coordinates currently target the main display"
+      ]
+    },
+    "taskBenchmark": {
+      "measured": false,
+      "reason": "OSWorld and OSWorld-MCP require a controlled VM, model policy, and official evaluator; no task-success score is claimed by this microbenchmark."
+    }
+  },
+  "claimBoundary": "These are local component microbenchmarks, not cross-product leaderboard results."
+}
