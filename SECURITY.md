@@ -2,8 +2,8 @@
 
 ## Supported versions
 
-ATLAS MCP is currently pre-alpha. Security fixes are applied to the default
-branch until the first versioned release.
+ATLAS MCP is currently alpha software. Security fixes are applied to the
+default branch and the latest tagged alpha once releases begin.
 
 ## Report a vulnerability
 
@@ -30,7 +30,14 @@ ATLAS MCP must not require:
 - telemetry;
 - non-public source code.
 
-Mutating tools must be explicitly classified and gated. Evidence must redact
-secrets. A successful API response alone is not proof of goal completion.
+Mutating tools are explicitly classified, require expected evidence, and are
+approval-gated. Evidence is structured and common secret forms are redacted
+before persistence. A successful adapter response alone is not proof of goal
+completion.
+
+Local storage is not encrypted and is not a credential vault. Configure
+`ATLAS_MCP_HOME` in a private local directory with appropriate operating-system
+permissions. Use a narrow domain and command allowlist, and run untrusted tasks
+inside the documented container profile.
 
 See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).

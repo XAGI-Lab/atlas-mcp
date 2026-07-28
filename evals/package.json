@@ -1,0 +1,19 @@
+{
+  "name": "@atlas-mcp/evals",
+  "version": "0.1.0-alpha.0",
+  "description": "Deterministic safety and execution evaluations for ATLAS MCP.",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist results",
+    "evaluate": "tsx src/runner.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@atlas-mcp/protocol": "workspace:*",
+    "@atlas-mcp/server": "workspace:*"
+  }
+}

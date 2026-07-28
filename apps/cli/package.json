@@ -1,0 +1,33 @@
+{
+  "name": "@atlas-mcp/cli",
+  "version": "0.1.0-alpha.0",
+  "description": "ATLAS MCP local execution runtime and command-line interface.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "atlas-mcp": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "clean": "rm -rf dist",
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "pack:check": "npm pack --dry-run",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@atlas-mcp/browser-runtime": "workspace:*",
+    "@atlas-mcp/policy-core": "workspace:*",
+    "@atlas-mcp/protocol": "workspace:*",
+    "@atlas-mcp/server": "workspace:*",
+    "@atlas-mcp/storage-sqlite": "workspace:*"
+  }
+}

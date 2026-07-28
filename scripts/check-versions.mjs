@@ -1,0 +1,34 @@
+// Copyright 2026 XAGI Labs Private Limited
+// SPDX-License-Identifier: Apache-2.0
+
+import { readFile } from "node:fs/promises";
+import { glob } from "node:fs/promises";
+
+const root = JSON.parse(await readFile("package.json", "utf8"));
+const expected = root.version;
+const failures = [];
+
+for await (const path of glob("{apps,packages}/*/package.json")) {
+  const manifest = JSON.parse(await readFile(path, "utf8"));
+  if (manifest.version !== expected) {
+    failures.push(`${path}: ${manifest.version ?? "missing"} != ${expected}`);
+  }
+}
+
+const protocol = await readFile("packages/protocol/src/index.ts", "utf8");
+if (!protocol.includes(`PRODUCT_VERSION = "${expected}"`)) {
+  failures.push("packages/protocol/src/index.ts: PRODUCT_VERSION mismatch");
+}
+
+const python = await readFile("sdk-py/pyproject.toml", "utf8");
+const pythonExpected = expected.replace("-alpha.", "a");
+if (!python.includes(`version = "${pythonExpected}"`)) {
+  failures.push(`sdk-py/pyproject.toml: expected ${pythonExpected}`);
+}
+
+if (failures.length > 0) {
+  process.stderr.write(`${failures.join("\n")}\n`);
+  process.exitCode = 1;
+} else {
+  process.stdout.write(`All package versions match ${expected}.\n`);
+}

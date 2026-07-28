@@ -1,6 +1,9 @@
 * @dheeraj-codingdesk @Gautam-R-Patil
 
-/packages/core/ @dheeraj-codingdesk
+/packages/runtime-core/ @dheeraj-codingdesk @Gautam-R-Patil
+/packages/policy-core/ @dheeraj-codingdesk @Gautam-R-Patil
+/packages/protocol/ @dheeraj-codingdesk @Gautam-R-Patil
+/packages/server/ @dheeraj-codingdesk @Gautam-R-Patil
 /docs/ARCHITECTURE.md @dheeraj-codingdesk @Gautam-R-Patil
 /docs/THREAT_MODEL.md @dheeraj-codingdesk @Gautam-R-Patil
 /docs/decisions/ @dheeraj-codingdesk @Gautam-R-Patil

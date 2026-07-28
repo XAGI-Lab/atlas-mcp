@@ -1,0 +1,19 @@
+{
+  "goal": "Open and verify the Example Domain page",
+  "operation": {
+    "kind": "browser",
+    "action": "navigate",
+    "url": "https://example.com",
+    "timeoutMs": 30000
+  },
+  "requiredEvidence": [
+    {
+      "type": "url_matches",
+      "pattern": "https://example.com*"
+    },
+    {
+      "type": "page_contains",
+      "text": "Example Domain"
+    }
+  ]
+}

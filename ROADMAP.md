@@ -1,123 +1,110 @@
 # Roadmap
 
 ATLAS MCP is an open-source product for governed and verifiable MCP execution.
+Checked items are implemented on the current alpha branch; they are not a
+promise of stable API compatibility.
 
-## Project setup
+## v0.1 — local execution alpha
 
-- [x] Establish Apache-2.0 licensing.
-- [x] Add governance, security, contribution, and conduct policies.
-- [x] Add architecture, product-scope, threat-model, and validation documents.
-- [x] Add the first tested execution-safety primitives.
-- [x] Configure issues, discussions, CodeQL, dependency review, and Dependabot.
-- [ ] Finalize repository rules and required CI checks.
-- [ ] Verify package namespace and release-signing identities.
+### Runtime and protocol
 
-## Execution core
+- [x] Six-tool MCP contract with strict versioned schemas.
+- [x] Local stdio transport.
+- [x] Durable task state, budgets, cancellation, and bounded read retries.
+- [x] Local allow/deny/confirm policy re-evaluated at execution.
+- [x] Exact, expiring, task-scoped approvals.
+- [x] Redacted action receipts and SHA-256 execution certificates.
+- [x] Deterministic result, file, terminal, URL, and page verification.
+- [x] Local SQLite task, receipt, certificate, and memory storage.
+- [ ] Crash-safe resume rules for interrupted non-idempotent work.
+- [ ] Circuit breakers shared across related tasks.
 
-- [ ] Capability declaration and validation.
-- [ ] Approval policy.
-- [x] Retry and loop guard.
-- [x] Verify-after-mutation gate.
-- [ ] Circuit breaker and error recovery.
-- [ ] Task state machine.
-- [ ] Cooperative cancellation and timeouts.
-- [ ] Durable local storage.
-- [ ] Evidence receipts, hashing, and redaction.
-- [ ] Deterministic verifier interface.
+### File, terminal, and browser
 
-## MCP runtime
+- [x] Root-confined file read, write, move, delete, stat, list, and hash.
+- [x] Symlink escape protection and bounded file size.
+- [x] Shell-free terminal commands with command and environment policy.
+- [x] Foreground and supervised background process lifecycle.
+- [x] Output limits, secret redaction, timeout, status, logs, and cancellation.
+- [x] Isolated browser session and tab lifecycle.
+- [x] Typed navigation, DOM inspection, forms, keyboard, scroll, and tabs.
+- [x] Screenshots, uploads, downloads, and artifact hashing.
+- [x] SSRF, cloud-metadata, redirect, and repeated DNS-address checks.
+- [ ] Resolver pinning or a browser proxy for complete DNS-rebinding defense.
+- [ ] Persistent opt-in browser profiles.
+- [ ] Deterministic browser recording and replay.
+- [ ] Chrome DevTools Protocol adapter in addition to Playwright.
 
-- [ ] Versioned protocol schemas.
-- [ ] Stdio server.
-- [ ] Local Streamable HTTP server.
-- [ ] Read-only filesystem adapter.
-- [ ] Read-only HTTP adapter.
-- [ ] Explicitly approved mutation adapters.
-- [ ] Client setup guides.
+### Memory
 
-## Computer use
+- [x] Local account-free memory.
+- [x] Session, task, project, workspace, user, and procedural scopes.
+- [x] Provenance, confidence, search, listing, deletion, clear, and export.
+- [x] Secret redaction before persistence.
+- [ ] Expiry and retention policies.
+- [ ] Semantic embeddings and hybrid retrieval.
+- [ ] Freshness, conflict resolution, and consolidation.
+- [ ] Prompt-injection and memory-poisoning classifiers.
+
+### Developer experience and release
+
+- [x] CLI doctor, init, serve, run, inspect, export, and policy test.
+- [x] TypeScript and Python client SDKs.
+- [x] Docker image and hardened Compose configuration.
+- [x] Twenty-one deterministic evaluation scenarios.
+- [x] Real MCP stdio, browser, container, and Python interoperability tests.
+- [x] Linux, macOS, and Windows CI definitions.
+- [x] CodeQL, dependency review, Dependabot, DCO, and secret protections.
+- [x] Release workflow for checksums, SBOM, and signed provenance.
+- [ ] Published package namespace and first tagged alpha release.
+- [ ] Fresh-machine evidence on every supported platform.
+- [ ] Independent security review.
+
+## v0.2 — richer local agents
+
+### Computer use
 
 - [ ] Cross-platform computer-use capability contract.
-- [ ] Accessibility-tree inspection and element targeting.
-- [ ] Screenshot and OCR-based inspection fallback.
-- [ ] Mouse, keyboard, drag, scroll, and window-control actions.
-- [ ] Explicit approval for consequential operating-system actions.
-- [ ] Structured post-action verification with expected text or elements.
-- [ ] Active-window, display, and focus safety checks.
+- [ ] Accessibility-tree inspection and semantic element targeting.
+- [ ] Screenshot and OCR inspection fallback.
+- [ ] Mouse, keyboard, drag, scroll, and window actions.
+- [ ] Active-window, display, focus, and secure-input safety checks.
+- [ ] Consequential-action approvals and post-action verification.
 - [ ] macOS, Windows, and Linux capability detection.
-- [ ] Replayable computer-use evaluation scenarios.
+- [ ] Replayable computer-use safety evaluations.
 
-## Browser use
+### Browser and terminal expansion
 
-- [ ] Browser session and tab lifecycle.
-- [ ] Navigation, extraction, forms, downloads, and uploads.
-- [ ] DOM-first element targeting with visual fallback.
-- [ ] Read-only browser mode.
-- [ ] Approval-gated clicks, typing, forms, and file uploads.
-- [ ] Stable-page and network-settle detection.
-- [ ] Popup, redirect, download, and cross-origin safety guards.
-- [ ] Structured verification after browser mutations.
-- [ ] Deterministic action recording and replay where safe.
-- [ ] Playwright and Chrome/CDP adapter support.
-- [ ] Browser reliability and token-cost evaluations.
-
-## Terminal use
-
-- [ ] Bounded shell-command execution.
-- [ ] Command, argument, environment, and working-directory policy.
-- [ ] Read-only inspection mode.
-- [ ] Approval gates for writes, package installation, network access, and
-      destructive commands.
+- [ ] Stable-page and network-settle heuristics.
+- [ ] Visual targeting fallback with explicit confidence.
+- [ ] Popup and multi-window policy.
 - [ ] Interactive terminal and pseudo-TTY support.
-- [ ] Long-running process lifecycle, output streaming, and cancellation.
-- [ ] Background process status and log retrieval.
-- [ ] Exit-code, output, artifact, and side-effect verification.
-- [ ] Secret redaction and environment-variable allowlisting.
-- [ ] Shell-injection, path-escape, and destructive-target regression tests.
+- [ ] Package-installation and network-effect classifiers.
+- [ ] Browser reliability and token-cost benchmarks.
 
-## Memory layer
+### Transport and identity
 
-- [ ] Local memory store with no account requirement.
-- [ ] SQLite-backed working, episodic, semantic, and procedural memory.
-- [ ] Explicit scopes for task, project, workspace, and user memory.
-- [ ] Provenance linking every memory to its source task and evidence.
-- [ ] Retention, expiry, deletion, export, and reset controls.
-- [ ] User approval before storing sensitive or cross-task information.
-- [ ] Secret and personal-data redaction before persistence.
-- [ ] Hybrid keyword and semantic retrieval.
-- [ ] Confidence, freshness, and conflict tracking.
-- [ ] Memory consolidation without losing source attribution.
-- [ ] Protection against prompt-injection persistence and memory poisoning.
-- [ ] Deterministic tests for isolation, deletion, and retrieval boundaries.
+- [ ] Local Streamable HTTP transport.
+- [ ] Local OAuth and client identity.
+- [ ] Multi-client session isolation.
+- [ ] Optional desktop control surface.
 
-## Quality and release
+## v0.3 and later
 
-- [ ] Linux, macOS, and Windows CI.
-- [ ] MCP conformance suite.
-- [ ] Safety regression suite.
-- [ ] Computer-use safety and verification suite.
-- [ ] Browser task reliability suite.
-- [ ] Terminal escape and destructive-action suite.
-- [ ] Memory isolation, poisoning, retention, and deletion suite.
-- [ ] At least 20 reproducible end-to-end evaluations.
-- [ ] Secret-leak and path-escape tests.
-- [ ] SBOM and build provenance.
-- [ ] Signed release artifacts.
-- [ ] Fresh-machine installation verification.
-- [ ] Published limitations and compatibility policy.
-- [ ] Independent security review before stable release.
+- [ ] Extension SDK and compatibility testkit.
+- [ ] Sandboxed WASM or process-isolated third-party adapters.
+- [ ] Additional SDKs selected by contributor and platform demand.
+- [ ] Distributed workers without weakening local policy semantics.
+- [ ] Stable protocol, migration, and deprecation guarantees.
 
-## Initial release gate
+## Stable release gate
 
-The first release must:
+Before `1.0`, the project must have:
 
-- work without an account;
-- require no hosted service for local operation;
-- keep telemetry off by default;
-- default to read-only capabilities;
-- require approval for mutations;
-- verify mutations before reporting completion;
-- isolate memory scopes and support complete local deletion;
-- bound browser, computer, and terminal execution by policy;
-- pass supported-platform and conformance tests;
-- publish checksums, an SBOM, and reproducible validation evidence.
+- clean installation evidence on supported Linux, macOS, and Windows versions;
+- verified compatibility with documented MCP clients;
+- passing conformance, safety, path-escape, terminal, browser, and memory suites;
+- complete local deletion and export behavior;
+- reproducible checksums, SBOMs, and signed provenance for every artifact;
+- published limitations and upgrade guidance;
+- independent security review with critical findings resolved.
