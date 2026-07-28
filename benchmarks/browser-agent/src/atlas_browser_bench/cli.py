@@ -7,6 +7,8 @@ import argparse
 import asyncio
 import json
 import os
+import re
+import subprocess
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -20,6 +22,12 @@ from .manifest import (
 from .runner import BrowserTaskRecord, RunLimits, run_miniwob_suite
 from .sanitize import publish_run, verify_public_artifact
 from .selection import verify_upstream
+from .webarena import (
+    PairSideExecution,
+    WebArenaEnvironment,
+    run_paired_tasks,
+    validate_registered_subset,
+)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _REGISTERED_HARD30 = _PROJECT_ROOT / "manifests" / "webarena-verified-hard-30-v1.json"
@@ -64,6 +72,19 @@ def _parser() -> argparse.ArgumentParser:
     miniwob.add_argument("--task-timeout-seconds", type=float, default=180)
     miniwob.add_argument("--seed", type=int, default=0)
     miniwob.add_argument("--task-limit", type=int)
+
+    preflight_hard30 = commands.add_parser("preflight-hard30")
+    preflight_hard30.add_argument("--manifest", type=Path, default=_REGISTERED_HARD30)
+    preflight_hard30.add_argument("--config", type=Path, required=True)
+    preflight_hard30.add_argument("--image-config", type=Path, required=True)
+
+    hard30 = commands.add_parser("run-hard30")
+    hard30.add_argument("--manifest", type=Path, default=_REGISTERED_HARD30)
+    hard30.add_argument("--config", type=Path, required=True)
+    hard30.add_argument("--image-config", type=Path, required=True)
+    hard30.add_argument("--run-dir", type=Path, required=True)
+    hard30.add_argument("--baseline-runner", type=Path, required=True)
+    hard30.add_argument("--candidate-runner", type=Path, required=True)
 
     freeze = commands.add_parser("freeze-run")
     freeze.add_argument("--registered", type=Path, required=True)
@@ -201,6 +222,129 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 0
+
+    if args.command in {"preflight-hard30", "run-hard30"}:
+        verified = validate_registered_subset(args.manifest)
+        registered = load_manifest(args.manifest)
+        image_config = _json_object(args.image_config)
+        if not image_config or not all(
+            isinstance(site, str)
+            and isinstance(digest, str)
+            and re.fullmatch(r"sha256:[a-f0-9]{64}", digest)
+            for site, digest in image_config.items()
+        ):
+            raise ValueError("image_config_invalid")
+        expected_images = {site: str(digest) for site, digest in image_config.items()}
+        environment = WebArenaEnvironment.from_config(args.config)
+        preflights = [environment.preflight(task, expected_images) for task in registered.tasks]
+        ready = all(preflight.ready for preflight in preflights)
+        if args.command == "preflight-hard30":
+            print(
+                json.dumps(
+                    {
+                        "suite": registered.suite,
+                        "tasks": verified.task_count,
+                        "ready": ready,
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0 if ready else 1
+        if not ready:
+            raise RuntimeError("hard30_preflight_failed")
+        runners = {
+            "baseline": args.baseline_runner.resolve(),
+            "candidate": args.candidate_runner.resolve(),
+        }
+        if any(not runner.is_file() for runner in runners.values()):
+            raise FileNotFoundError("hard30_runner_not_found")
+
+        def execute(task_id: int, side: str) -> PairSideExecution:
+            side_directory = args.run_dir / str(task_id) / side
+            side_directory.mkdir(parents=True, exist_ok=False)
+            completed = subprocess.run(
+                [
+                    str(runners[side]),
+                    "--task-id",
+                    str(task_id),
+                    "--config",
+                    str(args.config.resolve()),
+                    "--output-dir",
+                    str(side_directory.resolve()),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if completed.returncode != 0:
+                return PairSideExecution(
+                    implementation=side,
+                    success=False,
+                    infrastructure_failure=True,
+                )
+            try:
+                result = json.loads(completed.stdout.strip().splitlines()[-1])
+            except (IndexError, json.JSONDecodeError):
+                return PairSideExecution(
+                    implementation=side,
+                    success=False,
+                    infrastructure_failure=True,
+                )
+            valid_official_result = (
+                isinstance(result, dict)
+                and result.get("infrastructure_failure") is False
+                and result.get("official_status") in {"success", "failure", "partial_match"}
+                and isinstance(result.get("official_score"), (int, float))
+                and re.fullmatch(
+                    r"[a-f0-9]{64}",
+                    str(result.get("evaluator_checksum", "")),
+                )
+                and re.fullmatch(
+                    r"[a-f0-9]{64}",
+                    str(result.get("data_checksum", "")),
+                )
+            )
+            if not valid_official_result:
+                return PairSideExecution(
+                    implementation=side,
+                    success=False,
+                    infrastructure_failure=True,
+                )
+            return PairSideExecution(
+                implementation=side,
+                success=float(result["official_score"]) == 1,
+                infrastructure_failure=False,
+            )
+
+        pairs = run_paired_tasks(
+            tasks=registered.tasks,
+            environment=environment,
+            expected_images=expected_images,
+            execute=execute,
+        )
+        print(
+            json.dumps(
+                {
+                    "suite": registered.suite,
+                    "pairs": len(pairs),
+                    "valid_pairs": sum(pair.valid for pair in pairs),
+                    "baseline_successes": sum(
+                        side.success
+                        for pair in pairs
+                        for side in pair.sides
+                        if side.implementation == "baseline"
+                    ),
+                    "candidate_successes": sum(
+                        side.success
+                        for pair in pairs
+                        for side in pair.sides
+                        if side.implementation == "candidate"
+                    ),
+                },
+                sort_keys=True,
+            )
+        )
+        return 0 if all(pair.valid for pair in pairs) else 1
 
     registered = load_manifest(args.registered)
     if registered.baseline.commit != args.baseline_source:
