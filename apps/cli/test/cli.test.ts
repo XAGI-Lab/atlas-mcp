@@ -33,9 +33,9 @@ describe("atlas-mcp CLI", () => {
       },
     );
     expect(parsed).toEqual({
-      workspaceRoot: "/tmp/atlas-workspace",
-      dataDirectory: "/tmp/atlas-home",
-      browserExecutablePath: "/Applications/Google Chrome",
+      workspaceRoot: resolve("/tmp/atlas-workspace"),
+      dataDirectory: resolve("/tmp/atlas-home"),
+      browserExecutablePath: resolve("/Applications/Google Chrome"),
       browserCdpEndpoint: "http://127.0.0.1:9222/",
       browserCdpContextIndex: -1,
     });
@@ -47,7 +47,7 @@ describe("atlas-mcp CLI", () => {
           home: "/tmp/fallback-home",
         },
       ).browserHarPath,
-    ).toBe("/tmp/atlas-run/network.har");
+    ).toBe(resolve("/tmp/atlas-run/network.har"));
   });
 
   it("rejects unsafe or ambiguous browser connection options", () => {
