@@ -86,6 +86,14 @@ No model API calls, paid cloud resources, Docker cleanup, or deletion of local
 images and volumes is authorized by this specification. Those actions require
 separate, exact approval.
 
+The baseline runtime requires the same benchmark-only CDP and HAR
+instrumentation as the candidate. Its implementation identity therefore
+contains both the pinned source commit above and an instrumentation commit
+that changes connection/evidence capture only. That instrumentation commit is
+frozen before MiniWoB-driven behavior improvements begin and is shared by both
+sides. A test and diff audit must show that it does not change action
+selection, targeting, policy, settling, or verification behavior.
+
 ### Registered WebArena-Verified Hard-30 subset
 
 The subset is selected from the official 258-task Hard set with seed
@@ -239,8 +247,8 @@ counts, tokens, and latency. It stays separate from the Hard-30 result.
 
 ### Baseline and candidate
 
-The baseline is built from the pinned `a8a0a09` commit. The candidate is frozen
-only after:
+The baseline is built from the pinned `a8a0a09` source plus the shared,
+benchmark-only instrumentation commit. The candidate is frozen only after:
 
 1. the full MiniWoB development suite has run;
 2. generic browser tests and project validation pass;
