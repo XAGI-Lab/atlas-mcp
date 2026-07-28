@@ -18,6 +18,9 @@ export interface MemoryRecord {
   source: string;
   confidence: number;
   tags: string[];
+  speaker?: string;
+  episodeId?: string;
+  sequence?: number;
   expiresAt?: string;
   supersedesId?: string;
   supersededBy?: string;
@@ -37,6 +40,9 @@ interface MemoryRow {
   source: string;
   confidence: number;
   tags: string;
+  speaker: string | null;
+  episodeId: string | null;
+  sequence: number | null;
   expiresAt: string | null;
   supersedesId: string | null;
   supersededBy: string | null;
@@ -53,6 +59,9 @@ function toMemoryRecord(row: MemoryRow): MemoryRecord {
     source: row.source,
     confidence: row.confidence,
     tags: JSON.parse(row.tags) as string[],
+    ...(row.speaker === null ? {} : { speaker: row.speaker }),
+    ...(row.episodeId === null ? {} : { episodeId: row.episodeId }),
+    ...(row.sequence === null ? {} : { sequence: row.sequence }),
     ...(row.expiresAt === null ? {} : { expiresAt: row.expiresAt }),
     ...(row.supersedesId === null ? {} : { supersedesId: row.supersedesId }),
     ...(row.supersededBy === null ? {} : { supersededBy: row.supersededBy }),
@@ -104,6 +113,9 @@ export class SqliteStore {
         source TEXT NOT NULL,
         confidence REAL NOT NULL,
         tags TEXT NOT NULL DEFAULT '[]',
+        speaker TEXT,
+        episode_id TEXT,
+        sequence INTEGER,
         expires_at TEXT,
         supersedes_id TEXT,
         superseded_by TEXT,
@@ -114,12 +126,17 @@ export class SqliteStore {
       CREATE INDEX IF NOT EXISTS memories_key ON memories(key);
     `);
     this.addColumnIfMissing("memories", "tags", "TEXT NOT NULL DEFAULT '[]'");
+    this.addColumnIfMissing("memories", "speaker", "TEXT");
+    this.addColumnIfMissing("memories", "episode_id", "TEXT");
+    this.addColumnIfMissing("memories", "sequence", "INTEGER");
     this.addColumnIfMissing("memories", "expires_at", "TEXT");
     this.addColumnIfMissing("memories", "supersedes_id", "TEXT");
     this.addColumnIfMissing("memories", "superseded_by", "TEXT");
     this.database.exec(`
       CREATE INDEX IF NOT EXISTS memories_expiry ON memories(expires_at);
       CREATE INDEX IF NOT EXISTS memories_superseded_by ON memories(superseded_by);
+      CREATE INDEX IF NOT EXISTS memories_episode_sequence
+        ON memories(episode_id, sequence);
     `);
   }
 
@@ -219,10 +236,11 @@ export class SqliteStore {
     this.database
       .prepare(`
         INSERT INTO memories(
-          id, scope, key, value, source, confidence, tags, expires_at,
-          supersedes_id, superseded_by, created_at, updated_at
+          id, scope, key, value, source, confidence, tags, speaker, episode_id,
+          sequence, expires_at, supersedes_id, superseded_by, created_at,
+          updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           scope = excluded.scope,
           key = excluded.key,
@@ -230,6 +248,9 @@ export class SqliteStore {
           source = excluded.source,
           confidence = excluded.confidence,
           tags = excluded.tags,
+          speaker = excluded.speaker,
+          episode_id = excluded.episode_id,
+          sequence = excluded.sequence,
           expires_at = excluded.expires_at,
           supersedes_id = excluded.supersedes_id,
           superseded_by = excluded.superseded_by,
@@ -243,6 +264,9 @@ export class SqliteStore {
         memory.source,
         memory.confidence,
         JSON.stringify(memory.tags),
+        memory.speaker ?? null,
+        memory.episodeId ?? null,
+        memory.sequence ?? null,
         memory.expiresAt ?? null,
         memory.supersedesId ?? null,
         memory.supersededBy ?? null,
@@ -254,7 +278,8 @@ export class SqliteStore {
   getMemory(id: string): MemoryRecord | undefined {
     const row = this.database
       .prepare(`
-        SELECT id, scope, key, value, source, confidence, tags,
+        SELECT id, scope, key, value, source, confidence, tags, speaker,
+               episode_id AS episodeId, sequence,
                expires_at AS expiresAt, supersedes_id AS supersedesId,
                superseded_by AS supersededBy,
                created_at AS createdAt, updated_at AS updatedAt
@@ -271,7 +296,8 @@ export class SqliteStore {
   ): MemoryRecord[] {
     const rows = this.database
       .prepare(`
-        SELECT id, scope, key, value, source, confidence, tags,
+        SELECT id, scope, key, value, source, confidence, tags, speaker,
+               episode_id AS episodeId, sequence,
                expires_at AS expiresAt, supersedes_id AS supersedesId,
                superseded_by AS supersededBy,
                created_at AS createdAt, updated_at AS updatedAt
@@ -298,7 +324,8 @@ export class SqliteStore {
   ): MemoryRecord[] {
     const rows = this.database
       .prepare(`
-        SELECT id, scope, key, value, source, confidence, tags,
+        SELECT id, scope, key, value, source, confidence, tags, speaker,
+               episode_id AS episodeId, sequence,
                expires_at AS expiresAt, supersedes_id AS supersedesId,
                superseded_by AS supersededBy,
                created_at AS createdAt, updated_at AS updatedAt
