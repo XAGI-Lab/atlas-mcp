@@ -15,6 +15,7 @@ from .manifest import (
     parse_environment_identity,
     write_manifest,
 )
+from .sanitize import publish_run, verify_public_artifact
 from .selection import verify_upstream
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +42,13 @@ def _parser() -> argparse.ArgumentParser:
     verify.add_argument("--manifest", type=Path, default=_REGISTERED_HARD30)
     verify.add_argument("--task-data", type=Path)
     verify.add_argument("--subset-manifest", type=Path)
+
+    verify_public = commands.add_parser("verify-public")
+    verify_public.add_argument("artifact", type=Path)
+
+    publish = commands.add_parser("publish")
+    publish.add_argument("--run-dir", type=Path, required=True)
+    publish.add_argument("--output", type=Path, required=True)
 
     freeze = commands.add_parser("freeze-run")
     freeze.add_argument("--registered", type=Path, required=True)
@@ -86,6 +94,33 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"suite={result.suite} "
             f"tasks={result.tasks} "
             f"unique_templates={result.unique_templates}"
+        )
+        return 0
+
+    if args.command == "verify-public":
+        artifact = verify_public_artifact(args.artifact)
+        print(
+            json.dumps(
+                {
+                    "artifact": str(args.artifact),
+                    "records": len(artifact["records"]),
+                    "publishable": True,
+                },
+                sort_keys=True,
+            )
+        )
+        return 0
+
+    if args.command == "publish":
+        publish_run(args.run_dir, args.output)
+        print(
+            json.dumps(
+                {
+                    "output": str(args.output),
+                    "publishable": True,
+                },
+                sort_keys=True,
+            )
         )
         return 0
 
