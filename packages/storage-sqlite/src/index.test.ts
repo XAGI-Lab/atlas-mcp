@@ -43,10 +43,11 @@ describe("SqliteStore", () => {
       value: "ATLAS MCP uses SQLite",
       source: "test",
       confidence: 0.9,
+      tags: ["runtime"],
       createdAt: now,
       updatedAt: now,
     });
-    expect(store.searchMemories("workspace", "sqlite", 5)).toHaveLength(1);
+    expect(store.memoryCandidates("workspace", 5)).toHaveLength(1);
     expect(store.listMemories("user", 5)).toHaveLength(0);
   });
 });

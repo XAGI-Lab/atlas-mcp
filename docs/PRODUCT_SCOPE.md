@@ -12,6 +12,7 @@ ATLAS MCP is an execution runtime for MCP clients.
 - structured verification;
 - evidence receipts;
 - local durable state;
+- governed local browser and supported computer-use operations;
 - MCP client compatibility;
 - safety and conformance testing.
 

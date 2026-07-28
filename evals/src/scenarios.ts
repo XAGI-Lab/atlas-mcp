@@ -1,12 +1,20 @@
 // Copyright 2026 XAGI Labs Private Limited
 // SPDX-License-Identifier: Apache-2.0
 
-import type { TaskRequest, TaskStatus } from "@atlas-mcp/protocol";
+import type { TaskRequestInput, TaskStatus } from "@atlas-mcp/protocol";
 
 export interface EvaluationScenario {
   id: string;
-  category: "system" | "file" | "terminal" | "memory" | "policy" | "verification";
-  request: TaskRequest;
+  category:
+    | "system"
+    | "file"
+    | "terminal"
+    | "browser"
+    | "computer"
+    | "memory"
+    | "policy"
+    | "verification";
+  request: TaskRequestInput;
   fixtures?: Array<{ path: string; content: string }>;
   expectedPlan: TaskStatus;
   expectedFinal?: TaskStatus;
@@ -450,6 +458,25 @@ export const scenarios: EvaluationScenario[] = [
     },
     expectedPlan: "planned",
     expectedFinal: "partial",
+  },
+  {
+    id: "computer-capability-inspection",
+    category: "computer",
+    request: {
+      goal: "Inspect supported local computer-use capabilities",
+      operation: {
+        kind: "computer",
+        action: "capabilities",
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [
+        { type: "result_equals", path: "platform", value: process.platform },
+      ],
+    },
+    expectedPlan: "planned",
+    expectedFinal: "verified_success",
   },
   {
     id: "pending-task-cancellation",

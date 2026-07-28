@@ -78,6 +78,41 @@ describe("local policy", () => {
     ).toBe("command_not_allowlisted");
   });
 
+  it("allows computer inspection but gates input behind evidence and approval", () => {
+    const inspect = TaskRequestSchema.parse({
+      goal: "Inspect local computer-use support",
+      operation: { kind: "computer", action: "capabilities" },
+    });
+    expect(
+      evaluatePolicy(
+        "c4e05bc0-c809-4ba3-a2a4-69102cdcf688",
+        inspect,
+        createDefaultPolicy(root),
+      ).decision.outcome,
+    ).toBe("allow");
+
+    const click = TaskRequestSchema.parse({
+      goal: "Click a verified desktop target",
+      operation: {
+        kind: "computer",
+        action: "click",
+        coordinateSpace: "normalized",
+        x: 0.5,
+        y: 0.5,
+      },
+      requiredEvidence: [
+        { type: "result_equals", path: "success", value: true },
+      ],
+    });
+    const decision = evaluatePolicy(
+      "1aa2432a-a584-4b3f-b256-9ac3a6887630",
+      click,
+      createDefaultPolicy(root),
+    );
+    expect(decision.decision.outcome).toBe("confirm");
+    expect(decision.decision.risk).toBe("high");
+  });
+
   it("validates the scoped approval phrase", () => {
     const request = TaskRequestSchema.parse({
       goal: "Store a memory",

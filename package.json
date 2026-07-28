@@ -1,6 +1,6 @@
 {
   "name": "atlas-mcp",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "private": true,
   "description": "Open-source runtime for safe, reliable, and verifiable MCP execution.",
   "license": "Apache-2.0",
@@ -21,6 +21,8 @@
     "atlas": "pnpm --filter @atlas-mcp/cli start",
     "e2e": "pnpm --filter @atlas-mcp/server test:e2e",
     "docker:smoke": "node scripts/docker-smoke.mjs",
+    "benchmark:core": "pnpm build && node scripts/bench-core.mjs",
+    "benchmark:locomo": "pnpm --filter @atlas-mcp/memory build && node scripts/bench-locomo.mjs",
     "evals": "pnpm --filter @atlas-mcp/evals evaluate",
     "python:check": "uv run --project sdk-py ruff check sdk-py && uv run --project sdk-py pytest sdk-py",
     "python:audit": "node scripts/python-audit.mjs",
@@ -34,6 +36,7 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "22.15.30",
+    "playwright-core": "1.61.0",
     "tsx": "4.20.6",
     "typescript": "5.8.3",
     "vitest": "3.2.6"

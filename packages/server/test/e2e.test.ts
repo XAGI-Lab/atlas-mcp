@@ -127,6 +127,48 @@ describe("ATLAS MCP over real stdio transport", () => {
       await client.callTool({ name: "atlas_capabilities", arguments: {} }),
     );
     expect(capabilities.product).toBe("ATLAS MCP");
+    expect(
+      (capabilities.operations as Record<string, unknown>).computer,
+    ).toEqual([
+      "capabilities",
+      "screenshot",
+      "click",
+      "move",
+      "type",
+      "key",
+      "scroll",
+    ]);
+  });
+
+  it("inspects computer-use support through the governed task path", async () => {
+    const task = parsed(
+      await client.callTool({
+        name: "atlas_plan",
+        arguments: {
+          goal: "Inspect local computer-use support",
+          operation: { kind: "computer", action: "capabilities" },
+          requiredEvidence: [
+            {
+              type: "result_equals",
+              path: "platform",
+              value: process.platform,
+            },
+          ],
+        },
+      }),
+    );
+    expect(task.status).toBe("planned");
+    const execution = parsed(
+      await client.callTool({
+        name: "atlas_execute",
+        arguments: { taskId: task.id },
+      }),
+    ) as {
+      task: Record<string, unknown>;
+      output: Record<string, unknown>;
+    };
+    expect(execution.task.status).toBe("verified_success");
+    expect(execution.output.platform).toBe(process.platform);
   });
 
   it("plans, executes, verifies, and receipts a system task", async () => {

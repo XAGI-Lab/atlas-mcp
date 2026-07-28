@@ -1,6 +1,6 @@
 {
   "name": "@atlas-mcp/policy-core",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "description": "Policy evaluation and scoped approval primitives for ATLAS MCP.",
   "license": "Apache-2.0",
   "type": "module",

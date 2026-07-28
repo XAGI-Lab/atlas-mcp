@@ -17,6 +17,7 @@ import {
   assertSafeUrl,
   type NetworkPolicy,
 } from "./network-policy.js";
+import { waitForStableDom } from "./stable-dom.js";
 
 export interface BrowserRuntimeOptions extends NetworkPolicy {
   artifactDirectory: string;
@@ -198,6 +199,20 @@ export class BrowserRuntime {
     };
   }
 
+  private async settledSnapshot(
+    page: Page,
+    operation: BrowserOperation,
+  ): Promise<Record<string, unknown>> {
+    const settle = await waitForStableDom(page, {
+      quietWindowMs: operation.settleQuietMs,
+      timeoutMs: operation.settleTimeoutMs,
+    });
+    return {
+      settle,
+      ...(await this.snapshot(page, operation.maxChars)),
+    };
+  }
+
   async execute(operation: BrowserOperation): Promise<Record<string, unknown>> {
     const page = await this.page();
     switch (operation.action) {
@@ -210,7 +225,7 @@ export class BrowserRuntime {
         });
         return {
           status: response?.status() ?? null,
-          ...(await this.snapshot(page, operation.maxChars)),
+          ...(await this.settledSnapshot(page, operation)),
         };
       }
       case "inspect":
@@ -219,28 +234,40 @@ export class BrowserRuntime {
         await this.locator(page, operation).first().click({
           timeout: operation.timeoutMs,
         });
-        return { clicked: true, ...(await this.snapshot(page, operation.maxChars)) };
+        return {
+          clicked: true,
+          ...(await this.settledSnapshot(page, operation)),
+        };
       }
       case "type": {
         if (operation.value === undefined) throw new Error("browser_type_requires_value");
         await this.locator(page, operation).first().fill(operation.value, {
           timeout: operation.timeoutMs,
         });
-        return { typed: true, ...(await this.snapshot(page, operation.maxChars)) };
+        return {
+          typed: true,
+          ...(await this.settledSnapshot(page, operation)),
+        };
       }
       case "select": {
         if (operation.values === undefined) throw new Error("browser_select_requires_values");
         const selected = await this.locator(page, operation)
           .first()
           .selectOption(operation.values, { timeout: operation.timeoutMs });
-        return { selected, ...(await this.snapshot(page, operation.maxChars)) };
+        return {
+          selected,
+          ...(await this.settledSnapshot(page, operation)),
+        };
       }
       case "press": {
         if (operation.key === undefined) throw new Error("browser_press_requires_key");
         const locator =
           operation.target === undefined ? page.locator("body") : this.locator(page, operation);
         await locator.first().press(operation.key, { timeout: operation.timeoutMs });
-        return { pressed: operation.key, ...(await this.snapshot(page, operation.maxChars)) };
+        return {
+          pressed: operation.key,
+          ...(await this.settledSnapshot(page, operation)),
+        };
       }
       case "scroll": {
         const direction = operation.direction ?? "down";
@@ -255,7 +282,10 @@ export class BrowserRuntime {
             else window.scrollBy(0, value === "up" ? -600 : 600);
           }, direction);
         }
-        return { scrolled: direction, ...(await this.snapshot(page, operation.maxChars)) };
+        return {
+          scrolled: direction,
+          ...(await this.settledSnapshot(page, operation)),
+        };
       }
       case "screenshot": {
         const path = join(
@@ -283,7 +313,7 @@ export class BrowserRuntime {
         });
         return {
           uploaded: files.length,
-          ...(await this.snapshot(page, operation.maxChars)),
+          ...(await this.settledSnapshot(page, operation)),
         };
       }
       case "download": {
@@ -308,6 +338,10 @@ export class BrowserRuntime {
           size: bytes.byteLength,
           sha256: createHash("sha256").update(bytes).digest("hex"),
           url: page.url(),
+          settle: await waitForStableDom(page, {
+            quietWindowMs: operation.settleQuietMs,
+            timeoutMs: operation.settleTimeoutMs,
+          }),
         };
       }
       case "tabs": {
@@ -348,3 +382,4 @@ export class BrowserRuntime {
 }
 
 export * from "./network-policy.js";
+export * from "./stable-dom.js";

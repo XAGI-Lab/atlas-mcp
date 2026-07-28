@@ -19,6 +19,7 @@ import {
   type AtlasRuntime,
 } from "@atlas-mcp/server";
 import { detectBrowserExecutable } from "@atlas-mcp/browser-runtime";
+import { createSystemComputerAdapter } from "@atlas-mcp/computer-runtime";
 import { createDefaultPolicy, evaluatePolicy } from "@atlas-mcp/policy-core";
 
 interface CliEnvironment {
@@ -152,6 +153,14 @@ async function doctor(env: CliEnvironment): Promise<number> {
     detail:
       browser ??
       "Chrome, Chromium, or Edge not found; non-browser capabilities remain available",
+  });
+  const computer = await createSystemComputerAdapter().capabilities();
+  checks.push({
+    name: "computer",
+    status: computer.available ? "pass" : "warn",
+    detail: computer.available
+      ? `${computer.adapter}: screenshot=${computer.screenshot}, pointer=${computer.pointer}, keyboard=${computer.keyboard}, scroll=${computer.scroll}`
+      : computer.limitations.join("; "),
   });
   try {
     const path = await existingPolicyPath(env);

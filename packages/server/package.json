@@ -1,6 +1,6 @@
 {
   "name": "@atlas-mcp/server",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "description": "Official six-tool Model Context Protocol server for ATLAS MCP.",
   "license": "Apache-2.0",
   "type": "module",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@atlas-mcp/browser-runtime": "workspace:*",
+    "@atlas-mcp/computer-runtime": "workspace:*",
     "@atlas-mcp/file-runtime": "workspace:*",
     "@atlas-mcp/memory": "workspace:*",
     "@atlas-mcp/policy-core": "workspace:*",

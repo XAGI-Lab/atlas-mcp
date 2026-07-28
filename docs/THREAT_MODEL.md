@@ -1,6 +1,6 @@
 # Threat model
 
-Status: reviewed for `0.1.0-alpha.1`; independent review pending.
+Status: reviewed for `0.2.0-alpha.1`; independent review pending.
 
 ## Assets
 
@@ -38,6 +38,8 @@ boundary against a fully compromised host.
 | SSRF and metadata access | URL validation, DNS resolution, per-request interception | malicious public endpoints remain reachable when domains allow them |
 | DNS rebinding | repeated resolved-address validation | a resolver change between validation and browser connection remains possible |
 | Malicious downloads/uploads | path confinement and artifact hashes | file content is not malware-scanned |
+| Unintended computer input | typed actions, named-key allowlist, high-risk approval | focus can change between approval and action |
+| Desktop observation leakage | local-only screenshot artifact with explicit invocation | screenshots may contain sensitive on-screen data |
 | Secret persistence | terminal and memory redaction before persistence | novel secret formats may not match patterns |
 | Memory poisoning | explicit mutation approval, scopes, provenance | content-level poisoning classifier is not implemented |
 | Receipt tampering | canonical digests and task-linked certificate | local database has no encrypted authenticated storage |
@@ -71,20 +73,24 @@ A domain allowlist controls intended public destinations. Wildcard domain
 access is convenient for local experimentation but should be replaced with
 specific domains in reviewed policies.
 
-## Non-goals for `0.1`
+## Non-goals for `0.2`
 
 - protecting against a compromised operating system or browser binary;
 - deterministic proof from model judgment;
 - arbitrary native extensions;
 - malware scanning;
 - encrypted credential storage;
-- remote multi-tenant execution.
+- remote multi-tenant execution;
+- protecting computer input from a malicious accessibility service or
+  compromised desktop session.
 
 ## Required work before stable release
 
 - OS-level sandbox profiles outside Docker;
 - content-level memory-poisoning defenses;
 - browser download scanning hooks;
+- active-window, focus, secure-input, and multi-display verification;
+- post-action desktop observation and task-specific evidence fixtures;
 - crash-safe recovery rules;
 - fuzzing for schemas, paths, receipts, and network policy;
 - independent security review and public remediation record.

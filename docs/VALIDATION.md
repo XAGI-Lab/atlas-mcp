@@ -4,23 +4,24 @@
 
 Date: 2026-07-28
 
-Version: `0.1.0-alpha.1`
+Version: `0.2.0-alpha.1`
 
 Host exercised locally: macOS arm64, Node.js 24.10, Python 3.11
 
 | Gate | Result |
 |---|---|
 | Package-version consistency | passed |
-| TypeScript build and strict typecheck | passed across 14 workspace projects |
-| TypeScript/Vitest cases | 55 passed |
-| Deterministic evaluation scenarios | 21 of 21 passed |
+| TypeScript build and strict typecheck | passed across 15 packages/apps |
+| TypeScript/Vitest cases | 63 passed |
+| Deterministic evaluation scenarios | 22 of 22 passed |
 | Python lint | passed |
 | Python SDK interoperability test | 1 passed |
 | Node production dependency audit | no known vulnerabilities |
 | Python locked dependency audit | no known vulnerabilities |
-| Official TypeScript SDK over real stdio | 6 end-to-end cases passed |
+| Official TypeScript SDK over real stdio | 7 end-to-end cases passed |
 | Installed Chrome browser fixture | navigation and page verification passed |
 | Docker image build | passed |
+| Local hardened Docker MCP smoke | discovery, execution, receipt passed |
 | Released Linux AMD64 image | passed through hardened MCP stdio smoke |
 | Released Linux ARM64 image | passed through hardened MCP stdio smoke |
 | Container doctor | Node, workspace, data, SQLite, browser, policy passed |
@@ -33,8 +34,20 @@ The end-to-end suite verifies:
 - exact task-scoped approval for a file mutation;
 - shell-free terminal execution with exit-code and stdout predicates;
 - scoped memory persistence and retrieval;
+- hybrid memory ranking, expiry, and supersession behavior;
 - real installed-browser navigation with URL and page-text evidence;
+- read-only computer adapter capability discovery;
 - receipt retrieval and a 64-character SHA-256 certificate digest.
+
+Public benchmark artifacts were also regenerated:
+
+- LoCoMo objective evidence retrieval: 1,982 questions, coverage@20
+  `0.629117`, p50 `20.699 ms`, zero model/embedding/network calls;
+- planted-fact memory regression: 100/100 Recall@1;
+- browser stable-DOM fixture: static p50 `183.703 ms` and slow-render
+  correctness 10/10;
+- terminal: 30/30 verified shell-free process executions;
+- computer: 30/30 read-only capability probes.
 
 The container smoke test uses a read-only root filesystem, drops all Linux
 capabilities, sets `no-new-privileges`, and permits writes only to an explicit
@@ -72,6 +85,7 @@ be attached to the immutable release or workflow run.
 - wall-clock budget exhaustion is distinguished from user cancellation;
 - failed verification cannot become `verified_success`;
 - memory reads and deletion remain scope-aware.
+- computer input is classified high-risk and requires scoped approval.
 
 ## CI evidence
 
@@ -129,7 +143,8 @@ findings.
 - One task contains one typed operation.
 - Interrupted mutation tasks are durable but not automatically resumed.
 - Browser sessions are isolated and non-persistent.
-- Computer use, OCR/visual targeting, interactive PTY, semantic memory, and
-  extension loading remain roadmap items.
+- Computer screenshot and input adapters are alpha; OCR/visual targeting,
+  accessibility targeting, Windows input, focus verification, interactive
+  PTY, semantic embeddings, and extension loading remain roadmap items.
 - Node’s built-in SQLite API emits an experimental warning on Node 22/24.
 - Alpha database downgrades and migrations are not guaranteed.

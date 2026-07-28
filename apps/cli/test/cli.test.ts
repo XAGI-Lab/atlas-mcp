@@ -19,7 +19,7 @@ afterEach(async () => {
 describe("atlas-mcp CLI", () => {
   it("prints the product version", async () => {
     const result = await execute(process.execPath, [entry, "version"]);
-    expect(result.stdout.trim()).toBe("0.1.0-alpha.1");
+    expect(result.stdout.trim()).toBe("0.2.0-alpha.1");
   });
 
   it("reports local readiness through doctor", async () => {
@@ -41,6 +41,11 @@ describe("atlas-mcp CLI", () => {
     expect(report.checks.find((check) => check.name === "sqlite")?.status).toBe(
       "pass",
     );
+    expect(
+      ["pass", "warn"].includes(
+        report.checks.find((check) => check.name === "computer")?.status ?? "",
+      ),
+    ).toBe(true);
   });
 
   it("initializes a safe local policy and client configuration", async () => {

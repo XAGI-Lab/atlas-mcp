@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "LoCoMo objective evidence retrieval",
+  "dataset": {
+    "source": "https://github.com/snap-research/locomo",
+    "license": "CC-BY-NC-4.0",
+    "sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "conversations": 10,
+    "evaluatedQuestions": 1982,
+    "excludedQuestions": 4
+  },
+  "system": {
+    "implementation": "@atlas-mcp/memory atlas-hybrid-v1",
+    "ingestionUnit": "dialogue turn",
+    "modelCalls": 0,
+    "embeddingCalls": 0,
+    "networkCalls": 0
+  },
+  "metrics": {
+    "k5": {
+      "meanEvidenceCoverage": 0.495564,
+      "completeEvidenceRecall": 0.463169
+    },
+    "k20": {
+      "meanEvidenceCoverage": 0.629117,
+      "completeEvidenceRecall": 0.586276
+    },
+    "k50": {
+      "meanEvidenceCoverage": 0.718429,
+      "completeEvidenceRecall": 0.667003
+    },
+    "k100": {
+      "meanEvidenceCoverage": 0.764263,
+      "completeEvidenceRecall": 0.712412
+    }
+  },
+  "categoryCoverageAt20": {
+    "1": {
+      "questions": 282,
+      "meanEvidenceCoverage": 0.29108
+    },
+    "2": {
+      "questions": 321,
+      "meanEvidenceCoverage": 0.708463
+    },
+    "3": {
+      "questions": 92,
+      "meanEvidenceCoverage": 0.316046
+    },
+    "4": {
+      "questions": 841,
+      "meanEvidenceCoverage": 0.708482
+    },
+    "5": {
+      "questions": 446,
+      "meanEvidenceCoverage": 0.700673
+    }
+  },
+  "queryLatencyMs": {
+    "samples": 1982,
+    "p50": 20.699,
+    "p95": 25.406
+  },
+  "limitations": [
+    "This is retrieval evidence coverage, not answer accuracy.",
+    "The scorer is lexical and local; it does not use embeddings or an LLM reader.",
+    "Cross-project numbers are comparable only when ingestion units, k, dataset revision, and evidence metric match."
+  ]
+}
