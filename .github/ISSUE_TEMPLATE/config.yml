@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/XAGI-Lab/atlas-mcp/security/advisories/new
+    about: Report vulnerabilities privately.
+  - name: Design discussion
+    url: https://github.com/XAGI-Lab/atlas-mcp/discussions
+    about: Discuss architecture and early ideas before opening an implementation issue.
