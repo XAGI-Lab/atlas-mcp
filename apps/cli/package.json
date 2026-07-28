@@ -1,6 +1,6 @@
 {
   "name": "@atlas-mcp/cli",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "ATLAS MCP local execution runtime and command-line interface.",
   "license": "Apache-2.0",
   "type": "module",

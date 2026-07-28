@@ -8,6 +8,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const image = process.env.ATLAS_MCP_IMAGE ?? "atlas-mcp:local";
+const platform = process.env.ATLAS_MCP_PLATFORM;
 const root = await mkdtemp(join(tmpdir(), "atlas-docker-smoke-"));
 const workspace = join(root, "workspace");
 const data = join(root, "data");
@@ -28,6 +29,7 @@ const transport = new StdioClientTransport({
   args: [
     "run",
     "--rm",
+    ...(platform === undefined ? [] : ["--platform", platform]),
     ...userArgs,
     "-i",
     "--read-only",

@@ -1,6 +1,6 @@
 {
   "name": "atlas-mcp",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
   "description": "Open-source runtime for safe, reliable, and verifiable MCP execution.",
   "license": "Apache-2.0",
