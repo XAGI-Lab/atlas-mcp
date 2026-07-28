@@ -22,7 +22,7 @@ Host exercised locally: macOS arm64, Node.js 24.10, Python 3.11
 | Installed Chrome browser fixture | navigation and page verification passed |
 | Docker image build | passed |
 | Released Linux AMD64 image | passed through hardened MCP stdio smoke |
-| Released Linux ARM64 image | pending immutable `v0.1.0-alpha.1` workflow |
+| Released Linux ARM64 image | passed through hardened MCP stdio smoke |
 | Container doctor | Node, workspace, data, SQLite, browser, policy passed |
 | Official SDK through hardened Docker stdio | discovery, execution, receipt passed |
 
@@ -88,15 +88,31 @@ source commit `ede8281` through:
 - [Docker build, doctor, and actual MCP smoke](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357515676);
 - [DCO validation](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357515885).
 
-The tag workflow is defined to produce an SPDX SBOM, SHA-256 checksums,
-GitHub/Sigstore provenance, release assets, and an attested container. Its
-immutable run will be linked from the first tagged release.
+## Immutable release evidence
+
+Release [`v0.1.0-alpha.1`](https://github.com/XAGI-Lab/atlas-mcp/releases/tag/v0.1.0-alpha.1)
+was built from main commit `b2ca3cd1` by
+[release workflow run 30359767921](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30359767921).
+Both the artifact and container jobs passed.
+
+- All five downloadable archives and distributions passed the published
+  `SHA256SUMS` manifest.
+- GitHub attestation verification passed for the Node runtime archive and
+  Python wheel.
+- The public container index
+  `sha256:ec34cccf003a9555aeb4a2939f4c35e589c84661fcbae1ef1c08bdbdb206e76d`
+  contains Linux AMD64 and ARM64 manifests, each with SBOM and provenance
+  attestations.
+- Both published architectures were pulled from GHCR without package
+  credentials and exercised through an actual hardened MCP stdio session.
+- Each session discovered exactly six tools, reached `verified_success`, and
+  produced a `VERIFIED_SUCCESS` certificate with a 64-character SHA-256 digest.
 
 ## Remaining named-client and platform gates
 
 The current verified client is the official MCP TypeScript and Python SDKs.
-Before the first tagged alpha is called broadly installable, the built artifact
-must also be exercised in the then-current versions of:
+Before an alpha is called broadly installable, the built artifact must also be
+exercised in the then-current versions of:
 
 - Claude Desktop;
 - Cursor;
