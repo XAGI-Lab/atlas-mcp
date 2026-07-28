@@ -1,0 +1,7 @@
+{
+  "goal": "Inspect the local ATLAS MCP runtime",
+  "operation": {
+    "kind": "system",
+    "action": "info"
+  }
+}

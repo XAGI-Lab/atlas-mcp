@@ -1,0 +1,35 @@
+{
+  "name": "@atlas-mcp/server",
+  "version": "0.1.0-alpha.0",
+  "description": "Official six-tool Model Context Protocol server for ATLAS MCP.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:e2e": "vitest run test/e2e.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@atlas-mcp/browser-runtime": "workspace:*",
+    "@atlas-mcp/file-runtime": "workspace:*",
+    "@atlas-mcp/memory": "workspace:*",
+    "@atlas-mcp/policy-core": "workspace:*",
+    "@atlas-mcp/protocol": "workspace:*",
+    "@atlas-mcp/receipt-schema": "workspace:*",
+    "@atlas-mcp/runtime-core": "workspace:*",
+    "@atlas-mcp/storage-sqlite": "workspace:*",
+    "@atlas-mcp/terminal-runtime": "workspace:*",
+    "@atlas-mcp/verifier-core": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "3.25.76"
+  }
+}

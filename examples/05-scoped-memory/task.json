@@ -1,0 +1,19 @@
+{
+  "goal": "Store one non-sensitive workspace preference",
+  "operation": {
+    "kind": "memory",
+    "action": "put",
+    "scope": "workspace",
+    "key": "example.preference",
+    "value": "Prefer concise verification summaries.",
+    "source": "examples/05-scoped-memory/task.json",
+    "confidence": 1
+  },
+  "requiredEvidence": [
+    {
+      "type": "result_equals",
+      "path": "stored",
+      "value": true
+    }
+  ]
+}

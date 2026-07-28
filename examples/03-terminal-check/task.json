@@ -1,0 +1,24 @@
+{
+  "goal": "Run a deterministic shell-free terminal check",
+  "operation": {
+    "kind": "terminal",
+    "action": "run",
+    "command": "node",
+    "args": [
+      "-e",
+      "process.stdout.write('ATLAS terminal verified')"
+    ],
+    "timeoutMs": 5000
+  },
+  "requiredEvidence": [
+    {
+      "type": "exit_code",
+      "value": 0
+    },
+    {
+      "type": "result_contains",
+      "path": "stdout",
+      "value": "ATLAS terminal verified"
+    }
+  ]
+}

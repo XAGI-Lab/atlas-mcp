@@ -1,0 +1,20 @@
+{
+  "goal": "Create a verified text artifact",
+  "operation": {
+    "kind": "file",
+    "action": "write",
+    "path": "atlas-example.txt",
+    "content": "Created and verified by ATLAS MCP.\n"
+  },
+  "requiredEvidence": [
+    {
+      "type": "file_exists",
+      "path": "atlas-example.txt"
+    },
+    {
+      "type": "result_equals",
+      "path": "written",
+      "value": true
+    }
+  ]
+}

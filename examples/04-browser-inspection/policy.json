@@ -1,0 +1,6 @@
+{
+  "version": "example-browser",
+  "allowedDomains": [
+    "example.com"
+  ]
+}

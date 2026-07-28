@@ -1,0 +1,13 @@
+.git
+.github
+.atlas-mcp
+.DS_Store
+.env
+.env.*
+artifacts
+coverage
+node_modules
+sdk-py/.venv
+tmp
+**/dist
+**/*.log

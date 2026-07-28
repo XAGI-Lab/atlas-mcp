@@ -1,0 +1,22 @@
+services:
+  atlas-mcp:
+    build:
+      context: .
+    image: atlas-mcp:local
+    stdin_open: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    volumes:
+      - ./:/workspace
+      - atlas-mcp-data:/data
+    environment:
+      ATLAS_MCP_WORKSPACE: /workspace
+      ATLAS_MCP_HOME: /data
+
+volumes:
+  atlas-mcp-data:
