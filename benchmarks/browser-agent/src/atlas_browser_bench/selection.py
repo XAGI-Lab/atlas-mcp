@@ -80,11 +80,7 @@ def select_registered_tasks(
         if required <= 0:
             raise ValueError(f"selection_quota_invalid:{stratum}")
         candidates = sorted(
-            (
-                task
-                for task in parsed
-                if (task.site_family, task.task_type) == stratum
-            ),
+            (task for task in parsed if (task.site_family, task.task_type) == stratum),
             key=lambda task: selection_key(seed, task.task_id),
         )
         accepted: list[RegisteredTask] = []
@@ -131,9 +127,7 @@ def verify_upstream(
     subset_manifest_source: str | Path | None = None,
 ) -> VerificationResult:
     task_data = _read_source(task_data_source or manifest.upstream.task_data_url)
-    subset_data = _read_source(
-        subset_manifest_source or manifest.upstream.subset_manifest_url
-    )
+    subset_data = _read_source(subset_manifest_source or manifest.upstream.subset_manifest_url)
     task_hash = _sha256(task_data)
     subset_hash = _sha256(subset_data)
     if task_hash != manifest.upstream.task_data_sha256:
@@ -152,17 +146,14 @@ def verify_upstream(
         raise TypeError("upstream_subset_task_ids_invalid")
 
     quotas: dict[QuotaKey, int] = {
-        (quota.site_family, quota.task_type): quota.count
-        for quota in manifest.selection.quotas
+        (quota.site_family, quota.task_type): quota.count for quota in manifest.selection.quotas
     }
     regenerated = select_registered_tasks(
         raw_tasks,
         seed=manifest.selection.seed,
         quotas=quotas,
     )
-    if [asdict(task) for task in regenerated] != [
-        asdict(task) for task in manifest.tasks
-    ]:
+    if [asdict(task) for task in regenerated] != [asdict(task) for task in manifest.tasks]:
         raise ValueError("registered_selection_drift")
     if any(task.task_id not in hard_ids for task in regenerated):
         raise ValueError("registered_task_not_in_hard_subset")

@@ -19,9 +19,7 @@ _SENSITIVE_KEYS = re.compile(
 )
 _BEARER = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
 _GITHUB_TOKEN = re.compile(r"\bgh[pousr]_[A-Za-z0-9_]+\b")
-_ASSIGNED_SECRET = re.compile(
-    r"(?i)\b(password|token|secret|api[_-]?key)=([^&\s]+)"
-)
+_ASSIGNED_SECRET = re.compile(r"(?i)\b(password|token|secret|api[_-]?key)=([^&\s]+)")
 _PUBLIC_FORBIDDEN = re.compile(
     r"(Bearer\s+[A-Za-z0-9._~+/=-]+|gh[pousr]_[A-Za-z0-9_]+|"
     r"/Users/[^\"\s]+|/home/[^\"\s]+|"
@@ -71,9 +69,7 @@ def sanitize_evidence(value: object, roots: Sequence[Path]) -> Any:
     if isinstance(value, dict):
         return {
             str(key): (
-                "[REDACTED]"
-                if _SENSITIVE_KEYS.search(str(key))
-                else sanitize_evidence(item, roots)
+                "[REDACTED]" if _SENSITIVE_KEYS.search(str(key)) else sanitize_evidence(item, roots)
             )
             for key, item in value.items()
         }

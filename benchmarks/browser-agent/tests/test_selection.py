@@ -10,11 +10,7 @@ import pytest
 
 from atlas_browser_bench.selection import select_registered_tasks
 
-FIXTURE = (
-    Path(__file__).resolve().parent
-    / "fixtures"
-    / "hard-selection-sample.json"
-)
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "hard-selection-sample.json"
 
 
 def test_selection_hashes_within_strata_and_skips_duplicate_templates() -> None:

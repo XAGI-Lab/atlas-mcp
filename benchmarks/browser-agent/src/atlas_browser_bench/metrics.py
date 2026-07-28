@@ -87,11 +87,7 @@ def wilson_interval(successes: int, total: int) -> tuple[float, float]:
     denominator = 1 + z * z / total
     center = (proportion + z * z / (2 * total)) / denominator
     margin = (
-        z
-        * math.sqrt(
-            (proportion * (1 - proportion) + z * z / (4 * total)) / total
-        )
-        / denominator
+        z * math.sqrt((proportion * (1 - proportion) + z * z / (4 * total)) / total) / denominator
     )
     return round(center - margin, 6), round(center + margin, 6)
 
@@ -135,8 +131,7 @@ def aggregate_pair(
     if len(task_ids) != len(set(task_ids)):
         raise ValueError("registered_task_ids_duplicated")
     if any(
-        record.baseline.infrastructure_failure
-        or record.candidate.infrastructure_failure
+        record.baseline.infrastructure_failure or record.candidate.infrastructure_failure
         for record in records
     ):
         raise ValueError("infrastructure_invalid_pair")
@@ -151,9 +146,7 @@ def aggregate_pair(
     baseline_only = sum(
         record.baseline.success and not record.candidate.success for record in records
     )
-    both_success = sum(
-        record.baseline.success and record.candidate.success for record in records
-    )
+    both_success = sum(record.baseline.success and record.candidate.success for record in records)
     both_failure = sum(
         not record.baseline.success and not record.candidate.success for record in records
     )

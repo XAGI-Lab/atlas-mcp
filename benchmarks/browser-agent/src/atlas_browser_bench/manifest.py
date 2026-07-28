@@ -349,11 +349,7 @@ def _parse_task(raw: object) -> RegisteredTask:
     task_type = raw["task_type"]
     if not isinstance(task_id, int) or isinstance(task_id, bool) or task_id < 0:
         raise ValueError("registered_task_id_invalid")
-    if (
-        not isinstance(template_id, int)
-        or isinstance(template_id, bool)
-        or template_id < 0
-    ):
+    if not isinstance(template_id, int) or isinstance(template_id, bool) or template_id < 0:
         raise ValueError("intent_template_id_invalid")
     if not isinstance(sites, list) or not sites or not all(isinstance(site, str) for site in sites):
         raise ValueError("registered_task_sites_invalid")
@@ -402,9 +398,7 @@ def manifest_from_dict(raw: Mapping[str, Any]) -> BenchmarkManifest:
         ),
         agent=None if raw["agent"] is None else parse_agent_identity(raw["agent"]),
         environment=(
-            None
-            if raw["environment"] is None
-            else parse_environment_identity(raw["environment"])
+            None if raw["environment"] is None else parse_environment_identity(raw["environment"])
         ),
         tasks=tuple(_parse_task(task) for task in tasks),
     )

@@ -15,11 +15,7 @@ from atlas_browser_bench.manifest import (
     load_manifest,
 )
 
-MANIFEST = (
-    Path(__file__).resolve().parents[1]
-    / "manifests"
-    / "webarena-verified-hard-30-v1.json"
-)
+MANIFEST = Path(__file__).resolve().parents[1] / "manifests" / "webarena-verified-hard-30-v1.json"
 
 TASK_IDS = [
     15,

@@ -19,9 +19,7 @@ from .sanitize import publish_run, verify_public_artifact
 from .selection import verify_upstream
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_REGISTERED_HARD30 = (
-    _PROJECT_ROOT / "manifests" / "webarena-verified-hard-30-v1.json"
-)
+_REGISTERED_HARD30 = _PROJECT_ROOT / "manifests" / "webarena-verified-hard-30-v1.json"
 
 
 def _json_object(path: Path) -> dict[str, object]:
