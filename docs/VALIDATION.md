@@ -71,20 +71,24 @@ be attached to the immutable release or workflow run.
 - failed verification cannot become `verified_success`;
 - memory reads and deletion remain scope-aware.
 
-## CI and release evidence
+## CI evidence
 
-The repository defines:
+Pull request [#3](https://github.com/XAGI-Lab/atlas-mcp/pull/3) exercised
+source commit `ede8281` through:
 
-- six Node jobs across Linux, macOS, and Windows on Node 22 and 24;
-- CodeQL for JavaScript/TypeScript and Python;
-- dependency review;
-- Docker build, doctor, and actual MCP smoke;
-- DCO validation;
-- tag builds with SPDX SBOM, SHA-256 checksums, GitHub/Sigstore provenance,
-  GitHub release assets, and an attested container.
+- [six Node jobs](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357518365)
+  across Linux, macOS, and Windows on Node 22 and 24;
+- [CodeQL](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357512893)
+  for Actions workflows, JavaScript/TypeScript, and Python;
+- [dependency review](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357513471)
+  and a separate
+  [dependency audit](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357513022);
+- [Docker build, doctor, and actual MCP smoke](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357515676);
+- [DCO validation](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357515885).
 
-These are definitions until their checks complete on the pushed branch. Links
-to successful immutable runs will be added here before a tagged release.
+The tag workflow is defined to produce an SPDX SBOM, SHA-256 checksums,
+GitHub/Sigstore provenance, release assets, and an attested container. Its
+immutable run will be linked from the first tagged release.
 
 ## Remaining named-client and platform gates
 
