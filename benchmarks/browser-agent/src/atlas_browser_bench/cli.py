@@ -15,6 +15,12 @@ from .manifest import (
     parse_environment_identity,
     write_manifest,
 )
+from .selection import verify_upstream
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_REGISTERED_HARD30 = (
+    _PROJECT_ROOT / "manifests" / "webarena-verified-hard-30-v1.json"
+)
 
 
 def _json_object(path: Path) -> dict[str, object]:
@@ -30,6 +36,11 @@ def _parser() -> argparse.ArgumentParser:
 
     validate = commands.add_parser("validate-manifest")
     validate.add_argument("manifest", type=Path)
+
+    verify = commands.add_parser("verify-upstream")
+    verify.add_argument("--manifest", type=Path, default=_REGISTERED_HARD30)
+    verify.add_argument("--task-data", type=Path)
+    verify.add_argument("--subset-manifest", type=Path)
 
     freeze = commands.add_parser("freeze-run")
     freeze.add_argument("--registered", type=Path, required=True)
@@ -61,6 +72,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 },
                 sort_keys=True,
             )
+        )
+        return 0
+
+    if args.command == "verify-upstream":
+        result = verify_upstream(
+            load_manifest(args.manifest),
+            task_data_source=args.task_data,
+            subset_manifest_source=args.subset_manifest,
+        )
+        print(
+            "verified "
+            f"suite={result.suite} "
+            f"tasks={result.tasks} "
+            f"unique_templates={result.unique_templates}"
         )
         return 0
 
