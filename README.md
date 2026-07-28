@@ -17,8 +17,8 @@
   <a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml">
     <img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml/badge.svg" alt="CI" />
   </a>
-  <a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml">
-    <img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
+  <a href="https://github.com/XAGI-Lab/atlas-mcp/security/code-scanning">
+    <img src="https://img.shields.io/badge/CodeQL-enabled-0f766e.svg" alt="CodeQL enabled" />
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-Apache--2.0-f97316.svg" alt="Apache-2.0 license" />
