@@ -24,7 +24,7 @@ function recordsForSample(sample) {
   for (const [key, turns] of Object.entries(sample.conversation)) {
     if (!/^session_\d+$/.test(key)) continue;
     const date = sample.conversation[`${key}_date_time`] ?? "";
-    for (const turn of turns) {
+    for (const [sequence, turn] of turns.entries()) {
       records.push({
         id: turn.dia_id,
         scope: "workspace",
@@ -33,6 +33,9 @@ function recordsForSample(sample) {
         source: "locomo",
         confidence: 1,
         tags: [key],
+        speaker: turn.speaker,
+        episodeId: key,
+        sequence,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
       });
@@ -89,7 +92,13 @@ async function main() {
 
   const results = {
     schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
     benchmark: "LoCoMo objective evidence retrieval",
+    environment: {
+      platform: process.platform,
+      architecture: process.arch,
+      node: process.version,
+    },
     dataset: {
       source: "https://github.com/snap-research/locomo",
       license: "CC-BY-NC-4.0",
@@ -105,7 +114,7 @@ async function main() {
         ).length,
     },
     system: {
-      implementation: "@atlas-mcp/memory atlas-hybrid-v1",
+      implementation: "@atlas-mcp/memory atlas-hybrid-v2",
       ingestionUnit: "dialogue turn",
       modelCalls: 0,
       embeddingCalls: 0,

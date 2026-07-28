@@ -40,7 +40,7 @@ implement the same contract.
 | `@atlas-mcp/terminal-runtime` | shell-free process and background-job control |
 | `@atlas-mcp/browser-runtime` | isolated Playwright browser session |
 | `@atlas-mcp/computer-runtime` | typed local computer-use adapters |
-| `@atlas-mcp/memory` | scoped hybrid retrieval, lifecycle, and redaction |
+| `@atlas-mcp/memory` | scoped episode-aware hybrid retrieval, lifecycle, and redaction |
 | `@atlas-mcp/storage-sqlite` | tasks, receipts, certificates, and memory |
 | `@atlas-mcp/verifier-core` | deterministic evidence evaluation |
 | `@atlas-mcp/receipt-schema` | canonical receipts and certificates |

@@ -4,7 +4,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryOperationSchema } from "@atlas-mcp/protocol";
 import { SqliteStore } from "@atlas-mcp/storage-sqlite";
-import { LocalMemory, rankMemories, redactMemoryValue } from "./index.js";
+import {
+  LocalMemory,
+  rankMemories,
+  redactMemoryValue,
+  type RankedMemory,
+} from "./index.js";
 
 let store: SqliteStore | undefined;
 
@@ -15,12 +20,39 @@ afterEach(() => {
 
 describe("LocalMemory", () => {
   it("redacts common secret formats before persistence", () => {
+    const fakeGithubToken = ["ghp", "123456789012345678901234"].join("_");
     const result = redactMemoryValue(
-      "token ghp_123456789012345678901234 and password=hunter2",
+      `token ${fakeGithubToken} and password=hunter2`,
     );
     expect(result.value).not.toContain("hunter2");
     expect(result.value).not.toContain("ghp_123");
     expect(result.redactions.length).toBeGreaterThan(0);
+  });
+
+  it("redacts speaker and episode metadata before persistence", () => {
+    store = new SqliteStore(":memory:");
+    const memory = new LocalMemory(store);
+    const fakeGithubToken = ["ghp", "123456789012345678901234"].join("_");
+    const result = memory.execute(
+      MemoryOperationSchema.parse({
+        kind: "memory",
+        action: "put",
+        id: "00000000-0000-4000-8000-000000000041",
+        scope: "workspace",
+        key: "turn",
+        value: "Safe value",
+        speaker: "Alex password=hunter2",
+        episodeId: fakeGithubToken,
+        sequence: 1,
+      }),
+    ) as { redactions: string[] };
+    const persisted = store.getMemory(
+      "00000000-0000-4000-8000-000000000041",
+    );
+
+    expect(persisted?.speaker).not.toContain("hunter2");
+    expect(persisted?.episodeId).not.toContain("ghp_123");
+    expect(result.redactions.length).toBeGreaterThanOrEqual(2);
   });
 
   it("keeps memory isolated by scope", () => {
@@ -53,6 +85,55 @@ describe("LocalMemory", () => {
     ) as { memories: unknown[] };
     expect(workspace.memories).toHaveLength(1);
     expect(user.memories).toHaveLength(0);
+  });
+
+  it("uses persisted episode and speaker metadata during search", () => {
+    store = new SqliteStore(":memory:");
+    const memory = new LocalMemory(store);
+    memory.execute(
+      MemoryOperationSchema.parse({
+        kind: "memory",
+        action: "put",
+        id: "00000000-0000-4000-8000-000000000031",
+        scope: "workspace",
+        key: "prompt",
+        value: "What topic did you research?",
+        speaker: "Jordan",
+        episodeId: "conversation-a",
+        sequence: 10,
+      }),
+    );
+    memory.execute(
+      MemoryOperationSchema.parse({
+        kind: "memory",
+        action: "put",
+        id: "00000000-0000-4000-8000-000000000032",
+        scope: "workspace",
+        key: "answer",
+        value: "Adoption agencies.",
+        speaker: "Alex",
+        episodeId: "conversation-a",
+        sequence: 11,
+      }),
+    );
+
+    const result = memory.execute(
+      MemoryOperationSchema.parse({
+        kind: "memory",
+        action: "search",
+        scope: "workspace",
+        query: "What did Alex research?",
+      }),
+    ) as { memories: RankedMemory[] };
+
+    expect(result.memories.map((entry) => entry.id)).toContain(
+      "00000000-0000-4000-8000-000000000032",
+    );
+    expect(
+      result.memories.find(
+        (entry) => entry.id === "00000000-0000-4000-8000-000000000032",
+      )?.scoreBreakdown.speaker,
+    ).toBeGreaterThan(0);
   });
 
   it("ranks rare exact evidence ahead of generic duplicates", () => {
@@ -100,6 +181,100 @@ describe("LocalMemory", () => {
     expect(ranked[0]?.id).toBe("00000000-0000-4000-8000-000000000001");
     expect(ranked[0]?.scoreBreakdown.lexical).toBeGreaterThan(0);
     expect(ranked[2]?.scoreBreakdown.diversityPenalty).toBeGreaterThan(0);
+  });
+
+  it("propagates relevance only to adjacent records in the same episode", () => {
+    const now = "2026-07-28T00:00:00.000Z";
+    const ranked = rankMemories(
+      [
+        {
+          id: "00000000-0000-4000-8000-000000000011",
+          scope: "workspace",
+          key: "prompt",
+          value: "What topic did you research?",
+          source: "test",
+          confidence: 1,
+          tags: [],
+          episodeId: "conversation-a",
+          sequence: 10,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000012",
+          scope: "workspace",
+          key: "answer",
+          value: "Adoption agencies.",
+          source: "test",
+          confidence: 1,
+          tags: [],
+          episodeId: "conversation-a",
+          sequence: 11,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000013",
+          scope: "workspace",
+          key: "unrelated",
+          value: "Private banking.",
+          source: "test",
+          confidence: 1,
+          tags: [],
+          episodeId: "conversation-b",
+          sequence: 11,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      "What did Alex research?",
+      3,
+      Date.parse(now),
+    );
+
+    expect(ranked.map((memory) => memory.id)).toContain(
+      "00000000-0000-4000-8000-000000000012",
+    );
+    expect(ranked.map((memory) => memory.id)).not.toContain(
+      "00000000-0000-4000-8000-000000000013",
+    );
+  });
+
+  it("boosts a record spoken by the entity named in the query", () => {
+    const now = "2026-07-28T00:00:00.000Z";
+    const ranked = rankMemories(
+      [
+        {
+          id: "00000000-0000-4000-8000-000000000021",
+          scope: "workspace",
+          key: "turn-one",
+          value: "I enjoy hiking and painting.",
+          source: "test",
+          confidence: 1,
+          tags: [],
+          speaker: "Jordan",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000022",
+          scope: "workspace",
+          key: "turn-two",
+          value: "I enjoy hiking and painting.",
+          source: "test",
+          confidence: 1,
+          tags: [],
+          speaker: "Alex",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      "What does Alex enjoy?",
+      2,
+      Date.parse(now),
+    );
+
+    expect(ranked[0]?.id).toBe("00000000-0000-4000-8000-000000000022");
   });
 
   it("supports expiry and scoped supersession", () => {

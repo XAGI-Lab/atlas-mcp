@@ -1,6 +1,12 @@
 {
   "schemaVersion": 1,
+  "generatedAt": "2026-07-28T17:32:56.514Z",
   "benchmark": "LoCoMo objective evidence retrieval",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "node": "v24.10.0"
+  },
   "dataset": {
     "source": "https://github.com/snap-research/locomo",
     "license": "CC-BY-NC-4.0",
@@ -10,7 +16,7 @@
     "excludedQuestions": 4
   },
   "system": {
-    "implementation": "@atlas-mcp/memory atlas-hybrid-v1",
+    "implementation": "@atlas-mcp/memory atlas-hybrid-v2",
     "ingestionUnit": "dialogue turn",
     "modelCalls": 0,
     "embeddingCalls": 0,
@@ -18,48 +24,48 @@
   },
   "metrics": {
     "k5": {
-      "meanEvidenceCoverage": 0.495564,
-      "completeEvidenceRecall": 0.463169
+      "meanEvidenceCoverage": 0.590478,
+      "completeEvidenceRecall": 0.554995
     },
     "k20": {
-      "meanEvidenceCoverage": 0.629117,
-      "completeEvidenceRecall": 0.586276
+      "meanEvidenceCoverage": 0.759652,
+      "completeEvidenceRecall": 0.716448
     },
     "k50": {
-      "meanEvidenceCoverage": 0.718429,
-      "completeEvidenceRecall": 0.667003
+      "meanEvidenceCoverage": 0.841641,
+      "completeEvidenceRecall": 0.79667
     },
     "k100": {
-      "meanEvidenceCoverage": 0.764263,
-      "completeEvidenceRecall": 0.712412
+      "meanEvidenceCoverage": 0.888615,
+      "completeEvidenceRecall": 0.844601
     }
   },
   "categoryCoverageAt20": {
     "1": {
       "questions": 282,
-      "meanEvidenceCoverage": 0.29108
+      "meanEvidenceCoverage": 0.384563
     },
     "2": {
       "questions": 321,
-      "meanEvidenceCoverage": 0.708463
+      "meanEvidenceCoverage": 0.782451
     },
     "3": {
       "questions": 92,
-      "meanEvidenceCoverage": 0.316046
+      "meanEvidenceCoverage": 0.366131
     },
     "4": {
       "questions": 841,
-      "meanEvidenceCoverage": 0.708482
+      "meanEvidenceCoverage": 0.880896
     },
     "5": {
       "questions": 446,
-      "meanEvidenceCoverage": 0.700673
+      "meanEvidenceCoverage": 0.83296
     }
   },
   "queryLatencyMs": {
     "samples": 1982,
-    "p50": 20.699,
-    "p95": 25.406
+    "p50": 21.06,
+    "p95": 25.492
   },
   "limitations": [
     "This is retrieval evidence coverage, not answer accuracy.",

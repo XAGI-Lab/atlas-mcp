@@ -6,6 +6,23 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Optional speaker, episode ID, and sequence metadata for memory records.
+- Bounded adjacent-turn context expansion and query-aware speaker matching in
+  the deterministic local memory ranker.
+
+### Changed
+
+- LoCoMo mean evidence coverage@20 improved from `0.629117` to `0.759652`
+  on the same hashed 1,982-question run, with no model, embedding, or network
+  calls.
+
+### Security
+
+- Speaker and episode metadata pass through secret redaction before
+  persistence.
+
 ## [0.2.0-alpha.1] - 2026-07-28
 
 ### Added

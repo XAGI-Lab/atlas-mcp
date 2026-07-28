@@ -36,6 +36,8 @@ export interface RankedMemory extends MemoryRecord {
     phrase: number;
     confidence: number;
     freshness: number;
+    context: number;
+    speaker: number;
     diversityPenalty: number;
   };
 }
@@ -43,6 +45,10 @@ export interface RankedMemory extends MemoryRecord {
 const DAY_MS = 86_400_000;
 const DEFAULT_HALF_LIFE_DAYS = 30;
 const MAX_CANDIDATES = 5_000;
+const CONTEXT_ANCHORS = 20;
+const CONTEXT_DEPTH = 2;
+const CONTEXT_DECAY = 0.9;
+const SPEAKER_BOOST = 0.1;
 
 export function tokenize(value: string): string[] {
   return value.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
@@ -72,7 +78,8 @@ function freshness(updatedAt: string, nowMs: number): number {
  * The first pass combines BM25-style term evidence, exact phrase matching,
  * provenance confidence, and freshness. The second pass applies a bounded
  * maximal-marginal-relevance penalty so repeated records do not crowd out
- * distinct evidence.
+ * distinct evidence. A final bounded pass uses explicit episode order and
+ * speaker metadata when the caller supplies them.
  */
 export function rankMemories(
   records: MemoryRecord[],
@@ -82,6 +89,7 @@ export function rankMemories(
 ): RankedMemory[] {
   const queryTokens = [...new Set(tokenize(query))];
   if (queryTokens.length === 0) return [];
+  const queryTokenSet = new Set(queryTokens);
   const documents = records.map((record) => ({
     record,
     tokens: tokenize(`${record.key} ${record.value} ${record.tags.join(" ")}`),
@@ -188,6 +196,8 @@ export function rankMemories(
           phrase: candidate.phrase,
           confidence: candidate.record.confidence,
           freshness: Number(candidate.fresh.toFixed(6)),
+          context: 0,
+          speaker: 0,
           diversityPenalty: Number(bestPenalty.toFixed(6)),
         },
       },
@@ -215,12 +225,80 @@ export function rankMemories(
           phrase: candidate.phrase,
           confidence: candidate.record.confidence,
           freshness: Number(candidate.fresh.toFixed(6)),
+          context: 0,
+          speaker: 0,
           diversityPenalty: 0,
         },
       },
     });
   }
-  return selected.map(({ ranked }) => ranked);
+  const rankedById = new Map(
+    selected.map(({ ranked }) => [ranked.id, ranked]),
+  );
+  const episodeSequence = new Map<string, MemoryRecord[]>();
+  for (const record of records) {
+    if (record.episodeId === undefined || record.sequence === undefined) {
+      continue;
+    }
+    const key = `${record.episodeId}\u0000${record.sequence}`;
+    const entries = episodeSequence.get(key) ?? [];
+    entries.push(record);
+    episodeSequence.set(key, entries);
+  }
+  for (const { ranked: anchor } of selected.slice(0, CONTEXT_ANCHORS)) {
+    if (anchor.episodeId === undefined || anchor.sequence === undefined) {
+      continue;
+    }
+    for (let distance = 1; distance <= CONTEXT_DEPTH; distance += 1) {
+      for (const direction of [-1, 1]) {
+        const key = `${anchor.episodeId}\u0000${
+          anchor.sequence + direction * distance
+        }`;
+        for (const neighbor of episodeSequence.get(key) ?? []) {
+          const context = anchor.score * CONTEXT_DECAY ** distance;
+          const existing = rankedById.get(neighbor.id);
+          if (existing === undefined) {
+            rankedById.set(neighbor.id, {
+              ...neighbor,
+              score: Number(context.toFixed(6)),
+              scoreBreakdown: {
+                lexical: 0,
+                phrase: 0,
+                confidence: neighbor.confidence,
+                freshness: Number(
+                  freshness(neighbor.updatedAt, nowMs).toFixed(6),
+                ),
+                context: Number(context.toFixed(6)),
+                speaker: 0,
+                diversityPenalty: 0,
+              },
+            });
+          } else if (context > existing.scoreBreakdown.context) {
+            existing.score = Number(
+              Math.max(existing.score, context).toFixed(6),
+            );
+            existing.scoreBreakdown.context = Number(context.toFixed(6));
+          }
+        }
+      }
+    }
+  }
+  for (const ranked of rankedById.values()) {
+    if (
+      ranked.speaker !== undefined &&
+      tokenize(ranked.speaker).some((token) => queryTokenSet.has(token))
+    ) {
+      ranked.score = Number((ranked.score + SPEAKER_BOOST).toFixed(6));
+      ranked.scoreBreakdown.speaker = SPEAKER_BOOST;
+    }
+  }
+  return [...rankedById.values()]
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.updatedAt.localeCompare(left.updatedAt),
+    )
+    .slice(0, limit);
 }
 
 export class LocalMemory {
@@ -234,6 +312,14 @@ export class LocalMemory {
         }
         const now = new Date().toISOString();
         const redacted = redactMemoryValue(operation.value);
+        const redactedSpeaker =
+          operation.speaker === undefined
+            ? undefined
+            : redactMemoryValue(operation.speaker);
+        const redactedEpisodeId =
+          operation.episodeId === undefined
+            ? undefined
+            : redactMemoryValue(operation.episodeId);
         const existing =
           operation.id === undefined
             ? undefined
@@ -264,6 +350,15 @@ export class LocalMemory {
           source: operation.source ?? "mcp-client",
           confidence: operation.confidence,
           tags: operation.tags,
+          ...(redactedSpeaker === undefined
+            ? {}
+            : { speaker: redactedSpeaker.value }),
+          ...(redactedEpisodeId === undefined
+            ? {}
+            : { episodeId: redactedEpisodeId.value }),
+          ...(operation.sequence === undefined
+            ? {}
+            : { sequence: operation.sequence }),
           ...(operation.expiresAt === undefined
             ? {}
             : { expiresAt: operation.expiresAt }),
@@ -291,9 +386,18 @@ export class LocalMemory {
           scope: memory.scope,
           key: memory.key,
           tags: memory.tags,
+          speaker: memory.speaker ?? null,
+          episodeId: memory.episodeId ?? null,
+          sequence: memory.sequence ?? null,
           expiresAt: memory.expiresAt ?? null,
           supersedesId: memory.supersedesId ?? null,
-          redactions: redacted.redactions,
+          redactions: [
+            ...new Set([
+              ...redacted.redactions,
+              ...(redactedSpeaker?.redactions ?? []),
+              ...(redactedEpisodeId?.redactions ?? []),
+            ]),
+          ],
         };
       }
       case "search": {
@@ -312,7 +416,7 @@ export class LocalMemory {
             operation.limit,
           ),
           candidateCount: candidates.length,
-          ranking: "atlas-hybrid-v1",
+          ranking: "atlas-hybrid-v2",
         };
       }
       case "list":
