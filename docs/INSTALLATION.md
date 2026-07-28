@@ -13,8 +13,8 @@ Run the readiness check after installation:
 atlas-mcp doctor
 ```
 
-The command reports Node, workspace, data-directory, SQLite, browser, and policy
-readiness without exposing credentials.
+The command reports Node, workspace, data-directory, SQLite, browser,
+computer-use adapter, and policy readiness without exposing credentials.
 
 ## From source
 

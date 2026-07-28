@@ -25,3 +25,4 @@ ATLAS_MCP_POLICY=examples/04-browser-inspection/policy.json \
 | `03-terminal-check` | terminal | exit code and stdout are verified |
 | `04-browser-inspection` | browser | allowlisted page URL and text are verified |
 | `05-scoped-memory` | memory | a redacted, scoped record is stored |
+| `06-computer-capabilities` | computer | detected adapter and limitations are reported |

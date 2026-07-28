@@ -1,0 +1,7 @@
+{
+  "goal": "Inspect local computer-use support",
+  "operation": {
+    "kind": "computer",
+    "action": "capabilities"
+  }
+}

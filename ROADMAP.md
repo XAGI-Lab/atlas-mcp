@@ -41,7 +41,10 @@ promise of stable API compatibility.
 - [x] Session, task, project, workspace, user, and procedural scopes.
 - [x] Provenance, confidence, search, listing, deletion, clear, and export.
 - [x] Secret redaction before persistence.
-- [ ] Expiry and retention policies.
+- [x] Expiry and supersession chains.
+- [x] Hybrid lexical ranking, freshness, confidence, and head diversity.
+- [x] Public LoCoMo objective-retrieval harness and result artifact.
+- [ ] Configurable retention policies and automatic compaction.
 - [ ] Semantic embeddings and hybrid retrieval.
 - [ ] Freshness, conflict resolution, and consolidation.
 - [ ] Prompt-injection and memory-poisoning classifiers.
@@ -51,12 +54,12 @@ promise of stable API compatibility.
 - [x] CLI doctor, init, serve, run, inspect, export, and policy test.
 - [x] TypeScript and Python client SDKs.
 - [x] Docker image and hardened Compose configuration.
-- [x] Twenty-one deterministic evaluation scenarios.
+- [x] Twenty-two deterministic evaluation scenarios.
 - [x] Real MCP stdio, browser, container, and Python interoperability tests.
 - [x] Linux, macOS, and Windows CI definitions.
 - [x] CodeQL, dependency review, Dependabot, DCO, and secret protections.
 - [x] Release workflow for checksums, SBOM, and signed provenance.
-- [ ] Published package namespace and first tagged alpha release.
+- [x] First tagged alpha release with multi-architecture container.
 - [ ] Fresh-machine evidence on every supported platform.
 - [ ] Independent security review.
 
@@ -64,23 +67,30 @@ promise of stable API compatibility.
 
 ### Computer use
 
-- [ ] Cross-platform computer-use capability contract.
+- [x] Computer-use capability contract inside the six-tool task surface.
+- [x] Read-only platform and adapter capability discovery.
+- [x] Governed screenshot, pointer, text, named-key, and scroll operations.
+- [x] macOS native adapter with permission-aware capability reporting.
+- [x] Linux/X11 adapter using detected screenshot tools and `xdotool`.
 - [ ] Accessibility-tree inspection and semantic element targeting.
 - [ ] Screenshot and OCR inspection fallback.
-- [ ] Mouse, keyboard, drag, scroll, and window actions.
+- [ ] Drag and window-management actions.
 - [ ] Active-window, display, focus, and secure-input safety checks.
-- [ ] Consequential-action approvals and post-action verification.
-- [ ] macOS, Windows, and Linux capability detection.
+- [x] Consequential-action approvals through the common policy gate.
+- [ ] Post-action desktop observation and task-specific verification.
+- [ ] Windows input adapter.
 - [ ] Replayable computer-use safety evaluations.
+- [ ] Official OSWorld-MCP subset with released traces and evaluator output.
 
 ### Browser and terminal expansion
 
-- [ ] Stable-page and network-settle heuristics.
+- [x] Mutation-driven stable-DOM quiet-window with timeout evidence.
 - [ ] Visual targeting fallback with explicit confidence.
 - [ ] Popup and multi-window policy.
 - [ ] Interactive terminal and pseudo-TTY support.
 - [ ] Package-installation and network-effect classifiers.
-- [ ] Browser reliability and token-cost benchmarks.
+- [x] Local fixed-wait versus condition-wait correctness/latency benchmark.
+- [ ] Representative BrowserGym reliability and token-cost benchmark.
 
 ### Transport and identity
 

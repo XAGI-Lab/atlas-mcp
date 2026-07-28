@@ -9,7 +9,7 @@ flowchart TB
     Plan --> Policy["Policy and scoped approval"]
     Policy --> Controller["Task controller"]
     Controller --> Runtime["Bounded capability runtime"]
-    Runtime --> Target["Workspace, process, browser, or memory"]
+    Runtime --> Target["Workspace, process, browser, memory, or desktop"]
     Target --> Verifier["Deterministic verifier"]
     Verifier --> Evidence["Receipt and certificate"]
     Evidence --> Client
@@ -39,7 +39,8 @@ implement the same contract.
 | `@atlas-mcp/file-runtime` | root-confined filesystem operations |
 | `@atlas-mcp/terminal-runtime` | shell-free process and background-job control |
 | `@atlas-mcp/browser-runtime` | isolated Playwright browser session |
-| `@atlas-mcp/memory` | scoped local memory and pre-persistence redaction |
+| `@atlas-mcp/computer-runtime` | typed local computer-use adapters |
+| `@atlas-mcp/memory` | scoped hybrid retrieval, lifecycle, and redaction |
 | `@atlas-mcp/storage-sqlite` | tasks, receipts, certificates, and memory |
 | `@atlas-mcp/verifier-core` | deterministic evidence evaluation |
 | `@atlas-mcp/receipt-schema` | canonical receipts and certificates |
@@ -73,6 +74,7 @@ abort error.
 - Policy classifies an operation before it reaches an adapter.
 - Filesystem and terminal working directories are independently confined.
 - Browser navigation is checked before launch and again for every request.
+- Computer input is typed, platform-adapted, and classified as high-risk.
 - The verifier observes results but cannot execute arbitrary commands.
 - Raw output is returned only to the live caller. Storage persists redacted
   task inputs and output; it is not a secret vault.

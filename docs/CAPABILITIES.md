@@ -1,6 +1,6 @@
 # Capabilities and limits
 
-This document describes `0.1.0-alpha.1`.
+This document describes `0.2.0-alpha.1`.
 
 ## MCP tools
 
@@ -36,7 +36,7 @@ Actions: `run`, `start`, `status`, `output`, `stop`.
   bounded.
 - Background jobs are supervised only for the life of the server process.
 
-Interactive pseudo-terminal sessions are not implemented in `0.1`.
+Interactive pseudo-terminal sessions are not implemented in `0.2`.
 
 ### Browser
 
@@ -52,7 +52,7 @@ Actions: `navigate`, `inspect`, `click`, `type`, `select`, `press`, `scroll`,
   directory.
 
 Persistent login profiles, visual/OCR targeting, and deterministic replay are
-not implemented in `0.1`.
+not implemented in `0.2`.
 
 ### Memory
 
@@ -62,10 +62,33 @@ Scopes: `session`, `task`, `project`, `workspace`, `user`, `procedural`.
 
 - Stored records include source, confidence, and timestamps.
 - Common API keys, bearer tokens, passwords, and GitHub tokens are redacted.
-- Search is local, scoped, case-insensitive keyword matching.
+- Search is local and scoped with BM25-style lexical evidence, exact phrases,
+  confidence, freshness, and bounded head diversity.
+- Search ranks at most the 5,000 most recently updated in-scope candidates per
+  query and returns at most 100 results.
+- Records can expire or supersede older facts. Expired and superseded records
+  are excluded by default.
 
-Memory is not a password manager. Semantic embeddings, expiry, consolidation,
-and poisoning detection remain roadmap work.
+Memory is not a password manager. Semantic embeddings, automatic
+consolidation, and poisoning detection remain roadmap work.
+
+### Computer
+
+Actions: `capabilities`, `screenshot`, `click`, `move`, `type`, `key`,
+`scroll`.
+
+- Capability discovery is read-only and reports the detected adapter and
+  limitations.
+- Screenshots return a bounded artifact path, byte size, and SHA-256.
+- Input actions are high-risk mutations requiring evidence and exact scoped
+  approval.
+- Coordinates name normalized or pixel space; key input uses a fixed allowlist.
+- macOS requires Screen Recording or Accessibility permission. Linux input
+  currently requires X11 and `xdotool`.
+
+Accessibility targeting, OCR/vision fallback, focus verification,
+multi-display normalization, Windows input, and official task-benchmark
+evidence remain roadmap work.
 
 ### System
 
@@ -110,4 +133,4 @@ Mutations and destructive operations have one execution attempt.
 
 - Supported: local stdio.
 - Packaged: source, portable Node artifact, Python SDK artifact, Docker image.
-- Not supported in `0.1`: remote HTTP transport, OAuth, multi-tenant hosting.
+- Not supported in `0.2`: remote HTTP transport, OAuth, multi-tenant hosting.
