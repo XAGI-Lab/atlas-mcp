@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import shutil
+import threading
 from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -45,6 +46,29 @@ def discover_miniwob_tasks() -> tuple[str, ...]:
             task_id for task_id in gym.envs.registry if task_id.startswith("browsergym/miniwob.")
         )
     )
+
+
+_PLAYWRIGHT_EXECUTOR: ThreadPoolExecutor | None = None
+_PLAYWRIGHT_EXECUTOR_LOCK = threading.Lock()
+
+
+def playwright_executor() -> ThreadPoolExecutor:
+    """The one thread every Playwright call in this process must use.
+
+    BrowserGym keeps a process-global sync Playwright bound to whichever thread
+    first created it, and Playwright's sync API cannot be driven from another
+    thread. Giving each task its own worker leaves that global pointing at a
+    thread that has since exited, so every task after the first dies with
+    greenlet.error. One process-wide worker avoids that, and it is deliberately
+    never shut down: a later task would rebind to a dead thread again.
+    """
+    global _PLAYWRIGHT_EXECUTOR
+    with _PLAYWRIGHT_EXECUTOR_LOCK:
+        if _PLAYWRIGHT_EXECUTOR is None:
+            _PLAYWRIGHT_EXECUTOR = ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="atlas-miniwob"
+            )
+        return _PLAYWRIGHT_EXECUTOR
 
 
 def _serializable_observation(unwrapped: Any, observation: dict[str, Any]) -> dict[str, object]:
@@ -110,7 +134,7 @@ class MiniWobEnvironment:
         repository_root = (
             repository.resolve() if repository is not None else Path(__file__).resolve().parents[4]
         )
-        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="atlas-miniwob")
+        executor = playwright_executor()
         environment: MiniWobEnvironment | None = None
         async with ChromeCdpProcess.start(browser_executable) as chrome:
             loop = asyncio.get_running_loop()
@@ -195,7 +219,6 @@ class MiniWobEnvironment:
                         environment._gym_environment.close()
 
                     await loop.run_in_executor(executor, close)
-                executor.shutdown(wait=True, cancel_futures=True)
 
     async def prepare_external_action(self) -> None:
         def prepare() -> None:

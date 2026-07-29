@@ -65,6 +65,53 @@ No representative score is claimed yet. A score will be added only after the
 full fixed-denominator run completes without infrastructure-invalid pairs and
 its sanitized aggregate artifact passes the publication gate.
 
+## MiniWoB development run (not a published score)
+
+The development suite has now been run end to end. This is a *development*
+signal used to find generic failures, not evidence about ATLAS MCP's quality,
+and it is deliberately not published as a result artifact.
+
+First complete run, 2026-07-29, `gemini-3.1-flash-lite`, max 10 steps per task,
+requests paced to 12/minute, single `run_input_digest`:
+
+| Measure | Value |
+|---|---:|
+| Tasks | 125 |
+| Successes | 15 (12.0%) |
+| Browser actions executed through ATLAS MCP | 461 |
+| Actions reaching `verified_success` | 406 (88.1%) |
+| Agent steps | 462 |
+| Input / output tokens | 449,085 / 22,108 |
+| Wall clock | 65.9 min |
+
+Failure groups:
+
+| Count | Category | Reading |
+|---:|---|---|
+| 40 | `mcp_budget_exhausted` | Action consumed its full 30s budget instead of failing fast on an unresolvable target |
+| 32 | `step_limit` | Agent did not finish within 10 steps |
+| 15 | `mcp_failed` | Action executed but its declared evidence did not hold |
+| 8 | `official_evaluator_failure` | BrowserGym scored the final state as unsuccessful |
+| 14 | `harness_*` | Harness or provider fault; not evidence about the agent |
+
+**This run is not valid as a clean development baseline.** Fourteen tasks
+(11.2%) failed for infrastructure reasons: eight were the last eight tasks
+alphabetically, where the provider's daily request allowance ran out, and the
+rest were transport faults and one unverifiable-action crash. The fixes for
+those are in place, so the next run should report
+`infrastructure_failures: 0`; `run-miniwob` now prints that count and a `valid`
+flag so an invalid run cannot be mistaken for a clean one.
+
+Two agent-behavior findings worth acting on before any published run:
+
+- `screenshot` was chosen 61 times and `navigate` 18 times, together 17% of all
+  actions. The agent receives text observations, so a screenshot cannot inform
+  it, and navigating away from a MiniWoB task page always loses the task.
+  Offering both to a text-only agent spends steps that cannot succeed.
+- `budget_exhausted` is the single largest failure group. Distinguishing
+  "target not found" from "action genuinely took too long" would turn a 30s
+  timeout into an immediate, correctly-labelled failure.
+
 Reproduce the harness checks:
 
 ```bash
