@@ -104,9 +104,12 @@ approval-gated by design:
 - the 125-task MiniWoB development run needs an authorized model and a
   credential in the environment named by the agent configuration;
 - the `WebArena-Verified Hard-30 registered subset` run needs the six official
-  site containers, which require roughly two orders of magnitude more free disk
-  than this host currently has, so it needs an explicitly authorized
-  environment.
+  site containers. The registered 30 tasks span all six families
+  (`gitlab` 9, `shopping` 7, `reddit` 7, `shopping_admin` 6, `wikipedia` 4,
+  `map` 3), so none can be dropped without breaking the pre-registration.
+  WebArena's own setup guide provisions a 1,000 GB volume per instance and
+  notes the map backend alone is a ~180 GB download; this host has 107 GiB
+  free, so the run needs an explicitly authorized environment.
 
 Until both complete, the run manifest stays unfrozen and the publication gate
 has nothing to accept. Any score quoted before then is unsupported.

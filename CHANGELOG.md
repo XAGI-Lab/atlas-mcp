@@ -42,6 +42,10 @@ All notable changes are documented here. The format follows
   rather than aborting the suite, keeping the denominator fixed.
 - A model action the harness cannot derive evidence for is recorded as
   `invalid_action` instead of raising.
+- Benchmark browser actions now time out after 10s against a 30s task budget.
+  Both previously defaulted to 30s, so an unresolvable target and the budget
+  abort expired together and every such action was reported as
+  `budget_exhausted` rather than its actual error.
 
 ### Security
 
