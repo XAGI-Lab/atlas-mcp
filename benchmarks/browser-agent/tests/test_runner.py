@@ -144,3 +144,35 @@ def test_failed_task_record_keeps_the_task_in_the_denominator() -> None:
             error=RuntimeError("x"),
             started=time.perf_counter(),
         )
+
+
+class _UnverifiableAgent:
+    """Chooses an action the harness cannot derive evidence for."""
+
+    async def decide(self, _context: AgentContext) -> BrowserActionDecision:
+        return BrowserActionDecision(goal="Pick an option", action="select", target={})
+
+
+class _RaisingEnvironment(_Environment):
+    def evidence_for(self, _decision: BrowserActionDecision) -> list[dict[str, object]]:
+        raise ValueError("select_action_requires_verifiable_target")
+
+
+@pytest.mark.asyncio
+async def test_unverifiable_model_action_is_a_task_failure_not_a_crash() -> None:
+    """A bad model choice is the agent failing the task, not the harness breaking.
+
+    Letting it propagate discards the task and hides the reason behind a generic
+    harness category, so these cannot be grouped as invalid actions.
+    """
+    record = await run_task(
+        task_id="browsergym/miniwob.choose-list",
+        run_input_digest="a" * 64,
+        environment=_RaisingEnvironment(),
+        agent=_UnverifiableAgent(),
+        driver=_Driver(),
+        limits=RunLimits(max_steps=3, task_timeout_seconds=30),
+    )
+    assert record.success is False
+    assert record.failure_category == "invalid_action"
+    assert record.agent_steps == 1

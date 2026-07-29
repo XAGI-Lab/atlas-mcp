@@ -307,14 +307,28 @@ class OpenAICompatibleAgent:
     ) -> httpx.Response:
         for attempt in range(1, self._max_attempts + 1):
             await self._pace()
-            response = await client.post(
-                f"{self._base_url}/chat/completions",
-                headers={
-                    "authorization": f"Bearer {self._api_key}",
-                    "content-type": "application/json",
-                },
-                json=payload,
-            )
+            try:
+                response = await client.post(
+                    f"{self._base_url}/chat/completions",
+                    headers={
+                        "authorization": f"Bearer {self._api_key}",
+                        "content-type": "application/json",
+                    },
+                    json=payload,
+                )
+            except httpx.TransportError:
+                # A dropped or reset connection carries no status code, so it
+                # would otherwise escape the status handling below and discard
+                # the task for a transient network fault.
+                if attempt == self._max_attempts:
+                    raise
+                await self._sleep(
+                    min(
+                        self._backoff_base_seconds * (2 ** (attempt - 1)),
+                        self._backoff_cap_seconds,
+                    )
+                )
+                continue
             if (
                 response.status_code not in RETRYABLE_STATUS_CODES
                 or attempt == self._max_attempts

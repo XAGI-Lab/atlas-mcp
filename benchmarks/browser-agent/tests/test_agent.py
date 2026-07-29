@@ -310,3 +310,65 @@ async def test_agent_pacing_does_not_wait_when_enough_time_already_passed() -> N
         now[0] += 10  # caller was slow; no extra pacing needed
         await agent.decide(_CONTEXT)
     assert waits == []
+
+
+@pytest.mark.asyncio
+async def test_agent_retries_transient_transport_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A dropped connection is transient and must not lose the task.
+
+    A read error or protocol error mid-request carries no HTTP status, so status
+    handling alone leaves it uncaught and the whole task is discarded.
+    """
+    waits: list[float] = []
+
+    async def record(seconds: float) -> None:
+        waits.append(seconds)
+
+    with completion_server() as base_url:
+        real_post = httpx.AsyncClient.post
+        calls = {"n": 0}
+
+        async def flaky(self: httpx.AsyncClient, url: str, **kwargs: object) -> httpx.Response:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise httpx.ReadError("connection reset")
+            if calls["n"] == 2:
+                raise httpx.RemoteProtocolError("server disconnected")
+            return await real_post(self, url, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(httpx.AsyncClient, "post", flaky)
+        agent = OpenAICompatibleAgent(
+            base_url=base_url,
+            api_key="test-only",
+            model_id="provider-model-snapshot-2026-07-28",
+            backoff_base_seconds=2,
+            backoff_cap_seconds=5,
+            sleep=record,
+        )
+        decision = await agent.decide(_CONTEXT)
+    assert decision.action == "click"
+    assert calls["n"] == 3
+    assert waits == [2, 4]
+
+
+@pytest.mark.asyncio
+async def test_agent_reraises_transport_error_after_bounded_attempts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def instant(_seconds: float) -> None:
+        return None
+
+    with completion_server() as base_url:
+        async def always_fail(self: httpx.AsyncClient, url: str, **kwargs: object) -> object:
+            raise httpx.ReadError("connection reset")
+
+        monkeypatch.setattr(httpx.AsyncClient, "post", always_fail)
+        agent = OpenAICompatibleAgent(
+            base_url=base_url,
+            api_key="test-only",
+            model_id="provider-model-snapshot-2026-07-28",
+            max_attempts=3,
+            sleep=instant,
+        )
+        with pytest.raises(httpx.TransportError):
+            await agent.decide(_CONTEXT)

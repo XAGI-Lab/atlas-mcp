@@ -206,8 +206,32 @@ async def run_task(
                         started=started,
                         history=history,
                     )
+                try:
+                    expected_evidence = environment.evidence_for(decision)
+                except ValueError:
+                    # The model picked an action the harness cannot verify. That
+                    # is the agent failing this task, not the harness breaking,
+                    # so record it as such instead of discarding the task.
+                    history.append(
+                        {
+                            "step": step,
+                            "decision": "invalid_action",
+                            "action": decision.action,
+                            "model_id": decision.model_id,
+                            "usage": asdict(decision.usage),
+                        }
+                    )
+                    return _record(
+                        task_id=task_id,
+                        run_input_digest=run_input_digest,
+                        success=False,
+                        reward=latest_reward,
+                        failure_category="invalid_action",
+                        started=started,
+                        history=history,
+                    )
                 await environment.prepare_external_action()
-                observation = await driver.perform(decision, environment.evidence_for(decision))
+                observation = await driver.perform(decision, expected_evidence)
                 scored = await environment.observe_after_mcp_action()
                 latest_reward = scored.reward
                 history.append(

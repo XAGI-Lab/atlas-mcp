@@ -212,13 +212,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             record.success if isinstance(record, BrowserTaskRecord) else bool(record.get("success"))
             for record in records
         )
+        def category(record: BrowserTaskRecord | dict[str, object]) -> str:
+            value = (
+                record.failure_category
+                if isinstance(record, BrowserTaskRecord)
+                else record.get("failure_category")
+            )
+            return value if isinstance(value, str) else ""
+
+        # A task the harness could not attempt is not evidence about the agent.
+        # Surface the count so a run that needs repeating is obvious.
+        infrastructure_failures = sum(
+            1 for record in records if category(record).startswith("harness_")
+        )
         print(
             json.dumps(
                 {
                     "suite": "miniwob-125-v1",
                     "tasks": len(records),
                     "successes": successes,
+                    "infrastructure_failures": infrastructure_failures,
                     "complete": len(records) == 125,
+                    "valid": len(records) == 125 and infrastructure_failures == 0,
                 },
                 sort_keys=True,
             )

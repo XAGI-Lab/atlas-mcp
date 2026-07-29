@@ -25,6 +25,23 @@ All notable changes are documented here. The format follows
 - LoCoMo mean evidence coverage@20 improved from `0.629117` to `0.759652`
   on the same hashed 1,982-question run, with no model, embedding, or network
   calls.
+- `run-miniwob` now reports `infrastructure_failures` and a `valid` flag, so a
+  run whose tasks the harness could not attempt is not mistaken for a clean
+  result.
+
+### Fixed
+
+- Browser benchmark runs drive Playwright from one process-wide thread.
+  BrowserGym binds a process-global sync Playwright to its creating thread, so
+  the previous per-task thread made every task after the first fail with
+  `greenlet.error`.
+- The benchmark agent retries rate-limited and transient-transport provider
+  responses with bounded, capped backoff, honoring `Retry-After` when sent, and
+  can pace requests to a fixed per-minute budget.
+- A task whose environment, driver, or agent fails is recorded as a failure
+  rather than aborting the suite, keeping the denominator fixed.
+- A model action the harness cannot derive evidence for is recorded as
+  `invalid_action` instead of raising.
 
 ### Security
 
