@@ -9,6 +9,13 @@ from atlas_mcp import AtlasClient
 
 from .agent import BrowserActionDecision
 
+# A browser action must be able to fail with its own, specific error before the
+# task budget aborts it. Playwright waits ACTION_TIMEOUT_MS for a target it
+# cannot resolve; if that matched TASK_BUDGET_MS the abort would fire at the same
+# moment and win, reporting every unresolvable target as `budget_exhausted`.
+ACTION_TIMEOUT_MS = 10_000
+TASK_BUDGET_MS = 30_000
+
 
 @dataclass(frozen=True)
 class DriverObservation:
@@ -35,11 +42,11 @@ class AtlasBrowserDriver:
             raise ValueError("benchmark_driver_browser_operation_required")
         request = {
             "goal": decision.goal,
-            "operation": operation,
+            "operation": {**operation, "timeoutMs": ACTION_TIMEOUT_MS},
             "requiredEvidence": expected_evidence,
             "budget": {
                 "maxSteps": 1,
-                "maxDurationMs": 30_000,
+                "maxDurationMs": TASK_BUDGET_MS,
                 "maxRetries": 0,
             },
         }

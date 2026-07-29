@@ -112,6 +112,13 @@ Two agent-behavior findings worth acting on before any published run:
   "target not found" from "action genuinely took too long" would turn a 30s
   timeout into an immediate, correctly-labelled failure.
 
+The second point is now addressed: the driver had left the browser action's
+`timeoutMs` at its 30,000 ms default while setting the task budget to the same
+30,000 ms, so Playwright's wait for an unresolvable target and the budget abort
+expired together and the abort won. The action timeout is now 10,000 ms against
+a 30,000 ms budget, leaving room for the specific error to surface. The
+remaining groups need a fresh run to re-measure.
+
 Reproduce the harness checks:
 
 ```bash
@@ -121,4 +128,30 @@ pnpm benchmark:browser:verify-upstream
 uv run --project benchmarks/browser-agent \
   --extra miniwob --extra webarena --group test \
   pytest benchmarks/browser-agent -q
+```
+
+The two MiniWoB integration cases need the pinned MiniWoB++ pages and a real
+Chrome. Without them they **skip rather than fail**, so a green run does not by
+itself mean they executed — check for `skipped` in the summary, or run with
+`-rs`. Install the pinned assets once:
+
+```bash
+git clone https://github.com/Farama-Foundation/miniwob-plusplus.git /tmp/miniwob-plusplus
+git -C /tmp/miniwob-plusplus checkout 7fd85d71a4b60325c6585396ec4f48377d049838
+cp -R /tmp/miniwob-plusplus \
+  "$HOME/Library/Caches/atlas-mcp-benchmarks/miniwob-plusplus-7fd85d71"
+```
+
+That revision is the `assets_revision` pinned in
+`manifests/miniwob-125-v1.json`. The location is an OS cache directory, so
+macOS may evict it under disk pressure and the cases will start skipping again;
+re-run the copy if that happens.
+
+To drive the suite itself, serve those pages over HTTP — the runner requires a
+hostname, so a `file://` URL is rejected:
+
+```bash
+python3 -m http.server 8899 --bind 127.0.0.1 \
+  --directory "$HOME/Library/Caches/atlas-mcp-benchmarks/miniwob-plusplus-7fd85d71/miniwob/html"
+# then --base-url http://127.0.0.1:8899/miniwob/
 ```

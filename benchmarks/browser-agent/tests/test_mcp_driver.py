@@ -116,3 +116,55 @@ async def test_mutation_uses_plan_execute_and_receipt(tmp_path: Path) -> None:
     assert observation.task_status == "verified_success"
     assert observation.receipt["taskId"] == observation.task_id
     assert observation.mcp_calls == 3
+
+
+class _RecordingClient:
+    """Captures the plan request so budget/timeout headroom is assertable."""
+
+    def __init__(self) -> None:
+        self.request: dict[str, object] | None = None
+
+    async def plan(self, request: dict[str, object]) -> dict[str, object]:
+        self.request = request
+        return {"id": "task-1", "status": "planned", "request": request}
+
+    async def execute(
+        self, _task_id: str, _approval: dict[str, str] | None
+    ) -> dict[str, object]:
+        return {"task": {"status": "verified_success"}, "output": {"clicked": True}}
+
+    async def receipt(self, *, task_id: str) -> dict[str, object]:
+        return {"receipts": [{"taskId": task_id}], "certificate": None}
+
+
+@pytest.mark.asyncio
+async def test_action_timeout_leaves_headroom_under_the_task_budget() -> None:
+    """An action must be able to report its own error before the budget aborts.
+
+    Playwright waits `timeoutMs` for a target it cannot resolve. When that equals
+    the task's `maxDurationMs`, the budget abort fires at the same moment and
+    wins, so a missing target is reported as `budget_exhausted` instead of the
+    actual target error — the single largest failure group in the first MiniWoB
+    run, and useless for diagnosis.
+    """
+    client = _RecordingClient()
+    driver = AtlasBrowserDriver(client)  # type: ignore[arg-type]
+    await driver.perform(
+        BrowserActionDecision(
+            goal="Click Search",
+            action="click",
+            target={"role": "textbox", "name": "Search"},
+        ),
+        [{"type": "result_equals", "path": "clicked", "value": True}],
+    )
+    request = client.request
+    assert request is not None
+    operation = request["operation"]
+    budget = request["budget"]
+    assert isinstance(operation, dict) and isinstance(budget, dict)
+    action_timeout = operation["timeoutMs"]
+    max_duration = budget["maxDurationMs"]
+    assert isinstance(action_timeout, int) and isinstance(max_duration, int)
+    assert action_timeout < max_duration, (
+        "action timeout must expire before the budget so the specific error wins"
+    )
