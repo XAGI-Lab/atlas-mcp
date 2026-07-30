@@ -443,6 +443,27 @@ describe("WorkflowController execution", () => {
     ).toBe(2);
   });
 
+  it("serializes concurrent advances for the same workflow", async () => {
+    let calls = 0;
+    const { controller, store } = await setup(async () => {
+      calls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { success: true };
+    });
+    const planned = controller.plan(definition("Concurrent advance"));
+
+    const results = await Promise.all([
+      controller.advance(planned.id),
+      controller.advance(planned.id),
+    ]);
+
+    expect(calls).toBe(1);
+    expect(
+      results.every((result) => result.run.status === "verified_complete"),
+    ).toBe(true);
+    expect(store.listTasks()).toHaveLength(1);
+  });
+
   it("runs a bounded loop sequentially to its hard limit", async () => {
     let calls = 0;
     const { controller } = await setup(async () => {

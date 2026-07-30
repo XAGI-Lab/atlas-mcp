@@ -55,6 +55,10 @@ interface TaskIdentity {
 }
 
 export class WorkflowController {
+  // ponytail: process-local serialization; add SQLite leases before supporting
+  // multiple MELRA server processes against one data directory.
+  private readonly advances = new Map<string, Promise<WorkflowAdvanceResult>>();
+
   constructor(
     private readonly store: SqliteStore,
     private readonly tasks: TaskController,
@@ -124,6 +128,29 @@ export class WorkflowController {
   async advance(
     workflowId: string,
     approvals: ApprovalResponse[] = [],
+  ): Promise<WorkflowAdvanceResult> {
+    const previous = this.advances.get(workflowId);
+    const ready =
+      previous === undefined
+        ? Promise.resolve()
+        : previous.then(
+            () => undefined,
+            () => undefined,
+          );
+    const result = ready.then(() => this.advanceOnce(workflowId, approvals));
+    this.advances.set(workflowId, result);
+    try {
+      return await result;
+    } finally {
+      if (this.advances.get(workflowId) === result) {
+        this.advances.delete(workflowId);
+      }
+    }
+  }
+
+  private async advanceOnce(
+    workflowId: string,
+    approvals: ApprovalResponse[],
   ): Promise<WorkflowAdvanceResult> {
     const current = this.status(workflowId);
     if (["verified_complete", "cancelled"].includes(current.status)) {
