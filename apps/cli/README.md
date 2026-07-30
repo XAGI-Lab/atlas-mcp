@@ -1,11 +1,11 @@
-# ATLAS MCP CLI
+# MELRA CLI
 
 Install and initialize:
 
 ```bash
-npm install --global @atlas-mcp/cli
-atlas-mcp doctor
-atlas-mcp init --client generic
+npm install --global @melra/cli
+melra doctor
+melra init --client generic
 ```
 
 The CLI starts with a local read-only policy. Consequential operations require

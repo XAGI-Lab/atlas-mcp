@@ -12,7 +12,7 @@ import type {
   PolicyDecision,
   Risk,
   TaskRequest,
-} from "@atlas-mcp/protocol";
+} from "@melra/protocol";
 
 export interface LocalPolicy {
   version: string;

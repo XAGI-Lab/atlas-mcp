@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ATLAS MCP is a local-only MCP server (stdio transport) that turns one tool call into a
-governed, verified, receipted task. Six MCP tools (`atlas_capabilities`, `atlas_plan`,
-`atlas_execute`, `atlas_task_status`, `atlas_task_cancel`, `atlas_receipt`) sit in front of
+MELRA is a local-only MCP server (stdio transport) that turns one tool call into a
+governed, verified, receipted task. Six MCP tools (`melra_capabilities`, `melra_plan`,
+`melra_execute`, `melra_task_status`, `melra_task_cancel`, `melra_receipt`) sit in front of
 five capability runtimes: files, terminal, browser, memory, computer. pnpm workspace of
 TypeScript packages (Node 22+, ESM, strict tsc), plus two Python projects managed by `uv`
 (`sdk-py`, `benchmarks/browser-agent`).
@@ -21,14 +21,14 @@ pnpm evals                  # 22 deterministic policy/execution scenarios → ev
 pnpm e2e                    # packages/server/test/e2e.test.ts against a live stdio server
 pnpm pack:check              # npm pack --dry-run for the published CLI
 pnpm security:audit          # pnpm audit --prod + scripts/python-audit.mjs
-pnpm atlas <cmd>            # run the CLI from source via tsx (doctor | init | serve | run | inspect | policy test)
+pnpm melra <cmd>            # run the CLI from source via tsx (doctor | init | serve | run | inspect | policy test)
 ```
 
 Single test file (vitest args pass through the package script):
 
 ```bash
-pnpm --filter @atlas-mcp/memory test src/index.test.ts
-pnpm --filter @atlas-mcp/memory test -t "ranks exact phrases"
+pnpm --filter @melra/memory test src/index.test.ts
+pnpm --filter @melra/memory test -t "ranks exact phrases"
 ```
 
 Python:
@@ -48,16 +48,16 @@ pnpm benchmark:browser:verify-upstream
 
 **Tests import workspace siblings through their `exports` → `dist/`, so `pnpm build` must
 run before `pnpm test`** (this is why `typecheck` and `benchmark:*` scripts build first). A
-test failing with an unresolved `@atlas-mcp/*` import means a stale or missing `dist`.
+test failing with an unresolved `@melra/*` import means a stale or missing `dist`.
 
 There is no ESLint/Prettier for TypeScript — `tsc --strict` is the only static gate. Python
 uses ruff (line-length 100, py311).
 
 ## Execution pipeline (the core invariant)
 
-`atlas_plan` never executes. It classifies the operation, evaluates policy, persists a
+`melra_plan` never executes. It classifies the operation, evaluates policy, persists a
 `TaskRecord`, and — for mutations — returns a task-scoped, expiring approval challenge whose
-exact phrase must be echoed back. `atlas_execute` **re-evaluates policy** so a stale plan
+exact phrase must be echoed back. `melra_execute` **re-evaluates policy** so a stale plan
 cannot ride a since-tightened policy, validates the approval, runs the adapter under an
 `AbortSignal` armed with `budget.maxDurationMs`, then verifies.
 
@@ -85,7 +85,7 @@ Adding or changing an operation action touches a fixed set of places, in this or
 2. `packages/policy-core` `classifyOperation` — effect, risk, capability string, target.
 3. The owning runtime package (`file-runtime`, `terminal-runtime`, `browser-runtime`, `computer-runtime`, `memory`).
 4. `RuntimeRouter` in `packages/server/src/runtime.ts` if a new `kind` is introduced.
-5. The `operations` map in `atlas_capabilities` (`packages/server/src/mcp-server.ts`) — it is a hand-maintained list, not derived from the schemas.
+5. The `operations` map in `melra_capabilities` (`packages/server/src/mcp-server.ts`) — it is a hand-maintained list, not derived from the schemas.
 6. A scenario in `evals/src/scenarios.ts` asserting both `expectedPlan` and `expectedFinal`.
 
 New evidence predicate types need `EvidencePredicateSchema` plus a branch in

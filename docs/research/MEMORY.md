@@ -2,7 +2,7 @@
 
 ## Implemented retrieval path
 
-`atlas-hybrid-v2` is a deterministic local ranker:
+`melra-hybrid-v2` is a deterministic local ranker:
 
 1. tokenize key, value, and tags;
 2. compute BM25-style lexical relevance with per-query document frequency;
@@ -49,7 +49,7 @@ to 100 records per question. Four questions without evidence IDs are excluded.
 Query latency across 1,982 questions was `21.060 ms` p50 and `25.492 ms`
 p95 on the recorded machine.
 
-Against the previous public `atlas-hybrid-v1` artifact at the same dataset
+Against the previous public `melra-hybrid-v1` artifact at the same dataset
 hash, ingestion unit, and cutoff, coverage@20 improved from `0.629117` to
 `0.759652`: a gain of `0.130535` or `20.75%` relative. Complete evidence
 recall@20 improved from `0.586276` to `0.716448`. Measured p95 latency

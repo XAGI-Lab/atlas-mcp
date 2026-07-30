@@ -1,17 +1,38 @@
 # Capabilities and limits
 
-This document describes `0.2.0-alpha.1`.
+This document describes `0.3.0-alpha.0`.
 
 ## MCP tools
 
 | Tool | Side effect | Approval |
 |---|---:|---|
-| `atlas_capabilities` | none | no |
-| `atlas_plan` | stores a plan | no |
-| `atlas_execute` | depends on planned operation | scoped for mutations |
-| `atlas_task_status` | none | no |
-| `atlas_task_cancel` | cancels task | no |
-| `atlas_receipt` | none | no |
+| `melra_capabilities` | none | no |
+| `melra_plan` | stores a plan | no |
+| `melra_execute` | depends on planned operation | scoped for mutations |
+| `melra_task_status` | none | no |
+| `melra_task_cancel` | cancels task | no |
+| `melra_receipt` | none | no |
+| `melra_workflow_plan` | stores a validated workflow | no |
+| `melra_workflow_advance` | depends on ready workflow nodes | scoped per mutation |
+| `melra_workflow_status` | none | no |
+| `melra_workflow_cancel` | cancels nonterminal workflow work | no |
+
+## Durable workflows
+
+Node types: `operation`, `approval`, `condition`, `parallel`,
+`bounded_loop`, `checkpoint`, and `compensation`.
+
+- Exact definitions and task payloads survive restart in encrypted envelopes.
+- Each advance executes one deterministic ready wave.
+- Workflow events and the current projection commit atomically.
+- Interrupted reads may retry. Mutations reconcile only from independent file
+  evidence or enter `recovery_required`.
+- Definitions allow at most 500 nodes, 100 dependencies per node, 20 parallel
+  branches, and 100 loop iterations.
+- Competing advances for the same workflow are serialized inside one process.
+
+Human-input, delegation, pause/resume commands, and cross-process leases are
+not implemented.
 
 ## Operations
 
@@ -36,7 +57,7 @@ Actions: `run`, `start`, `status`, `output`, `stop`.
   bounded.
 - Background jobs are supervised only for the life of the server process.
 
-Interactive pseudo-terminal sessions are not implemented in `0.2`.
+Interactive pseudo-terminal sessions are not implemented in `0.3`.
 
 ### Browser
 
@@ -52,7 +73,7 @@ Actions: `navigate`, `inspect`, `click`, `type`, `select`, `press`, `scroll`,
   directory.
 
 Persistent login profiles, visual/OCR targeting, and deterministic replay are
-not implemented in `0.2`.
+not implemented in `0.3`.
 
 ### Memory
 
@@ -112,7 +133,7 @@ Action: `info`. Returns local runtime capability information without mutation.
 URL globs are anchored and schema-bounded. A completed action with unmet
 required evidence returns `partial`, never `verified_success`.
 
-`atlas_execute` returns raw operation output directly to the connected client.
+`melra_execute` returns raw operation output directly to the connected client.
 Durable task state and receipts keep only centrally redacted input and output;
 file contents, browser text, terminal output, typed values, environment values,
 URL queries, and common secret formats are not retained there.
@@ -135,4 +156,4 @@ Mutations and destructive operations have one execution attempt.
 
 - Supported: local stdio.
 - Packaged: source, portable Node artifact, Python SDK artifact, Docker image.
-- Not supported in `0.2`: remote HTTP transport, OAuth, multi-tenant hosting.
+- Not supported in `0.3`: remote HTTP transport, OAuth, multi-tenant hosting.

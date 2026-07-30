@@ -10,7 +10,7 @@
 Run the readiness check after installation:
 
 ```bash
-atlas-mcp doctor
+melra doctor
 ```
 
 The command reports Node, workspace, data-directory, SQLite, browser,
@@ -19,35 +19,40 @@ computer-use adapter, and policy readiness without exposing credentials.
 ## From source
 
 ```bash
-git clone https://github.com/XAGI-Lab/atlas-mcp.git
-cd atlas-mcp
+git clone https://github.com/XAGI-Lab/melra.git
+cd melra
 corepack enable
 pnpm install --frozen-lockfile
 pnpm build
-pnpm atlas doctor
+pnpm melra doctor
 ```
 
-Use `pnpm atlas` in place of `atlas-mcp` in the configurations below.
+Use `pnpm melra` in place of `melra` in the configurations below.
 
 ## Local configuration
 
-ATLAS MCP uses these environment variables:
+MELRA uses these environment variables:
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `ATLAS_MCP_WORKSPACE` | Hard boundary for file and process operations | current directory |
-| `ATLAS_MCP_HOME` | SQLite database and browser artifacts | `~/.atlas-mcp` |
-| `ATLAS_MCP_POLICY` | Optional local policy JSON | safe built-in policy |
-| `ATLAS_MCP_BROWSER` | Chrome, Chromium, or Edge executable | auto-detected |
+| `MELRA_WORKSPACE` | Hard boundary for file and process operations | current directory |
+| `MELRA_HOME` | SQLite database and browser artifacts | `~/.melra` |
+| `MELRA_POLICY` | Optional local policy JSON | safe built-in policy |
+| `MELRA_BROWSER` | Chrome, Chromium, or Edge executable | auto-detected |
+| `MELRA_PAYLOAD_KEY` | Optional canonical base64url 256-bit payload key | private `<MELRA_HOME>/payload.key` |
+
+Back up `payload.key` with the SQLite files. Changing or losing it makes
+persisted task and workflow payloads unreadable. Never place it in a client
+configuration committed to source control.
 
 These three variables exist for benchmark and diagnostic harnesses. Leave them
 unset for normal use, which keeps the default isolated browser behavior:
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `ATLAS_MCP_BROWSER_CDP_ENDPOINT` | Attach to an already-running browser over CDP instead of launching one. Must be an `http`/`https` URL with no credentials, query, or fragment. | unset (ATLAS launches its own browser) |
-| `ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX` | Which existing browser context to use, or `-1` for the default context. Requires `ATLAS_MCP_BROWSER_CDP_ENDPOINT`. | unset |
-| `ATLAS_MCP_BROWSER_HAR_PATH` | Absolute path for an HTTP archive recording of the session. | unset (no recording) |
+| `MELRA_BROWSER_CDP_ENDPOINT` | Attach to an already-running browser over CDP instead of launching one. Must be an `http`/`https` URL with no credentials, query, or fragment. | unset (MELRA launches its own browser) |
+| `MELRA_BROWSER_CDP_CONTEXT_INDEX` | Which existing browser context to use, or `-1` for the default context. Requires `MELRA_BROWSER_CDP_ENDPOINT`. | unset |
+| `MELRA_BROWSER_HAR_PATH` | Absolute path for an HTTP archive recording of the session. | unset (no recording) |
 
 Attaching over CDP and recording a HAR are mutually exclusive; setting both
 fails at startup. A HAR captures full request and response data, including
@@ -57,7 +62,7 @@ it.
 Generate a safe starter policy and a client configuration:
 
 ```bash
-atlas-mcp init --client generic
+melra init --client generic
 ```
 
 `init` does not overwrite an existing policy.
@@ -73,13 +78,13 @@ Use the client’s `mcpServers` configuration field:
 ```json
 {
   "mcpServers": {
-    "atlas": {
-      "command": "atlas-mcp",
+    "melra": {
+      "command": "melra",
       "args": ["serve"],
       "env": {
-        "ATLAS_MCP_WORKSPACE": "/absolute/path/to/your/workspace",
-        "ATLAS_MCP_HOME": "/absolute/path/to/local/atlas-data",
-        "ATLAS_MCP_POLICY": "/absolute/path/to/local/atlas-data/policy.json"
+        "MELRA_WORKSPACE": "/absolute/path/to/your/workspace",
+        "MELRA_HOME": "/absolute/path/to/local/melra-data",
+        "MELRA_POLICY": "/absolute/path/to/local/melra-data/policy.json"
       }
     }
   }
@@ -101,8 +106,8 @@ versions have been manually exercised; see [VALIDATION.md](VALIDATION.md).
 Build and check the image:
 
 ```bash
-docker build -t atlas-mcp:local .
-docker run --rm atlas-mcp:local doctor
+docker build -t melra:local .
+docker run --rm melra:local doctor
 ```
 
 Run the stdio server with explicit writable boundaries:
@@ -114,8 +119,8 @@ docker run --rm -i \
   --cap-drop ALL \
   --tmpfs /tmp:size=256m,mode=1777 \
   -v "$PWD:/workspace" \
-  -v atlas-mcp-data:/data \
-  atlas-mcp:local serve
+  -v melra-data:/data \
+  melra:local serve
 ```
 
 For an MCP client, set `command` to `docker` and use the arguments above,
@@ -130,13 +135,13 @@ uv sync --project sdk-py
 uv run --project sdk-py pytest sdk-py
 ```
 
-The SDK launches or connects to the same stdio server and does not implement a
-separate execution engine.
+Both SDKs expose task and durable workflow methods. They launch or connect to
+the same stdio server and do not implement a separate execution engine.
 
 ## Uninstall and local-data deletion
 
 Stop all clients using the server, remove the installed package or container,
-then delete the directory configured by `ATLAS_MCP_HOME`. That directory is the
-complete local persistence boundary for tasks, receipts, certificates, memory,
-and browser artifacts. Workspace files changed by approved tasks are not
-deleted automatically.
+then delete the directory configured by `MELRA_HOME`. That directory is the
+complete local persistence boundary for tasks, workflows, events, encrypted
+payloads, receipts, certificates, memory, keys, and browser artifacts.
+Workspace files changed by approved tasks are not deleted automatically.

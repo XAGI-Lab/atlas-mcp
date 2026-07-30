@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it } from "vitest";
-import { MemoryOperationSchema } from "@atlas-mcp/protocol";
-import { SqliteStore } from "@atlas-mcp/storage-sqlite";
+import { MemoryOperationSchema } from "@melra/protocol";
+import { SqliteStore } from "@melra/storage-sqlite";
 import {
   LocalMemory,
   rankMemories,
@@ -64,7 +64,7 @@ describe("LocalMemory", () => {
         action: "put",
         scope: "workspace",
         key: "product",
-        value: "ATLAS MCP",
+        value: "MELRA",
       }),
     );
     const workspace = memory.execute(
@@ -72,7 +72,7 @@ describe("LocalMemory", () => {
         kind: "memory",
         action: "search",
         scope: "workspace",
-        query: "atlas",
+        query: "melra",
       }),
     ) as { memories: unknown[] };
     const user = memory.execute(
@@ -80,7 +80,7 @@ describe("LocalMemory", () => {
         kind: "memory",
         action: "search",
         scope: "user",
-        query: "atlas",
+        query: "melra",
       }),
     ) as { memories: unknown[] };
     expect(workspace.memories).toHaveLength(1);

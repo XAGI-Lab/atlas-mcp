@@ -5,7 +5,7 @@ import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { FileOperationSchema } from "@atlas-mcp/protocol";
+import { FileOperationSchema } from "@melra/protocol";
 import { FileRuntime } from "./index.js";
 
 const roots: string[] = [];
@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe("FileRuntime", () => {
   it("writes atomically and returns a content hash", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-file-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-file-"));
     roots.push(root);
     const runtime = await FileRuntime.create({ root });
     const result = await runtime.execute(
@@ -33,8 +33,8 @@ describe("FileRuntime", () => {
   });
 
   it("blocks traversal and escaping symlinks", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-file-"));
-    const outside = await mkdtemp(join(tmpdir(), "atlas-outside-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-file-"));
+    const outside = await mkdtemp(join(tmpdir(), "melra-outside-"));
     roots.push(root, outside);
     await writeFile(join(outside, "secret.txt"), "secret");
     await symlink(outside, join(root, "escape"));

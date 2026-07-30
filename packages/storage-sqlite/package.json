@@ -1,7 +1,7 @@
 {
-  "name": "@atlas-mcp/storage-sqlite",
-  "version": "0.2.0-alpha.1",
-  "description": "Local SQLite task and evidence storage for ATLAS MCP.",
+  "name": "@melra/storage-sqlite",
+  "version": "0.3.0-alpha.0",
+  "description": "Transactional SQLite task, workflow, event, payload, and evidence storage for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -14,11 +14,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "test": "vitest run",
+    "test": "vitest run --no-file-parallelism --testTimeout=15000",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@atlas-mcp/protocol": "workspace:*",
-    "@atlas-mcp/receipt-schema": "workspace:*"
+    "@melra/protocol": "workspace:*",
+    "@melra/receipt-schema": "workspace:*"
   }
 }

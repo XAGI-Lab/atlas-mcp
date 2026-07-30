@@ -11,7 +11,7 @@ import type {
   Page,
   Route,
 } from "playwright-core";
-import type { BrowserOperation } from "@atlas-mcp/protocol";
+import type { BrowserOperation } from "@melra/protocol";
 import {
   connectBrowser,
   type BrowserConnection,

@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-ATLAS MCP is currently alpha software. Security fixes are applied to the
+MELRA is currently alpha software. Security fixes are applied to the
 default branch and the latest tagged alpha once releases begin.
 
 ## Report a vulnerability
@@ -23,9 +23,9 @@ provide an initial severity assessment within seven business days.
 
 ## Security boundaries
 
-ATLAS MCP must not require:
+MELRA must not require:
 
-- an ATLAS account;
+- an MELRA account;
 - hosted-service credentials;
 - telemetry;
 - non-public source code.
@@ -36,7 +36,7 @@ before persistence. A successful adapter response alone is not proof of goal
 completion.
 
 Local storage is not encrypted and is not a credential vault. Configure
-`ATLAS_MCP_HOME` in a private local directory with appropriate operating-system
+`MELRA_HOME` in a private local directory with appropriate operating-system
 permissions. Use a narrow domain and command allowlist, and run untrusted tasks
 inside the documented container profile.
 

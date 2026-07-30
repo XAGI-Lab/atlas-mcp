@@ -77,7 +77,7 @@ async function memoryBenchmark() {
 }
 
 async function terminalBenchmark() {
-  const root = await mkdtemp(join(tmpdir(), "atlas-mcp-terminal-bench-"));
+  const root = await mkdtemp(join(tmpdir(), "melra-terminal-bench-"));
   const runtime = await TerminalRuntime.create({ root });
   const latencies = [];
   let passed = 0;
@@ -195,7 +195,7 @@ async function browserBenchmark() {
 
 async function computerBenchmark() {
   const runtime = new ComputerRuntime({
-    artifactDirectory: join(tmpdir(), "atlas-mcp-computer-bench"),
+    artifactDirectory: join(tmpdir(), "melra-computer-bench"),
   });
   const operation = ComputerOperationSchema.parse({
     kind: "computer",

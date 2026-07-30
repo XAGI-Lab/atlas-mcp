@@ -1,5 +1,5 @@
 {
-  "goal": "Inspect the local ATLAS MCP runtime",
+  "goal": "Inspect the local MELRA runtime",
   "operation": {
     "kind": "system",
     "action": "info"

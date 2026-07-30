@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from atlas_browser_bench.agent import AgentContext, BrowserActionDecision
-from atlas_browser_bench.mcp_driver import DriverObservation
-from atlas_browser_bench.miniwob import MiniWobStep
-from atlas_browser_bench.runner import (
+from melra_browser_bench.agent import AgentContext, BrowserActionDecision
+from melra_browser_bench.mcp_driver import DriverObservation
+from melra_browser_bench.miniwob import MiniWobStep
+from melra_browser_bench.runner import (
     RunLimits,
     build_run_input_digest,
     failed_task_record,

@@ -5,7 +5,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import type { TerminalOperation } from "@atlas-mcp/protocol";
+import type { TerminalOperation } from "@melra/protocol";
 
 export interface TerminalRuntimeOptions {
   root: string;

@@ -1,6 +1,6 @@
 # Support
 
-ATLAS MCP is in early development.
+MELRA is in early development.
 
 - Use GitHub Discussions for design questions and usage help.
 - Use GitHub Issues for reproducible bugs and accepted feature work.

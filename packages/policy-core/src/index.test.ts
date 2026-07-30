@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { TaskRequestSchema } from "@atlas-mcp/protocol";
+import { TaskRequestSchema } from "@melra/protocol";
 import {
   createDefaultPolicy,
   evaluatePolicy,
   validateApproval,
 } from "./index.js";
 
-const root = "/tmp/atlas-mcp-policy-test";
+const root = "/tmp/melra-policy-test";
 
 describe("local policy", () => {
   it("allows a read-only file operation", () => {
@@ -121,7 +121,7 @@ describe("local policy", () => {
         action: "put",
         scope: "workspace",
         key: "project",
-        value: "ATLAS MCP",
+        value: "MELRA",
       },
       requiredEvidence: [
         { type: "result_equals", path: "stored", value: true },

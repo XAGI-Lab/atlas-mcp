@@ -1,7 +1,7 @@
 {
-  "name": "@atlas-mcp/runtime-core",
-  "version": "0.2.0-alpha.1",
-  "description": "Durable task lifecycle, budgets, retries, and verification for ATLAS MCP.",
+  "name": "@melra/runtime-core",
+  "version": "0.3.0-alpha.0",
+  "description": "Durable task and workflow execution, recovery, budgets, retries, and verification for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -18,10 +18,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@atlas-mcp/policy-core": "workspace:*",
-    "@atlas-mcp/protocol": "workspace:*",
-    "@atlas-mcp/receipt-schema": "workspace:*",
-    "@atlas-mcp/storage-sqlite": "workspace:*",
-    "@atlas-mcp/verifier-core": "workspace:*"
+    "@melra/policy-core": "workspace:*",
+    "@melra/protocol": "workspace:*",
+    "@melra/receipt-schema": "workspace:*",
+    "@melra/storage-sqlite": "workspace:*",
+    "@melra/verifier-core": "workspace:*"
   }
 }

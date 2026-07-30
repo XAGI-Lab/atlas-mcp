@@ -32,37 +32,40 @@ importers:
 
   apps/cli:
     dependencies:
-      '@atlas-mcp/browser-runtime':
+      '@melra/browser-runtime':
         specifier: workspace:*
         version: link:../../packages/browser-runtime
-      '@atlas-mcp/computer-runtime':
+      '@melra/computer-runtime':
         specifier: workspace:*
         version: link:../../packages/computer-runtime
-      '@atlas-mcp/policy-core':
+      '@melra/policy-core':
         specifier: workspace:*
         version: link:../../packages/policy-core
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@atlas-mcp/server':
+      '@melra/server':
         specifier: workspace:*
         version: link:../../packages/server
-      '@atlas-mcp/storage-sqlite':
+      '@melra/storage-sqlite':
         specifier: workspace:*
         version: link:../../packages/storage-sqlite
 
   evals:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../packages/protocol
-      '@atlas-mcp/server':
+      '@melra/receipt-schema':
+        specifier: workspace:*
+        version: link:../packages/receipt-schema
+      '@melra/server':
         specifier: workspace:*
         version: link:../packages/server
 
   packages/browser-runtime:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
       playwright-core:
@@ -71,28 +74,28 @@ importers:
 
   packages/computer-runtime:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
 
   packages/file-runtime:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
 
   packages/memory:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@atlas-mcp/storage-sqlite':
+      '@melra/storage-sqlite':
         specifier: workspace:*
         version: link:../storage-sqlite
 
   packages/policy-core:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
 
@@ -106,25 +109,25 @@ importers:
 
   packages/runtime-core:
     dependencies:
-      '@atlas-mcp/policy-core':
+      '@melra/policy-core':
         specifier: workspace:*
         version: link:../policy-core
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@atlas-mcp/receipt-schema':
+      '@melra/receipt-schema':
         specifier: workspace:*
         version: link:../receipt-schema
-      '@atlas-mcp/storage-sqlite':
+      '@melra/storage-sqlite':
         specifier: workspace:*
         version: link:../storage-sqlite
-      '@atlas-mcp/verifier-core':
+      '@melra/verifier-core':
         specifier: workspace:*
         version: link:../verifier-core
 
   packages/sdk-ts:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
       '@modelcontextprotocol/sdk':
@@ -133,37 +136,37 @@ importers:
 
   packages/server:
     dependencies:
-      '@atlas-mcp/browser-runtime':
+      '@melra/browser-runtime':
         specifier: workspace:*
         version: link:../browser-runtime
-      '@atlas-mcp/computer-runtime':
+      '@melra/computer-runtime':
         specifier: workspace:*
         version: link:../computer-runtime
-      '@atlas-mcp/file-runtime':
+      '@melra/file-runtime':
         specifier: workspace:*
         version: link:../file-runtime
-      '@atlas-mcp/memory':
+      '@melra/memory':
         specifier: workspace:*
         version: link:../memory
-      '@atlas-mcp/policy-core':
+      '@melra/policy-core':
         specifier: workspace:*
         version: link:../policy-core
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@atlas-mcp/receipt-schema':
+      '@melra/receipt-schema':
         specifier: workspace:*
         version: link:../receipt-schema
-      '@atlas-mcp/runtime-core':
+      '@melra/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
-      '@atlas-mcp/storage-sqlite':
+      '@melra/storage-sqlite':
         specifier: workspace:*
         version: link:../storage-sqlite
-      '@atlas-mcp/terminal-runtime':
+      '@melra/terminal-runtime':
         specifier: workspace:*
         version: link:../terminal-runtime
-      '@atlas-mcp/verifier-core':
+      '@melra/verifier-core':
         specifier: workspace:*
         version: link:../verifier-core
       '@modelcontextprotocol/sdk':
@@ -175,25 +178,25 @@ importers:
 
   packages/storage-sqlite:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@atlas-mcp/receipt-schema':
+      '@melra/receipt-schema':
         specifier: workspace:*
         version: link:../receipt-schema
 
   packages/terminal-runtime:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
 
   packages/verifier-core:
     dependencies:
-      '@atlas-mcp/protocol':
+      '@melra/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@atlas-mcp/receipt-schema':
+      '@melra/receipt-schema':
         specifier: workspace:*
         version: link:../receipt-schema
 

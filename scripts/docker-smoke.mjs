@@ -7,9 +7,9 @@ import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-const image = process.env.ATLAS_MCP_IMAGE ?? "atlas-mcp:local";
-const platform = process.env.ATLAS_MCP_PLATFORM;
-const root = await mkdtemp(join(tmpdir(), "atlas-docker-smoke-"));
+const image = process.env.MELRA_IMAGE ?? "melra:local";
+const platform = process.env.MELRA_PLATFORM;
+const root = await mkdtemp(join(tmpdir(), "melra-docker-smoke-"));
 const workspace = join(root, "workspace");
 const data = join(root, "data");
 await mkdir(workspace);
@@ -49,7 +49,7 @@ const transport = new StdioClientTransport({
   env: childEnvironment,
   stderr: "pipe",
 });
-const client = new Client({ name: "atlas-container-smoke", version: "1.0.0" });
+const client = new Client({ name: "melra-container-smoke", version: "1.0.0" });
 
 function parse(result) {
   const text = result.content.find((item) => item.type === "text")?.text;
@@ -62,19 +62,23 @@ try {
   const listed = await client.listTools();
   const tools = listed.tools.map((tool) => tool.name).sort();
   const expected = [
-    "atlas_capabilities",
-    "atlas_execute",
-    "atlas_plan",
-    "atlas_receipt",
-    "atlas_task_cancel",
-    "atlas_task_status",
+    "melra_capabilities",
+    "melra_execute",
+    "melra_plan",
+    "melra_receipt",
+    "melra_task_cancel",
+    "melra_task_status",
+    "melra_workflow_advance",
+    "melra_workflow_cancel",
+    "melra_workflow_plan",
+    "melra_workflow_status",
   ];
   if (JSON.stringify(tools) !== JSON.stringify(expected)) {
     throw new Error(`container_smoke_tool_mismatch:${JSON.stringify(tools)}`);
   }
   const planned = parse(
     await client.callTool({
-      name: "atlas_plan",
+      name: "melra_plan",
       arguments: {
         goal: "Verify the containerized MCP transport",
         operation: { kind: "system", action: "info" },
@@ -83,13 +87,13 @@ try {
   );
   const executed = parse(
     await client.callTool({
-      name: "atlas_execute",
+      name: "melra_execute",
       arguments: { taskId: planned.id },
     }),
   );
   const evidence = parse(
     await client.callTool({
-      name: "atlas_receipt",
+      name: "melra_receipt",
       arguments: { taskId: planned.id },
     }),
   );

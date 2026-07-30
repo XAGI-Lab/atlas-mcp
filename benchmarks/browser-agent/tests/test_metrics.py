@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from atlas_browser_bench.metrics import (
+from melra_browser_bench.metrics import (
     TaskPairRecord,
     TaskSideRecord,
     aggregate_pair,

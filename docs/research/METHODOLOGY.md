@@ -2,7 +2,7 @@
 
 ## Evidence levels
 
-ATLAS MCP uses four labels:
+MELRA uses four labels:
 
 1. **Unit/evaluation result** — deterministic code-path behavior.
 2. **Component microbenchmark** — local latency or correctness for one

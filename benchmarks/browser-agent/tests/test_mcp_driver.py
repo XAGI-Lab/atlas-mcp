@@ -13,10 +13,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
-from atlas_mcp import AtlasClient
+from melra import MelraClient
 
-from atlas_browser_bench.agent import BrowserActionDecision
-from atlas_browser_bench.mcp_driver import AtlasBrowserDriver
+from melra_browser_bench.agent import BrowserActionDecision
+from melra_browser_bench.mcp_driver import MelraBrowserDriver
 
 
 class _FixtureHandler(BaseHTTPRequestHandler):
@@ -87,18 +87,18 @@ async def test_mutation_uses_plan_execute_and_receipt(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     with fixture_server() as url:
-        async with AtlasClient(
+        async with MelraClient(
             command=node,
             args=[str(cli), "serve"],
             workspace=tmp_path,
-            data_directory=tmp_path / ".atlas",
+            data_directory=tmp_path / ".melra",
             environment={
                 "PATH": os.environ["PATH"],
-                "ATLAS_MCP_POLICY": str(policy),
-                "ATLAS_MCP_BROWSER": executable,
+                "MELRA_POLICY": str(policy),
+                "MELRA_BROWSER": executable,
             },
         ) as client:
-            driver = AtlasBrowserDriver(client)
+            driver = MelraBrowserDriver(client)
             await driver.perform(
                 BrowserActionDecision(goal="Open fixture", action="navigate", url=url),
                 [{"type": "page_contains", "text": "ready"}],
@@ -148,7 +148,7 @@ async def test_action_timeout_leaves_headroom_under_the_task_budget() -> None:
     run, and useless for diagnosis.
     """
     client = _RecordingClient()
-    driver = AtlasBrowserDriver(client)  # type: ignore[arg-type]
+    driver = MelraBrowserDriver(client)  # type: ignore[arg-type]
     await driver.perform(
         BrowserActionDecision(
             goal="Click Search",

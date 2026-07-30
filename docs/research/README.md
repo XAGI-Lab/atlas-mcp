@@ -1,6 +1,6 @@
 # Research and benchmarks
 
-ATLAS MCP publishes a narrow claim only when the implementation, harness,
+MELRA publishes a narrow claim only when the implementation, harness,
 input revision, metric, and raw result are inspectable. A fast action is not
 necessarily a correct action, retrieval coverage is not answer accuracy, and
 a component microbenchmark is not a task leaderboard.
@@ -49,7 +49,7 @@ These primary sources define the representative evaluations we track:
   [security guidance](https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices)
   documents MCP-specific attack classes.
 
-ATLAS MCP does not claim an external benchmark score unless its exact public
+MELRA does not claim an external benchmark score unless its exact public
 evaluation has been run and released.
 
 ## Reproduction

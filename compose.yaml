@@ -1,8 +1,8 @@
 services:
-  atlas-mcp:
+  melra:
     build:
       context: .
-    image: atlas-mcp:local
+    image: melra:local
     stdin_open: true
     read_only: true
     security_opt:
@@ -13,10 +13,10 @@ services:
       - /tmp:size=256m,mode=1777
     volumes:
       - ./:/workspace
-      - atlas-mcp-data:/data
+      - melra-data:/data
     environment:
-      ATLAS_MCP_WORKSPACE: /workspace
-      ATLAS_MCP_HOME: /data
+      MELRA_WORKSPACE: /workspace
+      MELRA_HOME: /data
 
 volumes:
-  atlas-mcp-data:
+  melra-data:

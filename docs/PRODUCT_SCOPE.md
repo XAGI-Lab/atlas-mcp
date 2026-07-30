@@ -1,6 +1,6 @@
 # Product Scope
 
-ATLAS MCP is an execution runtime for MCP clients.
+MELRA is an execution runtime for MCP clients.
 
 ## In scope
 

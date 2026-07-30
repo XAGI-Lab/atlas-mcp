@@ -1,7 +1,7 @@
 {
-  "name": "@atlas-mcp/browser-runtime",
-  "version": "0.2.0-alpha.1",
-  "description": "Policy-governed browser automation runtime for ATLAS MCP.",
+  "name": "@melra/browser-runtime",
+  "version": "0.3.0-alpha.0",
+  "description": "Policy-governed browser automation runtime for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@atlas-mcp/protocol": "workspace:*",
+    "@melra/protocol": "workspace:*",
     "playwright-core": "1.61.0"
   }
 }

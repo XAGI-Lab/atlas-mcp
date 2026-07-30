@@ -2,5 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export * from "./retry-guard.js";
+export * from "./payload-cipher.js";
 export * from "./task-controller.js";
 export * from "./verification-gate.js";
+export * from "./workflow-controller.js";
+export * from "./workflow-events.js";
+export * from "./workflow-graph.js";

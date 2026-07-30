@@ -8,18 +8,23 @@ import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { DatabaseSync } from "node:sqlite";
 import {
+  ApprovalResponseSchema,
   TaskRequestSchema,
+  WorkflowDefinitionSchema,
   PRODUCT_VERSION,
+  type ApprovalResponse,
   type TaskRequest,
-} from "@atlas-mcp/protocol";
+  type WorkflowDefinition,
+  type WorkflowRun,
+} from "@melra/protocol";
 import {
-  createAtlasRuntime,
+  createMelraRuntime,
   serveStdio,
-  type AtlasRuntime,
-} from "@atlas-mcp/server";
-import { detectBrowserExecutable } from "@atlas-mcp/browser-runtime";
-import { createSystemComputerAdapter } from "@atlas-mcp/computer-runtime";
-import { createDefaultPolicy, evaluatePolicy } from "@atlas-mcp/policy-core";
+  type MelraRuntime,
+} from "@melra/server";
+import { detectBrowserExecutable } from "@melra/browser-runtime";
+import { createSystemComputerAdapter } from "@melra/computer-runtime";
+import { createDefaultPolicy, evaluatePolicy } from "@melra/policy-core";
 import {
   type CliEnvironment,
   parseCliEnvironment,
@@ -36,9 +41,9 @@ async function existingPolicyPath(env: CliEnvironment): Promise<string | undefin
   }
 }
 
-async function runtime(env: CliEnvironment): Promise<AtlasRuntime> {
+async function runtime(env: CliEnvironment): Promise<MelraRuntime> {
   const policyPath = await existingPolicyPath(env);
-  return await createAtlasRuntime({
+  return await createMelraRuntime({
     workspaceRoot: env.workspaceRoot,
     dataDirectory: env.dataDirectory,
     ...(policyPath === undefined ? {} : { policyPath }),
@@ -79,6 +84,136 @@ async function readTaskRequest(args: string[]): Promise<TaskRequest> {
     return TaskRequestSchema.parse(JSON.parse(input));
   }
   throw new Error("provide --request <file> or pipe a JSON task request");
+}
+
+async function readWorkflowDefinition(
+  args: string[],
+): Promise<WorkflowDefinition> {
+  const definitionPath = argument("--definition", args);
+  if (definitionPath === undefined) {
+    throw new Error("workflow plan requires --definition <file>");
+  }
+  return WorkflowDefinitionSchema.parse(
+    JSON.parse(await readFile(resolve(definitionPath), "utf8")),
+  );
+}
+
+function workflowExitCode(status: WorkflowRun["status"]): number {
+  if (status === "awaiting_approval") return 3;
+  if (
+    [
+      "failed",
+      "partially_complete",
+      "cancelled",
+      "recovery_required",
+    ].includes(status)
+  ) {
+    return 2;
+  }
+  return 0;
+}
+
+function workflowApprovals(args: string[]): ApprovalResponse[] {
+  const approvals: ApprovalResponse[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== "--approval") continue;
+    const value = args[index + 1];
+    if (value === undefined) throw new Error("--approval requires a value");
+    const separator = value.indexOf(":");
+    if (separator < 1 || separator === value.length - 1) {
+      throw new Error(
+        "--approval must be <approval-id>:<exact-phrase>",
+      );
+    }
+    approvals.push(
+      ApprovalResponseSchema.parse({
+        approvalId: value.slice(0, separator),
+        phrase: value.slice(separator + 1),
+      }),
+    );
+    index += 1;
+  }
+  return approvals;
+}
+
+async function workflowCommand(
+  args: string[],
+  env: CliEnvironment,
+): Promise<number> {
+  const [action, ...actionArgs] = args;
+  const melra = await runtime(env);
+  try {
+    switch (action) {
+      case "plan": {
+        const run = melra.workflows.plan(
+          await readWorkflowDefinition(actionArgs),
+        );
+        output(run);
+        return workflowExitCode(run.status);
+      }
+      case "advance": {
+        const workflowId = actionArgs[0];
+        if (workflowId === undefined) {
+          throw new Error("workflow advance requires a workflow ID");
+        }
+        const result = await melra.workflows.advance(
+          workflowId,
+          workflowApprovals(actionArgs.slice(1)),
+        );
+        output(result);
+        return workflowExitCode(result.run.status);
+      }
+      case "inspect": {
+        const workflowId = actionArgs[0];
+        if (workflowId === undefined) {
+          throw new Error("workflow inspect requires a workflow ID");
+        }
+        output(melra.workflows.status(workflowId));
+        return 0;
+      }
+      case "cancel": {
+        const workflowId = actionArgs[0];
+        if (workflowId === undefined) {
+          throw new Error("workflow cancel requires a workflow ID");
+        }
+        const run = melra.workflows.cancel(workflowId);
+        output(run);
+        return workflowExitCode(run.status);
+      }
+      default:
+        throw new Error(
+          "workflow supports plan, advance, inspect, and cancel",
+        );
+    }
+  } finally {
+    await melra.close();
+  }
+}
+
+async function durableCoreDemo(env: CliEnvironment): Promise<number> {
+  const examplePath = resolve(
+    import.meta.dirname,
+    "../../../examples/workflows/restart-safe.json",
+  );
+  const melra = await runtime(env);
+  try {
+    const definition = WorkflowDefinitionSchema.parse(
+      JSON.parse(await readFile(examplePath, "utf8")),
+    );
+    const planned = melra.workflows.plan(definition);
+    const advanced = await melra.workflows.advance(planned.id);
+    output({
+      examplePath,
+      workflow: advanced.run,
+      next:
+        advanced.run.status === "verified_complete"
+          ? "complete"
+          : `melra workflow advance ${planned.id}`,
+    });
+    return workflowExitCode(advanced.run.status);
+  } finally {
+    await melra.close();
+  }
 }
 
 async function doctor(env: CliEnvironment): Promise<number> {
@@ -166,7 +301,7 @@ async function doctor(env: CliEnvironment): Promise<number> {
     });
   }
   output({
-    product: "ATLAS MCP",
+    product: "MELRA",
     version: PRODUCT_VERSION,
     ready: !checks.some((check) => check.status === "fail"),
     checks,
@@ -189,13 +324,13 @@ async function init(args: string[], env: CliEnvironment): Promise<void> {
   const client = argument("--client", args) ?? "generic";
   const config = {
     mcpServers: {
-      atlas: {
-        command: "atlas-mcp",
+      melra: {
+        command: "melra",
         args: ["serve"],
         env: {
-          ATLAS_MCP_WORKSPACE: env.workspaceRoot,
-          ATLAS_MCP_HOME: env.dataDirectory,
-          ATLAS_MCP_POLICY: policyPath,
+          MELRA_WORKSPACE: env.workspaceRoot,
+          MELRA_HOME: env.dataDirectory,
+          MELRA_POLICY: policyPath,
         },
       },
     },
@@ -205,14 +340,14 @@ async function init(args: string[], env: CliEnvironment): Promise<void> {
     client,
     policyPath,
     config,
-    note: `Add the mcpServers.atlas entry to ${client}'s MCP configuration.`,
+    note: `Add the mcpServers.melra entry to ${client}'s MCP configuration.`,
   });
 }
 
 async function runTask(args: string[], env: CliEnvironment): Promise<number> {
-  const atlas = await runtime(env);
+  const melra = await runtime(env);
   try {
-    const task = atlas.controller.plan(await readTaskRequest(args));
+    const task = melra.controller.plan(await readTaskRequest(args));
     if (task.status === "policy_blocked") {
       output({ task });
       return 4;
@@ -227,32 +362,32 @@ async function runTask(args: string[], env: CliEnvironment): Promise<number> {
         `Type the exact approval phrase '${task.approval!.phrase}' to continue: `,
       );
       prompt.close();
-      const execution = await atlas.controller.execute(task.id, {
+      const execution = await melra.controller.execute(task.id, {
         approvalId: task.approval!.approvalId,
         phrase,
       });
       output(execution);
       return execution.task.status === "verified_success" ? 0 : 2;
     }
-    const execution = await atlas.controller.execute(task.id);
+    const execution = await melra.controller.execute(task.id);
     output(execution);
     return execution.task.status === "verified_success" ? 0 : 2;
   } finally {
-    await atlas.close();
+    await melra.close();
   }
 }
 
 async function inspectTask(args: string[], env: CliEnvironment): Promise<void> {
   const taskId = args[0];
   if (taskId === undefined) throw new Error("inspect requires a task ID");
-  const atlas = await runtime(env);
+  const melra = await runtime(env);
   try {
     output({
-      task: atlas.controller.status(taskId),
-      ...atlas.controller.receipts({ taskId }),
+      task: melra.controller.status(taskId),
+      ...melra.controller.receipts({ taskId }),
     });
   } finally {
-    await atlas.close();
+    await melra.close();
   }
 }
 
@@ -264,25 +399,30 @@ async function policyTest(args: string[], env: CliEnvironment): Promise<void> {
 }
 
 function help(): void {
-  process.stdout.write(`ATLAS MCP ${PRODUCT_VERSION}
+  process.stdout.write(`MELRA ${PRODUCT_VERSION}
 
 Usage:
-  atlas-mcp doctor
-  atlas-mcp init --client <claude|cursor|vscode|codex|generic>
-  atlas-mcp serve
-  atlas-mcp run --request <task.json>
-  atlas-mcp inspect <task-id>
-  atlas-mcp policy test --request <task.json>
-  atlas-mcp version
+  melra doctor
+  melra init --client <claude|cursor|vscode|codex|generic>
+  melra serve
+  melra run --request <task.json>
+  melra inspect <task-id>
+  melra workflow plan --definition <workflow.json>
+  melra workflow advance <workflow-id> [--approval <id>:<exact-phrase>]
+  melra workflow inspect <workflow-id>
+  melra workflow cancel <workflow-id>
+  melra demo durable-core
+  melra policy test --request <task.json>
+  melra version
 
 Environment:
-  ATLAS_MCP_WORKSPACE  Workspace boundary (default: current directory)
-  ATLAS_MCP_HOME       Local database and artifact directory
-  ATLAS_MCP_POLICY     Optional local policy JSON
-  ATLAS_MCP_BROWSER    Optional Chrome/Chromium/Edge executable
-  ATLAS_MCP_BROWSER_CDP_ENDPOINT       Optional HTTP(S) CDP endpoint
-  ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX  External context index (-1 is last)
-  ATLAS_MCP_BROWSER_HAR_PATH           Absolute HAR output path
+  MELRA_WORKSPACE  Workspace boundary (default: current directory)
+  MELRA_HOME       Local database and artifact directory
+  MELRA_POLICY     Optional local policy JSON
+  MELRA_BROWSER    Optional Chrome/Chromium/Edge executable
+  MELRA_BROWSER_CDP_ENDPOINT       Optional HTTP(S) CDP endpoint
+  MELRA_BROWSER_CDP_CONTEXT_INDEX  External context index (-1 is last)
+  MELRA_BROWSER_HAR_PATH           Absolute HAR output path
 `);
 }
 
@@ -297,11 +437,11 @@ async function main(): Promise<void> {
       await init(args, env);
       return;
     case "serve": {
-      const atlas = await runtime(env);
-      const server = await serveStdio(atlas);
+      const melra = await runtime(env);
+      const server = await serveStdio(melra);
       const close = async () => {
         await server.close();
-        await atlas.close();
+        await melra.close();
       };
       process.once("SIGINT", () => void close().finally(() => process.exit(0)));
       process.once("SIGTERM", () => void close().finally(() => process.exit(0)));
@@ -313,6 +453,15 @@ async function main(): Promise<void> {
     case "inspect":
     case "export":
       await inspectTask(args, env);
+      return;
+    case "workflow":
+      process.exitCode = await workflowCommand(args, env);
+      return;
+    case "demo":
+      if (args[0] !== "durable-core") {
+        throw new Error("demo supports only 'durable-core'");
+      }
+      process.exitCode = await durableCoreDemo(env);
       return;
     case "policy":
       if (args[0] !== "test") throw new Error("policy supports only 'test'");
@@ -335,7 +484,7 @@ async function main(): Promise<void> {
 
 main().catch((error) => {
   process.stderr.write(
-    `atlas-mcp: ${error instanceof Error ? error.message : String(error)}\n`,
+    `melra: ${error instanceof Error ? error.message : String(error)}\n`,
   );
   process.exitCode = 1;
 });

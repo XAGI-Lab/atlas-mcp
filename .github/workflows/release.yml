@@ -32,8 +32,11 @@ jobs:
           enable-cache: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - run: pnpm e2e
       - run: pnpm security:audit
       - run: pnpm evals
+      - run: pnpm --filter @melra/evals evaluate:durable-core -- --publishable
+      - run: pnpm pack:check
       - name: Validate tag and package versions
         shell: bash
         run: |
@@ -44,21 +47,21 @@ jobs:
         run: |
           version="$(node -p "require('./package.json').version")"
           mkdir -p release/node release/python
-          pnpm deploy --filter @atlas-mcp/cli --prod release/node
+          pnpm deploy --filter @melra/cli --prod release/node
           cp LICENSE NOTICE README.md release/node/
           tar -C release/node -czf \
-            "${GITHUB_WORKSPACE}/release/atlas-mcp-node-${version}.tar.gz" .
+            "${GITHUB_WORKSPACE}/release/melra-node-${version}.tar.gz" .
           uv build sdk-py --out-dir release/python --no-create-gitignore
           mv release/python/* release/
           rmdir release/python
-          git archive --format=tar.gz --prefix="atlas-mcp-${version}/" \
-            --output="release/atlas-mcp-source-${version}.tar.gz" HEAD
+          git archive --format=tar.gz --prefix="melra-${version}/" \
+            --output="release/melra-source-${version}.tar.gz" HEAD
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@v0
         with:
           path: release/node
           format: spdx-json
-          output-file: release/atlas-mcp.spdx.json
+          output-file: release/melra.spdx.json
           upload-artifact: false
           upload-release-assets: false
       - name: Create checksums
@@ -86,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REGISTRY: ghcr.io
-      IMAGE_NAME: xagi-lab/atlas-mcp
+      IMAGE_NAME: xagi-lab/melra
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4

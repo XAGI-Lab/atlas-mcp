@@ -7,7 +7,7 @@ import { constants } from "node:fs";
 import { access, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import type { ComputerOperation } from "@atlas-mcp/protocol";
+import type { ComputerOperation } from "@melra/protocol";
 
 const execFileAsync = promisify(execFile);
 

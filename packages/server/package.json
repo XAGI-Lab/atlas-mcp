@@ -1,7 +1,7 @@
 {
-  "name": "@atlas-mcp/server",
-  "version": "0.2.0-alpha.1",
-  "description": "Official six-tool Model Context Protocol server for ATLAS MCP.",
+  "name": "@melra/server",
+  "version": "0.3.0-alpha.0",
+  "description": "Official local Model Context Protocol server and workflow runtime for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -19,17 +19,17 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@atlas-mcp/browser-runtime": "workspace:*",
-    "@atlas-mcp/computer-runtime": "workspace:*",
-    "@atlas-mcp/file-runtime": "workspace:*",
-    "@atlas-mcp/memory": "workspace:*",
-    "@atlas-mcp/policy-core": "workspace:*",
-    "@atlas-mcp/protocol": "workspace:*",
-    "@atlas-mcp/receipt-schema": "workspace:*",
-    "@atlas-mcp/runtime-core": "workspace:*",
-    "@atlas-mcp/storage-sqlite": "workspace:*",
-    "@atlas-mcp/terminal-runtime": "workspace:*",
-    "@atlas-mcp/verifier-core": "workspace:*",
+    "@melra/browser-runtime": "workspace:*",
+    "@melra/computer-runtime": "workspace:*",
+    "@melra/file-runtime": "workspace:*",
+    "@melra/memory": "workspace:*",
+    "@melra/policy-core": "workspace:*",
+    "@melra/protocol": "workspace:*",
+    "@melra/receipt-schema": "workspace:*",
+    "@melra/runtime-core": "workspace:*",
+    "@melra/storage-sqlite": "workspace:*",
+    "@melra/terminal-runtime": "workspace:*",
+    "@melra/verifier-core": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
     "zod": "3.25.76"
   }

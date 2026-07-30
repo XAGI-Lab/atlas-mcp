@@ -5,10 +5,22 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { MemoryScope, TaskRecord } from "./types.js";
+import {
+  EncryptedPayloadSchema,
+  WorkflowDefinitionSchema,
+  WorkflowEventSchema,
+  WorkflowRunSchema,
+  WorkflowSnapshotSchema,
+  type EncryptedPayload,
+  type WorkflowDefinition,
+  type WorkflowEvent,
+  type WorkflowRun,
+  type WorkflowSnapshot,
+} from "@melra/protocol";
 import type {
   ActionReceipt,
   ExecutionCertificate,
-} from "@atlas-mcp/receipt-schema";
+} from "@melra/receipt-schema";
 
 export interface MemoryRecord {
   id: string;
@@ -30,6 +42,21 @@ export interface MemoryRecord {
 
 interface JsonRow {
   data: string;
+}
+
+interface NullableJsonRow {
+  data: string | null;
+}
+
+interface StateVersionRow {
+  stateVersion: number;
+  data: string;
+}
+
+interface IdempotencyCommitRow {
+  taskId: string;
+  attempt: number;
+  committedAt: string;
 }
 
 interface MemoryRow {
@@ -68,6 +95,22 @@ function toMemoryRecord(row: MemoryRow): MemoryRecord {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+interface Parser<T> {
+  parse(value: unknown): T;
+}
+
+function parseStored<T>(
+  data: string,
+  schema: Parser<T>,
+  error: string,
+): T {
+  try {
+    return schema.parse(JSON.parse(data));
+  } catch {
+    throw new Error(error);
+  }
 }
 
 export class SqliteStore {
@@ -138,6 +181,92 @@ export class SqliteStore {
       CREATE INDEX IF NOT EXISTS memories_episode_sequence
         ON memories(episode_id, sequence);
     `);
+    this.transaction(() => {
+      this.database.exec(`
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          version INTEGER PRIMARY KEY,
+          applied_at TEXT NOT NULL
+        );
+      `);
+      const applied = this.database
+        .prepare("SELECT version FROM schema_migrations WHERE version = 1")
+        .get();
+      if (applied !== undefined) return;
+      this.database.exec(`
+        CREATE TABLE IF NOT EXISTS task_payloads (
+          task_id TEXT PRIMARY KEY,
+          request_payload TEXT NOT NULL,
+          result_payload TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS workflow_payloads (
+          workflow_id TEXT NOT NULL,
+          workflow_version INTEGER NOT NULL,
+          payload TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(workflow_id, workflow_version)
+        );
+        CREATE TABLE IF NOT EXISTS workflow_definitions (
+          id TEXT NOT NULL,
+          version INTEGER NOT NULL,
+          data TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(id, version)
+        );
+        CREATE TABLE IF NOT EXISTS workflow_runs (
+          id TEXT PRIMARY KEY,
+          definition_id TEXT NOT NULL,
+          definition_version INTEGER NOT NULL,
+          state_version INTEGER NOT NULL,
+          data TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS workflow_events (
+          id TEXT PRIMARY KEY,
+          aggregate_id TEXT NOT NULL,
+          sequence INTEGER NOT NULL,
+          trace_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          data TEXT NOT NULL,
+          occurred_at TEXT NOT NULL,
+          UNIQUE(aggregate_id, sequence)
+        );
+        CREATE INDEX IF NOT EXISTS workflow_events_aggregate
+          ON workflow_events(aggregate_id, sequence);
+        CREATE TABLE IF NOT EXISTS workflow_snapshots (
+          workflow_id TEXT NOT NULL,
+          sequence INTEGER NOT NULL,
+          data TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(workflow_id, sequence)
+        );
+        CREATE TABLE IF NOT EXISTS idempotency_commits (
+          idempotency_key TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          attempt INTEGER NOT NULL,
+          committed_at TEXT NOT NULL
+        );
+      `);
+      this.database
+        .prepare(
+          "INSERT INTO schema_migrations(version, applied_at) VALUES (1, ?)",
+        )
+        .run(new Date().toISOString());
+    });
+  }
+
+  private transaction<T>(action: () => T): T {
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      const result = action();
+      this.database.exec("COMMIT");
+      return result;
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   private addColumnIfMissing(
@@ -175,6 +304,428 @@ export class SqliteStore {
       .prepare("SELECT data FROM tasks ORDER BY updated_at DESC LIMIT ?")
       .all(limit) as unknown as JsonRow[];
     return rows.map((row) => JSON.parse(row.data) as TaskRecord);
+  }
+
+  saveTaskPayload(
+    taskId: string,
+    payload: EncryptedPayload,
+    at: string,
+  ): void {
+    const parsed = EncryptedPayloadSchema.parse(payload);
+    this.database
+      .prepare(`
+        INSERT INTO task_payloads(
+          task_id, request_payload, result_payload, created_at, updated_at
+        )
+        VALUES (?, ?, NULL, ?, ?)
+        ON CONFLICT(task_id) DO UPDATE SET
+          request_payload = excluded.request_payload,
+          updated_at = excluded.updated_at
+      `)
+      .run(taskId, JSON.stringify(parsed), at, at);
+  }
+
+  getTaskPayload(taskId: string): EncryptedPayload | undefined {
+    const row = this.database
+      .prepare(
+        "SELECT request_payload AS data FROM task_payloads WHERE task_id = ?",
+      )
+      .get(taskId) as JsonRow | undefined;
+    return row === undefined
+      ? undefined
+      : parseStored(
+          row.data,
+          EncryptedPayloadSchema,
+          "stored_task_payload_invalid",
+        );
+  }
+
+  saveTaskExecutionResult(
+    task: TaskRecord,
+    payload: EncryptedPayload,
+  ): void {
+    const parsed = EncryptedPayloadSchema.parse(payload);
+    this.transaction(() => {
+      this.saveTask(task);
+      const result = this.database
+        .prepare(`
+          UPDATE task_payloads
+          SET result_payload = ?, updated_at = ?
+          WHERE task_id = ?
+        `)
+        .run(JSON.stringify(parsed), task.updatedAt, task.id);
+      if (Number(result.changes) !== 1) {
+        throw new Error("task_payload_not_found");
+      }
+    });
+  }
+
+  getTaskResult(taskId: string): EncryptedPayload | undefined {
+    const row = this.database
+      .prepare(
+        "SELECT result_payload AS data FROM task_payloads WHERE task_id = ?",
+      )
+      .get(taskId) as NullableJsonRow | undefined;
+    return row === undefined || row.data === null
+      ? undefined
+      : parseStored(
+          row.data,
+          EncryptedPayloadSchema,
+          "stored_task_result_invalid",
+        );
+  }
+
+  deleteTaskPayload(taskId: string): void {
+    this.database
+      .prepare("DELETE FROM task_payloads WHERE task_id = ?")
+      .run(taskId);
+  }
+
+  listInterruptedTasks(): TaskRecord[] {
+    const rows = this.database
+      .prepare(`
+        SELECT data FROM tasks
+        WHERE json_extract(data, '$.status') IN ('running', 'verifying')
+        ORDER BY updated_at
+      `)
+      .all() as unknown as JsonRow[];
+    return rows.map((row) => JSON.parse(row.data) as TaskRecord);
+  }
+
+  getWorkflowPayload(
+    id: string,
+    version: number,
+  ): EncryptedPayload | undefined {
+    const row = this.database
+      .prepare(`
+        SELECT payload AS data FROM workflow_payloads
+        WHERE workflow_id = ? AND workflow_version = ?
+      `)
+      .get(id, version) as JsonRow | undefined;
+    return row === undefined
+      ? undefined
+      : parseStored(
+          row.data,
+          EncryptedPayloadSchema,
+          "stored_workflow_payload_invalid",
+        );
+  }
+
+  createWorkflow(
+    redactedDefinition: WorkflowDefinition,
+    payload: EncryptedPayload,
+    run: WorkflowRun,
+    events: WorkflowEvent[],
+  ): void {
+    const definition = WorkflowDefinitionSchema.parse(redactedDefinition);
+    const sealed = EncryptedPayloadSchema.parse(payload);
+    const projection = WorkflowRunSchema.parse(run);
+    const parsedEvents = events.map((item) => WorkflowEventSchema.parse(item));
+    if (
+      definition.id !== projection.definitionId ||
+      definition.version !== projection.definitionVersion
+    ) {
+      throw new Error("workflow_definition_mismatch");
+    }
+    this.assertWorkflowEvents(
+      projection.id,
+      projection.traceId,
+      0,
+      projection.stateVersion,
+      parsedEvents,
+    );
+
+    this.transaction(() => {
+      this.database
+        .prepare(`
+          INSERT INTO workflow_definitions(id, version, data, created_at)
+          VALUES (?, ?, ?, ?)
+        `)
+        .run(
+          definition.id,
+          definition.version,
+          JSON.stringify(definition),
+          projection.createdAt,
+        );
+      this.database
+        .prepare(`
+          INSERT INTO workflow_payloads(
+            workflow_id, workflow_version, payload, created_at
+          )
+          VALUES (?, ?, ?, ?)
+        `)
+        .run(
+          definition.id,
+          definition.version,
+          JSON.stringify(sealed),
+          projection.createdAt,
+        );
+      this.database
+        .prepare(`
+          INSERT INTO workflow_runs(
+            id, definition_id, definition_version, state_version, data,
+            created_at, updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `)
+        .run(
+          projection.id,
+          projection.definitionId,
+          projection.definitionVersion,
+          projection.stateVersion,
+          JSON.stringify(projection),
+          projection.createdAt,
+          projection.updatedAt,
+        );
+      for (const item of parsedEvents) this.insertWorkflowEvent(item);
+    });
+  }
+
+  getWorkflowDefinition(
+    id: string,
+    version: number,
+  ): WorkflowDefinition | undefined {
+    const row = this.database
+      .prepare(`
+        SELECT data FROM workflow_definitions WHERE id = ? AND version = ?
+      `)
+      .get(id, version) as JsonRow | undefined;
+    return row === undefined
+      ? undefined
+      : parseStored(
+          row.data,
+          WorkflowDefinitionSchema,
+          "stored_workflow_definition_invalid",
+        );
+  }
+
+  getWorkflowRun(id: string): WorkflowRun | undefined {
+    const row = this.database
+      .prepare("SELECT data FROM workflow_runs WHERE id = ?")
+      .get(id) as JsonRow | undefined;
+    return row === undefined
+      ? undefined
+      : parseStored(
+          row.data,
+          WorkflowRunSchema,
+          "stored_workflow_run_invalid",
+        );
+  }
+
+  listWorkflowRuns(
+    statuses: WorkflowRun["status"][] = [],
+  ): WorkflowRun[] {
+    const rows =
+      statuses.length === 0
+        ? (this.database
+            .prepare("SELECT data FROM workflow_runs ORDER BY updated_at")
+            .all() as unknown as JsonRow[])
+        : (this.database
+            .prepare(`
+              SELECT data FROM workflow_runs
+              WHERE json_extract(data, '$.status') IN (
+                ${statuses.map(() => "?").join(", ")}
+              )
+              ORDER BY updated_at
+            `)
+            .all(...statuses) as unknown as JsonRow[]);
+    return rows.map((row) =>
+      parseStored(
+        row.data,
+        WorkflowRunSchema,
+        "stored_workflow_run_invalid",
+      ),
+    );
+  }
+
+  listWorkflowEvents(
+    id: string,
+    afterSequence = 0,
+  ): WorkflowEvent[] {
+    const rows = this.database
+      .prepare(`
+        SELECT data FROM workflow_events
+        WHERE aggregate_id = ? AND sequence > ?
+        ORDER BY sequence
+      `)
+      .all(id, afterSequence) as unknown as JsonRow[];
+    return rows.map((row) =>
+      parseStored(
+        row.data,
+        WorkflowEventSchema,
+        "stored_workflow_event_invalid",
+      ),
+    );
+  }
+
+  saveWorkflowSnapshot(snapshot: WorkflowSnapshot): void {
+    const parsed = WorkflowSnapshotSchema.parse(snapshot);
+    this.database
+      .prepare(`
+        INSERT INTO workflow_snapshots(
+          workflow_id, sequence, data, created_at
+        )
+        VALUES (?, ?, ?, ?)
+      `)
+      .run(
+        parsed.workflowId,
+        parsed.sequence,
+        JSON.stringify(parsed),
+        parsed.createdAt,
+      );
+  }
+
+  getLatestWorkflowSnapshot(id: string): WorkflowSnapshot | undefined {
+    const row = this.database
+      .prepare(`
+        SELECT data FROM workflow_snapshots
+        WHERE workflow_id = ?
+        ORDER BY sequence DESC
+        LIMIT 1
+      `)
+      .get(id) as JsonRow | undefined;
+    return row === undefined
+      ? undefined
+      : parseStored(
+          row.data,
+          WorkflowSnapshotSchema,
+          "stored_workflow_snapshot_invalid",
+        );
+  }
+
+  transitionWorkflow(
+    id: string,
+    expectedStateVersion: number,
+    run: WorkflowRun,
+    events: WorkflowEvent[],
+  ): void {
+    const projection = WorkflowRunSchema.parse(run);
+    const parsedEvents = events.map((item) => WorkflowEventSchema.parse(item));
+    this.assertWorkflowEvents(
+      id,
+      projection.traceId,
+      expectedStateVersion,
+      projection.stateVersion,
+      parsedEvents,
+    );
+    if (projection.id !== id) throw new Error("workflow_projection_id_mismatch");
+
+    this.transaction(() => {
+      const current = this.database
+        .prepare(
+          `SELECT state_version AS stateVersion, data
+           FROM workflow_runs WHERE id = ?`,
+        )
+        .get(id) as StateVersionRow | undefined;
+      if (current === undefined) throw new Error("workflow_not_found");
+      if (current.stateVersion !== expectedStateVersion) {
+        throw new Error("workflow_state_conflict");
+      }
+      const stored = parseStored(
+        current.data,
+        WorkflowRunSchema,
+        "stored_workflow_run_invalid",
+      );
+      if (
+        projection.definitionId !== stored.definitionId ||
+        projection.definitionVersion !== stored.definitionVersion ||
+        projection.traceId !== stored.traceId
+      ) {
+        throw new Error("workflow_projection_identity_mismatch");
+      }
+      for (const item of parsedEvents) this.insertWorkflowEvent(item);
+      const updated = this.database
+        .prepare(`
+          UPDATE workflow_runs
+          SET state_version = ?, data = ?, updated_at = ?
+          WHERE id = ? AND state_version = ?
+        `)
+        .run(
+          projection.stateVersion,
+          JSON.stringify(projection),
+          projection.updatedAt,
+          id,
+          expectedStateVersion,
+        );
+      if (Number(updated.changes) !== 1) {
+        throw new Error("workflow_state_conflict");
+      }
+    });
+  }
+
+  commitIdempotency(
+    key: string,
+    taskId: string,
+    attempt: number,
+    at: string,
+  ): boolean {
+    const result = this.database
+      .prepare(`
+        INSERT OR IGNORE INTO idempotency_commits(
+          idempotency_key, task_id, attempt, committed_at
+        )
+        VALUES (?, ?, ?, ?)
+      `)
+      .run(key, taskId, attempt, at);
+    return Number(result.changes) === 1;
+  }
+
+  getIdempotencyCommit(
+    key: string,
+  ): IdempotencyCommitRow | undefined {
+    return this.database
+      .prepare(`
+        SELECT task_id AS taskId, attempt, committed_at AS committedAt
+        FROM idempotency_commits
+        WHERE idempotency_key = ?
+      `)
+      .get(key) as IdempotencyCommitRow | undefined;
+  }
+
+  private assertWorkflowEvents(
+    workflowId: string,
+    traceId: string,
+    previousStateVersion: number,
+    nextStateVersion: number,
+    events: WorkflowEvent[],
+  ): void {
+    if (
+      events.some(
+        (item) =>
+          item.aggregateId !== workflowId || item.traceId !== traceId,
+      )
+    ) {
+      throw new Error("workflow_event_identity_invalid");
+    }
+    if (
+      events.length === 0 ||
+      nextStateVersion !== previousStateVersion + events.length ||
+      events.some(
+        (item, index) =>
+          item.sequence !== previousStateVersion + index + 1,
+      )
+    ) {
+      throw new Error("workflow_event_sequence_invalid");
+    }
+  }
+
+  private insertWorkflowEvent(event: WorkflowEvent): void {
+    this.database
+      .prepare(`
+        INSERT INTO workflow_events(
+          id, aggregate_id, sequence, trace_id, type, data, occurred_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        event.id,
+        event.aggregateId,
+        event.sequence,
+        event.traceId,
+        event.type,
+        JSON.stringify(event),
+        event.occurredAt,
+      );
   }
 
   saveReceipt(receipt: ActionReceipt): void {

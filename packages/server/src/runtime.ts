@@ -11,25 +11,28 @@ import {
   totalmem,
 } from "node:os";
 import { join, resolve } from "node:path";
-import type { Operation } from "@atlas-mcp/protocol";
-import { BrowserRuntime } from "@atlas-mcp/browser-runtime";
-import { ComputerRuntime } from "@atlas-mcp/computer-runtime";
-import { FileRuntime } from "@atlas-mcp/file-runtime";
-import { LocalMemory } from "@atlas-mcp/memory";
+import type { Operation } from "@melra/protocol";
+import { BrowserRuntime } from "@melra/browser-runtime";
+import { ComputerRuntime } from "@melra/computer-runtime";
+import { FileRuntime } from "@melra/file-runtime";
+import { LocalMemory } from "@melra/memory";
 import {
   createDefaultPolicy,
   loadPolicy,
   type LocalPolicy,
-} from "@atlas-mcp/policy-core";
+} from "@melra/policy-core";
 import {
+  PayloadCipher,
   TaskController,
+  WorkflowController,
   type OperationExecutor,
-} from "@atlas-mcp/runtime-core";
-import { SqliteStore } from "@atlas-mcp/storage-sqlite";
-import { TerminalRuntime } from "@atlas-mcp/terminal-runtime";
-import { Verifier } from "@atlas-mcp/verifier-core";
+} from "@melra/runtime-core";
+import { SqliteStore } from "@melra/storage-sqlite";
+import { TerminalRuntime } from "@melra/terminal-runtime";
+import { Verifier } from "@melra/verifier-core";
+import { loadPayloadKey } from "./payload-key.js";
 
-export interface AtlasRuntimeOptions {
+export interface MelraRuntimeOptions {
   workspaceRoot: string;
   dataDirectory: string;
   policyPath?: string;
@@ -38,6 +41,7 @@ export interface AtlasRuntimeOptions {
   browserCdpEndpoint?: string;
   browserCdpContextIndex?: number;
   browserHarPath?: string;
+  environment?: NodeJS.ProcessEnv;
 }
 
 export class RuntimeRouter implements OperationExecutor {
@@ -79,14 +83,26 @@ export class RuntimeRouter implements OperationExecutor {
     }
   }
 
+  capabilities(): ReadonlySet<Operation["kind"]> {
+    return new Set<Operation["kind"]>([
+      "file",
+      "terminal",
+      "browser",
+      "memory",
+      "computer",
+      "system",
+    ]);
+  }
+
   async close(): Promise<void> {
     this.terminal.close();
     await this.browser.close();
   }
 }
 
-export interface AtlasRuntime {
+export interface MelraRuntime {
   controller: TaskController;
+  workflows: WorkflowController;
   policy: LocalPolicy;
   store: SqliteStore;
   router: RuntimeRouter;
@@ -95,16 +111,21 @@ export interface AtlasRuntime {
   close(): Promise<void>;
 }
 
-export async function createAtlasRuntime(
-  options: AtlasRuntimeOptions,
-): Promise<AtlasRuntime> {
+export async function createMelraRuntime(
+  options: MelraRuntimeOptions,
+): Promise<MelraRuntime> {
   const workspaceRoot = resolve(options.workspaceRoot);
   const dataDirectory = resolve(options.dataDirectory);
   const policy =
     options.policyPath === undefined
       ? createDefaultPolicy(workspaceRoot)
       : await loadPolicy(options.policyPath, workspaceRoot);
-  const store = new SqliteStore(join(dataDirectory, "atlas-mcp.sqlite"));
+  const key = await loadPayloadKey({
+    dataDirectory,
+    environment: options.environment ?? process.env,
+  });
+  const cipher = new PayloadCipher(key);
+  const store = new SqliteStore(join(dataDirectory, "melra.sqlite"));
   const files = await FileRuntime.create({
     root: policy.workspaceRoot,
     maxFileBytes: policy.maxFileBytes,
@@ -141,9 +162,14 @@ export async function createAtlasRuntime(
     policy,
     router,
     await Verifier.create(policy.workspaceRoot),
+    cipher,
   );
+  const workflows = new WorkflowController(store, controller, cipher);
+  await controller.recoverInterrupted();
+  await workflows.recoverInterrupted();
   return {
     controller,
+    workflows,
     policy,
     store,
     router,

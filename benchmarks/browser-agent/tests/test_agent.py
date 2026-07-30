@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import httpx
 import pytest
 
-from atlas_browser_bench.agent import AgentContext, OpenAICompatibleAgent
+from melra_browser_bench.agent import AgentContext, OpenAICompatibleAgent
 
 
 class _CompletionHandler(BaseHTTPRequestHandler):

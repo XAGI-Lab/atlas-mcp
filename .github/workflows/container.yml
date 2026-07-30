@@ -38,8 +38,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: docker build --tag atlas-mcp:ci .
-      - run: docker run --rm atlas-mcp:ci doctor
+      - run: docker build --tag melra:ci .
+      - run: docker run --rm melra:ci doctor
       - run: pnpm docker:smoke
         env:
-          ATLAS_MCP_IMAGE: atlas-mcp:ci
+          MELRA_IMAGE: melra:ci

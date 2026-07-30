@@ -4,7 +4,7 @@
 import { z } from "zod";
 
 export const PROTOCOL_VERSION = "2025-11-25";
-export const PRODUCT_VERSION = "0.2.0-alpha.1";
+export const PRODUCT_VERSION = "0.3.0-alpha.0";
 
 const boundedPath = z.string().min(1).max(4096);
 const boundedText = z.string().max(200_000);
@@ -306,6 +306,222 @@ export const ApprovalResponseSchema = z
 
 export type ApprovalResponse = z.infer<typeof ApprovalResponseSchema>;
 
+export const WorkflowNodeIdSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
+
+const NodeBaseSchema = z.object({
+  id: WorkflowNodeIdSchema,
+  dependsOn: z.array(WorkflowNodeIdSchema).max(100).default([]),
+});
+
+export const OperationNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("operation"),
+  request: TaskRequestSchema,
+}).strict();
+
+export const ApprovalNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("approval"),
+  forNodeId: WorkflowNodeIdSchema,
+}).strict();
+
+export const ConditionNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("condition"),
+  sourceNodeId: WorkflowNodeIdSchema,
+  predicate: EvidencePredicateSchema,
+  whenTrue: z.array(TaskRequestSchema).max(50).default([]),
+  whenFalse: z.array(TaskRequestSchema).max(50).default([]),
+}).strict();
+
+export const ParallelNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("parallel"),
+  branches: z
+    .array(z.array(TaskRequestSchema).min(1).max(50))
+    .min(2)
+    .max(20),
+}).strict();
+
+export const BoundedLoopNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("bounded_loop"),
+  body: z.array(TaskRequestSchema).min(1).max(50),
+  maxIterations: z.number().int().min(1).max(100),
+  until: EvidencePredicateSchema.optional(),
+}).strict();
+
+export const CheckpointNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("checkpoint"),
+}).strict();
+
+export const CompensationNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("compensation"),
+  forNodeId: WorkflowNodeIdSchema,
+  request: TaskRequestSchema,
+}).strict();
+
+export const WorkflowNodeSchema = z.discriminatedUnion("type", [
+  OperationNodeSchema,
+  ApprovalNodeSchema,
+  ConditionNodeSchema,
+  ParallelNodeSchema,
+  BoundedLoopNodeSchema,
+  CheckpointNodeSchema,
+  CompensationNodeSchema,
+]);
+
+export const WorkflowDefinitionSchema = z
+  .object({
+    schemaVersion: z.literal("1.0.0"),
+    id: z.string().uuid(),
+    version: z.number().int().positive(),
+    name: z.string().min(1).max(200),
+    description: z.string().max(2_000).optional(),
+    nodes: z.array(WorkflowNodeSchema).min(1).max(500),
+    budget: TaskBudgetSchema.optional(),
+  })
+  .strict();
+
+export const WorkflowStatusSchema = z.enum([
+  "draft",
+  "planned",
+  "awaiting_approval",
+  "running",
+  "paused",
+  "suspended",
+  "partially_complete",
+  "verified_complete",
+  "recovery_required",
+  "failed",
+  "cancelled",
+]);
+
+export const WorkflowNodeStatusSchema = z.enum([
+  "pending",
+  "ready",
+  "awaiting_approval",
+  "running",
+  "verifying",
+  "verified_complete",
+  "skipped",
+  "recovery_required",
+  "failed",
+  "cancelled",
+  "compensated",
+]);
+
+export const EncryptedPayloadSchema = z
+  .object({
+    version: z.literal(1),
+    algorithm: z.literal("aes-256-gcm"),
+    iv: z.string().regex(/^[A-Za-z0-9_-]+$/),
+    ciphertext: z.string().regex(/^[A-Za-z0-9_-]+$/),
+    tag: z.string().regex(/^[A-Za-z0-9_-]+$/),
+  })
+  .strict();
+
+export const WorkflowEventSchema = z
+  .object({
+    schemaVersion: z.literal("1.0.0"),
+    id: z.string().uuid(),
+    aggregateId: z.string().uuid(),
+    sequence: z.number().int().positive(),
+    traceId: z.string().uuid(),
+    type: z.string().regex(/^[a-z]+(?:\.[a-z_]+)+$/),
+    data: z.record(z.unknown()),
+    occurredAt: z.string().datetime(),
+  })
+  .strict();
+
+export const WorkflowNodeStateSchema = z
+  .object({
+    status: WorkflowNodeStatusSchema,
+    taskIds: z.array(z.string().uuid()).max(5_000).default([]),
+    approval: ApprovalChallengeSchema.optional(),
+    iterations: z.number().int().min(0).max(100).optional(),
+    error: z.string().max(10_000).optional(),
+  })
+  .strict();
+
+export const WorkflowRunSchema = z
+  .object({
+    schemaVersion: z.literal("1.0.0"),
+    id: z.string().uuid(),
+    definitionId: z.string().uuid(),
+    definitionVersion: z.number().int().positive(),
+    status: WorkflowStatusSchema,
+    stateVersion: z.number().int().positive(),
+    nodes: z.record(WorkflowNodeIdSchema, WorkflowNodeStateSchema),
+    traceId: z.string().uuid(),
+    error: z.string().max(10_000).optional(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .strict();
+
+export const WorkflowSnapshotSchema = z
+  .object({
+    schemaVersion: z.literal("1.0.0"),
+    workflowId: z.string().uuid(),
+    sequence: z.number().int().positive(),
+    run: WorkflowRunSchema,
+    createdAt: z.string().datetime(),
+  })
+  .strict()
+  .refine((snapshot) => snapshot.sequence === snapshot.run.stateVersion, {
+    message: "sequence must match run.stateVersion",
+    path: ["sequence"],
+  });
+
+export const WorkflowAdvanceResultSchema = z
+  .object({
+    run: WorkflowRunSchema,
+    tasks: z.array(z.record(z.unknown())),
+    events: z.array(WorkflowEventSchema),
+  })
+  .strict();
+
+export const WorkflowPlanInputSchema = z
+  .object({
+    definition: WorkflowDefinitionSchema,
+  })
+  .strict();
+
+export const WorkflowAdvanceInputSchema = z
+  .object({
+    workflowId: z.string().uuid(),
+    approvals: z.array(ApprovalResponseSchema).max(50).default([]),
+  })
+  .strict();
+
+export const WorkflowIdInputSchema = z
+  .object({
+    workflowId: z.string().uuid(),
+  })
+  .strict();
+
+export type WorkflowNodeId = z.infer<typeof WorkflowNodeIdSchema>;
+export type OperationNode = z.infer<typeof OperationNodeSchema>;
+export type ApprovalNode = z.infer<typeof ApprovalNodeSchema>;
+export type ConditionNode = z.infer<typeof ConditionNodeSchema>;
+export type ParallelNode = z.infer<typeof ParallelNodeSchema>;
+export type BoundedLoopNode = z.infer<typeof BoundedLoopNodeSchema>;
+export type CheckpointNode = z.infer<typeof CheckpointNodeSchema>;
+export type CompensationNode = z.infer<typeof CompensationNodeSchema>;
+export type WorkflowNode = z.infer<typeof WorkflowNodeSchema>;
+export type WorkflowDefinition = z.infer<typeof WorkflowDefinitionSchema>;
+export type WorkflowStatus = z.infer<typeof WorkflowStatusSchema>;
+export type WorkflowNodeStatus = z.infer<typeof WorkflowNodeStatusSchema>;
+export type EncryptedPayload = z.infer<typeof EncryptedPayloadSchema>;
+export type WorkflowEvent = z.infer<typeof WorkflowEventSchema>;
+export type WorkflowNodeState = z.infer<typeof WorkflowNodeStateSchema>;
+export type WorkflowRun = z.infer<typeof WorkflowRunSchema>;
+export type WorkflowSnapshot = z.infer<typeof WorkflowSnapshotSchema>;
+export type WorkflowAdvanceResult = z.infer<
+  typeof WorkflowAdvanceResultSchema
+>;
+export type WorkflowPlanInput = z.infer<typeof WorkflowPlanInputSchema>;
+export type WorkflowAdvanceInput = z.infer<typeof WorkflowAdvanceInputSchema>;
+export type WorkflowIdInput = z.infer<typeof WorkflowIdInputSchema>;
+
 export const TaskStatusSchema = z.enum([
   "planned",
   "awaiting_approval",
@@ -318,6 +534,7 @@ export const TaskStatusSchema = z.enum([
   "waiting_user",
   "policy_blocked",
   "budget_exhausted",
+  "recovery_required",
 ]);
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
@@ -327,6 +544,8 @@ export interface TaskRecord {
   request: TaskRequest;
   status: TaskStatus;
   policyDecision: PolicyDecision;
+  idempotencyKey?: string;
+  attempt?: number;
   approval?: ApprovalChallenge;
   result?: Record<string, unknown>;
   error?: string;
@@ -337,36 +556,40 @@ export interface TaskRecord {
   updatedAt: string;
 }
 
-export const AtlasCapabilitiesInputSchema = z.object({}).strict();
-export const AtlasPlanInputSchema = TaskRequestSchema;
-export const AtlasExecuteInputSchema = z
+export const MelraCapabilitiesInputSchema = z.object({}).strict();
+export const MelraPlanInputSchema = TaskRequestSchema;
+export const MelraExecuteInputSchema = z
   .object({
     taskId: z.string().uuid(),
     approval: ApprovalResponseSchema.optional(),
   })
   .strict();
-export const AtlasTaskStatusInputSchema = z
+export const MelraTaskStatusInputSchema = z
   .object({ taskId: z.string().uuid() })
   .strict();
-export const AtlasTaskCancelInputSchema = z
+export const MelraTaskCancelInputSchema = z
   .object({ taskId: z.string().uuid() })
   .strict();
-export const AtlasReceiptBaseSchema = z
+export const MelraReceiptBaseSchema = z
   .object({
     taskId: z.string().uuid().optional(),
     receiptId: z.string().uuid().optional(),
   })
   .strict();
-export const AtlasReceiptInputSchema = AtlasReceiptBaseSchema
+export const MelraReceiptInputSchema = MelraReceiptBaseSchema
   .refine((value) => value.taskId !== undefined || value.receiptId !== undefined, {
     message: "taskId or receiptId is required",
   });
 
 export const TOOL_NAMES = [
-  "atlas_capabilities",
-  "atlas_plan",
-  "atlas_execute",
-  "atlas_task_status",
-  "atlas_task_cancel",
-  "atlas_receipt",
+  "melra_capabilities",
+  "melra_plan",
+  "melra_execute",
+  "melra_task_status",
+  "melra_task_cancel",
+  "melra_receipt",
+  "melra_workflow_plan",
+  "melra_workflow_advance",
+  "melra_workflow_status",
+  "melra_workflow_cancel",
 ] as const;

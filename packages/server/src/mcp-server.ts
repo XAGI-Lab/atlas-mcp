@@ -4,18 +4,23 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  AtlasCapabilitiesInputSchema,
-  AtlasExecuteInputSchema,
-  AtlasPlanInputSchema,
-  AtlasReceiptBaseSchema,
-  AtlasReceiptInputSchema,
-  AtlasTaskCancelInputSchema,
-  AtlasTaskStatusInputSchema,
+  MelraCapabilitiesInputSchema,
+  MelraExecuteInputSchema,
+  MelraPlanInputSchema,
+  MelraReceiptBaseSchema,
+  MelraReceiptInputSchema,
+  MelraTaskCancelInputSchema,
+  MelraTaskStatusInputSchema,
   PRODUCT_VERSION,
   PROTOCOL_VERSION,
   TaskRequestSchema,
-} from "@atlas-mcp/protocol";
-import type { AtlasRuntime } from "./runtime.js";
+  TOOL_NAMES,
+  WorkflowAdvanceInputSchema,
+  WorkflowDefinitionSchema,
+  WorkflowIdInputSchema,
+  WorkflowPlanInputSchema,
+} from "@melra/protocol";
+import type { MelraRuntime } from "./runtime.js";
 
 function toolResult(value: unknown) {
   return {
@@ -28,19 +33,19 @@ function toolResult(value: unknown) {
   };
 }
 
-export function createMcpServer(runtime: AtlasRuntime): McpServer {
+export function createMcpServer(runtime: MelraRuntime): McpServer {
   const server = new McpServer({
-    name: "atlas-mcp",
+    name: "melra",
     version: PRODUCT_VERSION,
   });
 
   server.registerTool(
-    "atlas_capabilities",
+    "melra_capabilities",
     {
-      title: "ATLAS MCP capabilities",
+      title: "MELRA capabilities",
       description:
         "Discover available local execution capabilities, policy defaults, and runtime limits.",
-      inputSchema: AtlasCapabilitiesInputSchema.shape,
+      inputSchema: MelraCapabilitiesInputSchema.shape,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -50,17 +55,10 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
     },
     async () =>
       toolResult({
-        product: "ATLAS MCP",
+        product: "MELRA",
         version: PRODUCT_VERSION,
         protocolVersion: PROTOCOL_VERSION,
-        tools: [
-          "atlas_capabilities",
-          "atlas_plan",
-          "atlas_execute",
-          "atlas_task_status",
-          "atlas_task_cancel",
-          "atlas_receipt",
-        ],
+        tools: TOOL_NAMES,
         operations: {
           file: ["list", "read", "stat", "hash", "write", "move", "delete", "mkdir"],
           terminal: ["run", "start", "status", "output", "stop"],
@@ -104,12 +102,12 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
   );
 
   server.registerTool(
-    "atlas_plan",
+    "melra_plan",
     {
-      title: "Plan an ATLAS MCP task",
+      title: "Plan a MELRA task",
       description:
         "Persist a bounded task, evaluate policy, and return any scoped approval challenge without executing.",
-      inputSchema: AtlasPlanInputSchema.shape,
+      inputSchema: MelraPlanInputSchema.shape,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -121,12 +119,12 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
   );
 
   server.registerTool(
-    "atlas_execute",
+    "melra_execute",
     {
-      title: "Execute a planned ATLAS MCP task",
+      title: "Execute a planned MELRA task",
       description:
         "Execute one previously planned task through policy, runtime, verification, and receipt generation.",
-      inputSchema: AtlasExecuteInputSchema.shape,
+      inputSchema: MelraExecuteInputSchema.shape,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -135,7 +133,7 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
       },
     },
     async (input) => {
-      const parsed = AtlasExecuteInputSchema.parse(input);
+      const parsed = MelraExecuteInputSchema.parse(input);
       return toolResult(
         await runtime.controller.execute(parsed.taskId, parsed.approval),
       );
@@ -143,11 +141,11 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
   );
 
   server.registerTool(
-    "atlas_task_status",
+    "melra_task_status",
     {
-      title: "Inspect ATLAS MCP task status",
+      title: "Inspect MELRA task status",
       description: "Read the current durable state of a task.",
-      inputSchema: AtlasTaskStatusInputSchema.shape,
+      inputSchema: MelraTaskStatusInputSchema.shape,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -156,17 +154,17 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
       },
     },
     async (input) => {
-      const parsed = AtlasTaskStatusInputSchema.parse(input);
+      const parsed = MelraTaskStatusInputSchema.parse(input);
       return toolResult(runtime.controller.status(parsed.taskId));
     },
   );
 
   server.registerTool(
-    "atlas_task_cancel",
+    "melra_task_cancel",
     {
-      title: "Cancel an ATLAS MCP task",
+      title: "Cancel a MELRA task",
       description: "Cooperatively cancel a running or pending task.",
-      inputSchema: AtlasTaskCancelInputSchema.shape,
+      inputSchema: MelraTaskCancelInputSchema.shape,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -175,17 +173,17 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
       },
     },
     async (input) => {
-      const parsed = AtlasTaskCancelInputSchema.parse(input);
+      const parsed = MelraTaskCancelInputSchema.parse(input);
       return toolResult(runtime.controller.cancel(parsed.taskId));
     },
   );
 
   server.registerTool(
-    "atlas_receipt",
+    "melra_receipt",
     {
-      title: "Read ATLAS MCP evidence",
+      title: "Read MELRA evidence",
       description: "Retrieve action receipts and the execution certificate.",
-      inputSchema: AtlasReceiptBaseSchema.shape,
+      inputSchema: MelraReceiptBaseSchema.shape,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -194,7 +192,7 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
       },
     },
     async (input) => {
-      const parsed = AtlasReceiptInputSchema.parse(input);
+      const parsed = MelraReceiptInputSchema.parse(input);
       return toolResult(
         runtime.controller.receipts({
           ...(parsed.taskId === undefined ? {} : { taskId: parsed.taskId }),
@@ -205,10 +203,98 @@ export function createMcpServer(runtime: AtlasRuntime): McpServer {
       );
     },
   );
+
+  server.registerTool(
+    "melra_workflow_plan",
+    {
+      title: "Plan a MELRA workflow",
+      description:
+        "Validate, preflight, encrypt, and persist a bounded workflow without executing it.",
+      inputSchema: WorkflowPlanInputSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowPlanInputSchema.parse(input);
+      return toolResult(
+        runtime.workflows.plan(
+          WorkflowDefinitionSchema.parse(parsed.definition),
+        ),
+      );
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_advance",
+    {
+      title: "Advance a MELRA workflow",
+      description:
+        "Execute one ready workflow scheduling wave through governed MELRA tasks.",
+      inputSchema: WorkflowAdvanceInputSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowAdvanceInputSchema.parse(input);
+      return toolResult(
+        await runtime.workflows.advance(
+          parsed.workflowId,
+          parsed.approvals,
+        ),
+      );
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_status",
+    {
+      title: "Inspect a MELRA workflow",
+      description: "Read the current durable workflow projection.",
+      inputSchema: WorkflowIdInputSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowIdInputSchema.parse(input);
+      return toolResult(runtime.workflows.status(parsed.workflowId));
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_cancel",
+    {
+      title: "Cancel a MELRA workflow",
+      description:
+        "Cooperatively cancel nonterminal workflow nodes and their tasks.",
+      inputSchema: WorkflowIdInputSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowIdInputSchema.parse(input);
+      return toolResult(runtime.workflows.cancel(parsed.workflowId));
+    },
+  );
   return server;
 }
 
-export async function serveStdio(runtime: AtlasRuntime): Promise<McpServer> {
+export async function serveStdio(runtime: MelraRuntime): Promise<McpServer> {
   const server = createMcpServer(runtime);
   const transport = new StdioServerTransport();
   await server.connect(transport);

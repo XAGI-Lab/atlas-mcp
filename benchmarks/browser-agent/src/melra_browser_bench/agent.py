@@ -109,7 +109,7 @@ TOOL_SCHEMA: tuple[dict[str, object], ...] = (
         "type": "function",
         "function": {
             "name": "browser_action",
-            "description": "Perform exactly one browser action through ATLAS MCP.",
+            "description": "Perform exactly one browser action through MELRA.",
             "strict": True,
             "parameters": {
                 "type": "object",

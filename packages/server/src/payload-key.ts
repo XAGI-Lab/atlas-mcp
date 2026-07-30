@@ -1,0 +1,100 @@
+// Copyright 2026 XAGI Labs Private Limited
+// SPDX-License-Identifier: Apache-2.0
+
+import { randomBytes } from "node:crypto";
+import { constants } from "node:fs";
+import {
+  lstat,
+  mkdir,
+  open,
+  type FileHandle,
+} from "node:fs/promises";
+import { join } from "node:path";
+
+export interface PayloadKeyOptions {
+  dataDirectory: string;
+  environment: NodeJS.ProcessEnv;
+}
+
+function errorCode(error: unknown): string | undefined {
+  return error !== null && typeof error === "object" && "code" in error
+    ? String(error.code)
+    : undefined;
+}
+
+function decodeKey(value: string, error: string): Buffer {
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(error);
+  const key = Buffer.from(value, "base64url");
+  if (key.length !== 32 || key.toString("base64url") !== value) {
+    throw new Error(error);
+  }
+  return key;
+}
+
+async function readKeyFile(path: string): Promise<Buffer> {
+  const before = await lstat(path);
+  if (before.isSymbolicLink()) {
+    throw new Error("payload_key_path_must_not_be_symlink");
+  }
+
+  let handle: FileHandle;
+  try {
+    handle = await open(
+      path,
+      constants.O_RDONLY |
+        (process.platform === "win32" ? 0 : constants.O_NOFOLLOW),
+    );
+  } catch (error) {
+    if (errorCode(error) === "ELOOP") {
+      throw new Error("payload_key_path_must_not_be_symlink");
+    }
+    throw error;
+  }
+
+  try {
+    const metadata = await handle.stat();
+    if (
+      !metadata.isFile() ||
+      metadata.dev !== before.dev ||
+      metadata.ino !== before.ino
+    ) {
+      throw new Error("payload_key_path_not_regular_file");
+    }
+    if (process.platform !== "win32" && (metadata.mode & 0o077) !== 0) {
+      throw new Error("payload_key_permissions_too_open");
+    }
+    return decodeKey(
+      await handle.readFile("utf8"),
+      "payload_key_file_invalid",
+    );
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function loadPayloadKey(
+  options: PayloadKeyOptions,
+): Promise<Buffer> {
+  const environmentKey = options.environment.MELRA_PAYLOAD_KEY;
+  if (environmentKey !== undefined) {
+    return decodeKey(environmentKey, "payload_key_environment_invalid");
+  }
+
+  await mkdir(options.dataDirectory, { recursive: true, mode: 0o700 });
+  const path = join(options.dataDirectory, "payload.key");
+  const key = randomBytes(32);
+
+  try {
+    const handle = await open(path, "wx", 0o600);
+    try {
+      await handle.writeFile(key.toString("base64url"), "utf8");
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    return key;
+  } catch (error) {
+    if (errorCode(error) !== "EEXIST") throw error;
+    return readKeyFile(path);
+  }
+}

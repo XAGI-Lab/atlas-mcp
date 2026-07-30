@@ -66,11 +66,11 @@ export function parseCliEnvironment(
     home: homedir(),
   },
 ): CliEnvironment {
-  const endpoint = cdpEndpoint(source.ATLAS_MCP_BROWSER_CDP_ENDPOINT);
+  const endpoint = cdpEndpoint(source.MELRA_BROWSER_CDP_ENDPOINT);
   const contextIndex = cdpContextIndex(
-    source.ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX,
+    source.MELRA_BROWSER_CDP_CONTEXT_INDEX,
   );
-  const recordHarPath = harPath(source.ATLAS_MCP_BROWSER_HAR_PATH);
+  const recordHarPath = harPath(source.MELRA_BROWSER_HAR_PATH);
   if (endpoint !== undefined && recordHarPath !== undefined) {
     throw new Error("browser_cdp_cannot_start_har_recording");
   }
@@ -79,17 +79,17 @@ export function parseCliEnvironment(
   }
   return {
     workspaceRoot: resolve(
-      source.ATLAS_MCP_WORKSPACE ?? defaults.cwd,
+      source.MELRA_WORKSPACE ?? defaults.cwd,
     ),
     dataDirectory: resolve(
-      source.ATLAS_MCP_HOME ?? join(defaults.home, ".atlas-mcp"),
+      source.MELRA_HOME ?? join(defaults.home, ".melra"),
     ),
-    ...(source.ATLAS_MCP_POLICY === undefined
+    ...(source.MELRA_POLICY === undefined
       ? {}
-      : { policyPath: resolve(source.ATLAS_MCP_POLICY) }),
-    ...(source.ATLAS_MCP_BROWSER === undefined
+      : { policyPath: resolve(source.MELRA_POLICY) }),
+    ...(source.MELRA_BROWSER === undefined
       ? {}
-      : { browserExecutablePath: resolve(source.ATLAS_MCP_BROWSER) }),
+      : { browserExecutablePath: resolve(source.MELRA_BROWSER) }),
     ...(endpoint === undefined ? {} : { browserCdpEndpoint: endpoint }),
     ...(contextIndex === undefined
       ? {}

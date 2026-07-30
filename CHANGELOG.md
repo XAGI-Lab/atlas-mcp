@@ -6,8 +6,19 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-alpha.0] - 2026-07-30
+
 ### Added
 
+- Durable workflow definitions with operation, approval, condition, parallel,
+  bounded-loop, checkpoint, and compensation nodes.
+- Transactional ordered workflow events, projections, snapshots, encrypted
+  executable payloads, and idempotency commits in SQLite migration version 1.
+- Four workflow MCP tools plus CLI, TypeScript SDK, and Python SDK workflow
+  interfaces.
+- Restart-safe workflow example and real MCP child-process recovery test.
+- Immutable eight-scenario Durable Core evaluation manifest, raw JSONL runs,
+  and summary metrics.
 - Optional speaker, episode ID, and sequence metadata for memory records.
 - Bounded adjacent-turn context expansion and query-aware speaker matching in
   the deterministic local memory ranker.
@@ -16,12 +27,17 @@ All notable changes are documented here. The format follows
   `WebArena-Verified Hard-30 registered subset`, deterministic subset selection,
   paired aggregate statistics, and a fail-closed publication gate.
 - Opt-in browser instrumentation for benchmark and diagnostic harnesses:
-  `ATLAS_MCP_BROWSER_CDP_ENDPOINT`, `ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX`, and
-  `ATLAS_MCP_BROWSER_HAR_PATH`. Unset by default, so the isolated
+  `MELRA_BROWSER_CDP_ENDPOINT`, `MELRA_BROWSER_CDP_CONTEXT_INDEX`, and
+  `MELRA_BROWSER_HAR_PATH`. Unset by default, so the isolated
   launch-our-own-browser behavior is unchanged.
 
 ### Changed
 
+- Product version advanced to `0.3.0-alpha.0`; the MCP surface now contains
+  ten tools.
+- Planned task and workflow payloads remain executable after a process restart.
+- Interrupted reads retry conservatively; independently verifiable file
+  mutations reconcile, while uncertain mutations enter `recovery_required`.
 - LoCoMo mean evidence coverage@20 improved from `0.629117` to `0.759652`
   on the same hashed 1,982-question run, with no model, embedding, or network
   calls.
@@ -31,6 +47,10 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Concurrent advances for one workflow are serialized before adapter
+  execution, preventing duplicate effects and receipts in one server process.
+- Verified tasks committed before a workflow projection are recovered without
+  rerunning their adapters.
 - Browser benchmark runs drive Playwright from one process-wide thread.
   BrowserGym binds a process-global sync Playwright to its creating thread, so
   the previous per-task thread made every task after the first fail with
@@ -49,6 +69,12 @@ All notable changes are documented here. The format follows
 
 ### Security
 
+- Exact task requests, workflow definitions, and persisted adapter results use
+  AES-256-GCM envelopes bound to record identity and purpose.
+- Payload keys are loaded from `MELRA_PAYLOAD_KEY` or created as a non-symlink
+  mode-`0600` file; permissive Unix key files fail closed.
+- Status, events, receipts, certificates, logs, and SQLite projections are
+  covered by plaintext-secret regression tests.
 - Speaker and episode metadata pass through secret redaction before
   persistence.
 - Attaching over CDP and recording a HAR are mutually exclusive, and a HAR path
@@ -95,8 +121,9 @@ All notable changes are documented here. The format follows
 ### Added
 
 - Compact six-tool MCP stdio server.
-- Durable task lifecycle with policy, scoped approvals, budgets, cancellation,
-  verification, receipts, and execution certificates.
+- Task lifecycle with policy, scoped approvals, budgets, cancellation,
+  verification, receipts, and execution certificates. Task records are
+  persisted; executable task payloads do not survive a restart.
 - Root-confined file runtime.
 - Shell-free foreground and background terminal runtime.
 - Isolated Playwright browser runtime with network safety checks.
@@ -113,7 +140,8 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.2.0-alpha.1...HEAD
-[0.2.0-alpha.1]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.1.0-alpha.1...v0.2.0-alpha.1
-[0.1.0-alpha.1]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.1.0-alpha.0...v0.1.0-alpha.1
-[0.1.0-alpha.0]: https://github.com/XAGI-Lab/atlas-mcp/releases/tag/v0.1.0-alpha.0
+[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.0...HEAD
+[0.3.0-alpha.0]: https://github.com/XAGI-Lab/melra/compare/v0.2.0-alpha.1...v0.3.0-alpha.0
+[0.2.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.1.0-alpha.1...v0.2.0-alpha.1
+[0.1.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.1.0-alpha.0...v0.1.0-alpha.1
+[0.1.0-alpha.0]: https://github.com/XAGI-Lab/melra/releases/tag/v0.1.0-alpha.0

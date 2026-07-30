@@ -1,14 +1,18 @@
 // Copyright 2026 XAGI Labs Private Limited
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { TaskRequestSchema } from "@atlas-mcp/protocol";
-import { createDefaultPolicy } from "@atlas-mcp/policy-core";
-import { SqliteStore } from "@atlas-mcp/storage-sqlite";
-import { Verifier } from "@atlas-mcp/verifier-core";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  TaskRequestSchema,
+  type Operation,
+} from "@melra/protocol";
+import { createDefaultPolicy } from "@melra/policy-core";
+import { SqliteStore } from "@melra/storage-sqlite";
+import { Verifier } from "@melra/verifier-core";
+import { PayloadCipher } from "./payload-cipher.js";
 import { TaskController } from "./task-controller.js";
 
 const roots: string[] = [];
@@ -21,6 +25,7 @@ afterEach(async () => {
 
 async function setup(
   executor: {
+    capabilities?(): ReadonlySet<Operation["kind"]>;
     execute(
       operation?: unknown,
       signal?: AbortSignal,
@@ -31,20 +36,328 @@ async function setup(
     },
   },
 ) {
-  const root = await mkdtemp(join(tmpdir(), "atlas-controller-"));
+  const root = await mkdtemp(join(tmpdir(), "melra-controller-"));
   roots.push(root);
   const store = new SqliteStore(":memory:");
   stores.push(store);
-  const controller = new TaskController(
+  const controller = await createController(
     store,
-    createDefaultPolicy(root),
+    root,
+    Buffer.alloc(32, 7),
     executor,
-    await Verifier.create(root),
   );
   return { controller, store };
 }
 
+async function createController(
+  store: SqliteStore,
+  root: string,
+  key: Buffer,
+  executor: {
+    capabilities?(): ReadonlySet<Operation["kind"]>;
+    execute(
+      operation?: unknown,
+      signal?: AbortSignal,
+    ): Promise<Record<string, unknown>>;
+  },
+): Promise<TaskController> {
+  return new TaskController(
+    store,
+    createDefaultPolicy(root),
+    executor,
+    await Verifier.create(root),
+    new PayloadCipher(key),
+  );
+}
+
 describe("TaskController", () => {
+  it("executes a planned task after restart with the same key", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-controller-restart-"));
+    roots.push(root);
+    const databasePath = join(root, "melra.sqlite");
+    const key = Buffer.alloc(32, 21);
+    const executor = {
+      execute: vi.fn(async () => ({ success: true, value: "verified" })),
+    };
+    const storeA = new SqliteStore(databasePath);
+    stores.push(storeA);
+    const controllerA = await createController(storeA, root, key, executor);
+    const request = TaskRequestSchema.parse({
+      goal: "Inspect the runtime after restart",
+      operation: { kind: "system", action: "info" },
+    });
+    const planned = controllerA.plan(request);
+    storeA.close();
+    stores.splice(stores.indexOf(storeA), 1);
+
+    const storeB = new SqliteStore(databasePath);
+    stores.push(storeB);
+    const controllerB = await createController(storeB, root, key, executor);
+    const result = await controllerB.execute(planned.id);
+
+    expect(result.task.status).toBe("verified_success");
+    expect(executor.execute).toHaveBeenCalledWith(
+      request.operation,
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("keeps exact requests out of SQLite and rejects the wrong key", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-controller-sealed-"));
+    roots.push(root);
+    const databasePath = join(root, "melra.sqlite");
+    const storeA = new SqliteStore(databasePath);
+    stores.push(storeA);
+    const controllerA = await createController(
+      storeA,
+      root,
+      Buffer.alloc(32, 23),
+      { async execute() { return { success: true }; } },
+    );
+    const planned = controllerA.plan(
+      TaskRequestSchema.parse({
+        goal: "one-time-secret",
+        operation: { kind: "system", action: "info" },
+      }),
+    );
+    storeA.close();
+    stores.splice(stores.indexOf(storeA), 1);
+
+    expect((await readFile(databasePath)).toString()).not.toContain(
+      "one-time-secret",
+    );
+
+    const storeB = new SqliteStore(databasePath);
+    stores.push(storeB);
+    const controllerB = await createController(
+      storeB,
+      root,
+      Buffer.alloc(32, 29),
+      { async execute() { return { success: true }; } },
+    );
+    await expect(controllerB.execute(planned.id)).rejects.toThrow(
+      "task_payload_authentication_failed",
+    );
+  });
+
+  it("verifies an authenticated persisted adapter result", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Persist a result for later workflow conditions",
+        operation: { kind: "system", action: "info" },
+      }),
+    );
+    await controller.execute(planned.id);
+
+    await expect(
+      controller.verifyPersisted(planned.id, [
+        { type: "result_equals", path: "value", value: "verified" },
+      ]),
+    ).resolves.toMatchObject({ verified: true });
+  });
+
+  it("preflights installed capabilities without persisting a task", async () => {
+    const { controller, store } = await setup({
+      capabilities() {
+        return new Set<Operation["kind"]>(["file"]);
+      },
+      async execute() {
+        return { success: true };
+      },
+    });
+    const request = TaskRequestSchema.parse({
+      goal: "Require an installed system adapter",
+      operation: { kind: "system", action: "info" },
+    });
+
+    expect(() => controller.preflight(request)).toThrow(
+      "operation_capability_unavailable:system",
+    );
+    expect(store.listTasks()).toEqual([]);
+  });
+
+  it("rejects an approval whose stored action digest no longer matches", async () => {
+    const { controller, store } = await setup();
+    const planned = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Store a governed memory",
+        operation: {
+          kind: "memory",
+          action: "put",
+          key: "project",
+          value: "MELRA",
+        },
+        requiredEvidence: [
+          { type: "result_equals", path: "stored", value: true },
+        ],
+      }),
+    );
+    const stored = store.getTask(planned.id)!;
+    stored.approval = {
+      ...stored.approval!,
+      actionDigest: "0".repeat(64),
+    };
+    store.saveTask(stored);
+
+    await expect(
+      controller.execute(planned.id, {
+        approvalId: stored.approval.approvalId,
+        phrase: stored.approval.phrase,
+      }),
+    ).rejects.toThrow("approval_action_digest_mismatch");
+  });
+
+  it("uses rechecked policy rather than a stale stored allow decision", async () => {
+    const execute = vi.fn(async () => ({ success: true, stored: true }));
+    const { controller, store } = await setup({ execute });
+    const planned = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Store a governed memory",
+        operation: {
+          kind: "memory",
+          action: "put",
+          key: "project",
+          value: "MELRA",
+        },
+        requiredEvidence: [
+          { type: "result_equals", path: "stored", value: true },
+        ],
+      }),
+    );
+    const stored = store.getTask(planned.id)!;
+    stored.policyDecision = {
+      ...stored.policyDecision,
+      outcome: "allow",
+      reason: "stale projection",
+    };
+    store.saveTask(stored);
+
+    await expect(controller.execute(planned.id)).rejects.toThrow(
+      "approval_required",
+    );
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("recovers interrupted reads for retry and quarantines mutations", async () => {
+    const execute = vi.fn(async () => ({ success: true }));
+    const { controller, store } = await setup({ execute });
+    const read = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Recover an interrupted read",
+        operation: { kind: "system", action: "info" },
+      }),
+    );
+    const mutation = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Recover an interrupted mutation",
+        operation: {
+          kind: "memory",
+          action: "put",
+          key: "project",
+          value: "MELRA",
+        },
+        requiredEvidence: [
+          { type: "result_equals", path: "stored", value: true },
+        ],
+      }),
+    );
+    for (const item of [read, mutation]) {
+      const stored = store.getTask(item.id)!;
+      stored.status = "running";
+      store.saveTask(stored);
+    }
+
+    const recovered = await controller.recoverInterrupted();
+
+    expect(recovered).toHaveLength(2);
+    expect(store.getTask(read.id)).toMatchObject({
+      status: "planned",
+      error: "interrupted_read_ready_for_retry",
+    });
+    expect(store.getTask(mutation.id)).toMatchObject({
+      status: "recovery_required",
+      error: "interrupted_mutation_requires_reconciliation",
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("reconciles a verifying file mutation from independent evidence", async () => {
+    const execute = vi.fn(async () => ({ success: true }));
+    const { controller, store } = await setup({ execute });
+    const root = roots.at(-1)!;
+    const planned = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Recover an already completed file write",
+        operation: {
+          kind: "file",
+          action: "write",
+          path: "recovered.txt",
+          content: "complete",
+        },
+        requiredEvidence: [
+          { type: "file_exists", path: "recovered.txt" },
+        ],
+      }),
+      {
+        idempotencyKey: "b".repeat(64),
+        attempt: 1,
+      },
+    );
+    await writeFile(join(root, "recovered.txt"), "complete");
+    const interrupted = store.getTask(planned.id)!;
+    interrupted.status = "verifying";
+    store.saveTask(interrupted);
+
+    const [recovered] = await controller.recoverInterrupted();
+
+    expect(recovered).toMatchObject({
+      id: planned.id,
+      status: "verified_success",
+    });
+    expect(controller.receipts({ taskId: planned.id }).certificate?.result).toBe(
+      "VERIFIED_SUCCESS",
+    );
+    expect(store.getIdempotencyCommit("b".repeat(64))).toMatchObject({
+      taskId: planned.id,
+      attempt: 1,
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("prevents an already committed idempotency key from executing again", async () => {
+    const execute = vi.fn(async () => ({ success: true }));
+    const { controller } = await setup({ execute });
+    const request = TaskRequestSchema.parse({
+      goal: "Run one logical attempt",
+      operation: { kind: "system", action: "info" },
+    });
+    const idempotencyKey = "a".repeat(64);
+    const first = controller.plan(request, {
+      idempotencyKey,
+      attempt: 1,
+    });
+    const firstResult = await controller.execute(first.id);
+    const duplicate = controller.plan(request, {
+      idempotencyKey,
+      attempt: 2,
+    });
+    const duplicateResult = await controller.execute(duplicate.id);
+
+    expect(firstResult.task).toMatchObject({
+      status: "verified_success",
+      idempotencyKey,
+      attempt: 1,
+    });
+    expect(duplicateResult.task).toMatchObject({
+      status: "cancelled",
+      error: "duplicate_attempt_prevented",
+      idempotencyKey,
+      attempt: 2,
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
   it("plans, executes, verifies, and persists a read task", async () => {
     const { controller, store } = await setup();
     const task = controller.plan(
@@ -71,7 +384,7 @@ describe("TaskController", () => {
           action: "put",
           scope: "workspace",
           key: "project",
-          value: "ATLAS MCP",
+          value: "MELRA",
         },
         requiredEvidence: [
           { type: "result_equals", path: "stored", value: true },

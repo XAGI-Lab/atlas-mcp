@@ -1,4 +1,4 @@
-# Contributing to ATLAS MCP
+# Contributing to MELRA
 
 Thank you for helping make agent execution safer, more reliable, and easier to
 verify.

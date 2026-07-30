@@ -3,13 +3,13 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "atlas-browser-bench"
+name = "melra-browser-bench"
 version = "0.1.0"
-description = "Representative browser-agent benchmarks for ATLAS MCP."
+description = "Representative browser-agent benchmarks for MELRA."
 requires-python = ">=3.11,<3.12"
 license = { text = "Apache-2.0" }
 dependencies = [
-  "atlas-mcp",
+  "melra",
   "httpx>=0.28,<1",
 ]
 
@@ -25,13 +25,13 @@ test = [
 ]
 
 [project.scripts]
-atlas-browser-bench = "atlas_browser_bench.cli:main"
+melra-browser-bench = "melra_browser_bench.cli:main"
 
 [tool.uv.sources]
-atlas-mcp = { path = "../../sdk-py" }
+melra = { path = "../../sdk-py" }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/atlas_browser_bench"]
+packages = ["src/melra_browser_bench"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

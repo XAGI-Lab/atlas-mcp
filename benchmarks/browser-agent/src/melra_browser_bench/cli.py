@@ -42,7 +42,7 @@ def _json_object(path: Path) -> dict[str, object]:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="atlas-browser-bench")
+    parser = argparse.ArgumentParser(prog="melra-browser-bench")
     commands = parser.add_subparsers(dest="command", required=True)
 
     validate = commands.add_parser("validate-manifest")

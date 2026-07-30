@@ -1,6 +1,6 @@
 # Governance
 
-ATLAS MCP is an XAGI Labs-led open-source project.
+MELRA is an XAGI Labs-led open-source project.
 
 ## Roles
 
@@ -45,6 +45,6 @@ Before `1.0.0`, breakage is allowed but must be called out in release notes.
 
 ## Project decisions
 
-ATLAS MCP decisions are made for the product and its users. Contributions are
+MELRA decisions are made for the product and its users. Contributions are
 evaluated on technical quality, safety, compatibility, and alignment with the
 roadmap.
