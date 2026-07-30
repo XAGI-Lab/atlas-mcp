@@ -3,9 +3,17 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type {
-  ApprovalResponse,
-  TaskRequest,
+import {
+  WorkflowAdvanceInputSchema,
+  WorkflowAdvanceResultSchema,
+  WorkflowDefinitionSchema,
+  WorkflowIdInputSchema,
+  WorkflowRunSchema,
+  type WorkflowAdvanceResult,
+  type WorkflowDefinition,
+  type WorkflowRun,
+  type ApprovalResponse,
+  type TaskRequest,
 } from "@melra/protocol";
 
 export interface MelraClientOptions {
@@ -95,6 +103,44 @@ export class MelraClient {
       ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
       ...(input.receiptId === undefined ? {} : { receiptId: input.receiptId }),
     });
+  }
+
+  async planWorkflow(
+    definition: WorkflowDefinition,
+  ): Promise<WorkflowRun> {
+    const parsed = WorkflowDefinitionSchema.parse(definition);
+    return WorkflowRunSchema.parse(
+      await this.call("melra_workflow_plan", {
+        definition: parsed,
+      }),
+    );
+  }
+
+  async advanceWorkflow(
+    workflowId: string,
+    approvals: ApprovalResponse[] = [],
+  ): Promise<WorkflowAdvanceResult> {
+    const parsed = WorkflowAdvanceInputSchema.parse({
+      workflowId,
+      approvals,
+    });
+    return WorkflowAdvanceResultSchema.parse(
+      await this.call("melra_workflow_advance", parsed),
+    );
+  }
+
+  async workflowStatus(workflowId: string): Promise<WorkflowRun> {
+    const parsed = WorkflowIdInputSchema.parse({ workflowId });
+    return WorkflowRunSchema.parse(
+      await this.call("melra_workflow_status", parsed),
+    );
+  }
+
+  async cancelWorkflow(workflowId: string): Promise<WorkflowRun> {
+    const parsed = WorkflowIdInputSchema.parse({ workflowId });
+    return WorkflowRunSchema.parse(
+      await this.call("melra_workflow_cancel", parsed),
+    );
   }
 
   async close(): Promise<void> {

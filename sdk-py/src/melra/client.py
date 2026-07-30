@@ -9,6 +9,7 @@ from contextlib import AsyncExitStack
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
+from uuid import UUID
 
 from mcp import ClientSession, StdioServerParameters
 from mcp import types as mcp_types
@@ -122,3 +123,75 @@ class MelraClient:
         if receipt_id is not None:
             arguments["receiptId"] = receipt_id
         return await self.call_tool("melra_receipt", arguments)
+
+    async def plan_workflow(
+        self,
+        definition: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not isinstance(definition, dict):
+            raise TypeError("definition must be an object")
+        return self._object(
+            await self.call_tool(
+                "melra_workflow_plan",
+                {"definition": definition},
+            ),
+            "workflow plan",
+        )
+
+    async def advance_workflow(
+        self,
+        workflow_id: str,
+        *,
+        approvals: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        workflow_id = self._workflow_id(workflow_id)
+        parsed_approvals = approvals or []
+        for approval in parsed_approvals:
+            self._workflow_id(
+                approval.get("approvalId", ""),
+                name="approvalId",
+            )
+            if not approval.get("phrase"):
+                raise ValueError("approval phrase is required")
+        return self._object(
+            await self.call_tool(
+                "melra_workflow_advance",
+                {
+                    "workflowId": workflow_id,
+                    "approvals": parsed_approvals,
+                },
+            ),
+            "workflow advance",
+        )
+
+    async def workflow_status(self, workflow_id: str) -> dict[str, Any]:
+        return self._object(
+            await self.call_tool(
+                "melra_workflow_status",
+                {"workflowId": self._workflow_id(workflow_id)},
+            ),
+            "workflow status",
+        )
+
+    async def cancel_workflow(self, workflow_id: str) -> dict[str, Any]:
+        return self._object(
+            await self.call_tool(
+                "melra_workflow_cancel",
+                {"workflowId": self._workflow_id(workflow_id)},
+            ),
+            "workflow cancellation",
+        )
+
+    @staticmethod
+    def _workflow_id(value: str, *, name: str = "workflow_id") -> str:
+        try:
+            UUID(value)
+        except (TypeError, ValueError, AttributeError) as error:
+            raise ValueError(f"{name} must be a UUID") from error
+        return value
+
+    @staticmethod
+    def _object(value: Any, operation: str) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            raise TypeError(f"MELRA {operation} returned a non-object")
+        return value

@@ -471,6 +471,14 @@ export const WorkflowSnapshotSchema = z
     path: ["sequence"],
   });
 
+export const WorkflowAdvanceResultSchema = z
+  .object({
+    run: WorkflowRunSchema,
+    tasks: z.array(z.record(z.unknown())),
+    events: z.array(WorkflowEventSchema),
+  })
+  .strict();
+
 export const WorkflowPlanInputSchema = z
   .object({
     definition: WorkflowDefinitionSchema,
@@ -507,6 +515,9 @@ export type WorkflowEvent = z.infer<typeof WorkflowEventSchema>;
 export type WorkflowNodeState = z.infer<typeof WorkflowNodeStateSchema>;
 export type WorkflowRun = z.infer<typeof WorkflowRunSchema>;
 export type WorkflowSnapshot = z.infer<typeof WorkflowSnapshotSchema>;
+export type WorkflowAdvanceResult = z.infer<
+  typeof WorkflowAdvanceResultSchema
+>;
 export type WorkflowPlanInput = z.infer<typeof WorkflowPlanInputSchema>;
 export type WorkflowAdvanceInput = z.infer<typeof WorkflowAdvanceInputSchema>;
 export type WorkflowIdInput = z.infer<typeof WorkflowIdInputSchema>;
