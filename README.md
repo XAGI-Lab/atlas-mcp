@@ -22,7 +22,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 <!-- Evidence -->
 <img src="https://img.shields.io/badge/evals-30_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="30 deterministic evaluation scenarios passing" />
-<img src="https://img.shields.io/badge/tests-165_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="165 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/tests-166_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="166 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-12_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="12 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 

@@ -14,7 +14,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 |---|---|
 | Package-version consistency | all 16 workspace manifests, protocol constant, and Python distribution match |
 | TypeScript build and strict typecheck | passed across 15 packages/apps |
-| JavaScript/Vitest cases | 165 passed |
+| JavaScript/Vitest cases | 166 passed |
 | Python lint and SDK tests | ruff passed; 2 tests passed |
 | Safety/execution evaluation | 22 of 22 passed |
 | Durable Core evaluation | 8 valid, 0 invalid |

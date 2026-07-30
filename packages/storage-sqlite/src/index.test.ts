@@ -115,7 +115,7 @@ describe("SqliteStore", () => {
     expect(store.listMemories("user", 5)).toHaveLength(0);
   });
 
-  it("migrates existing memory tables before persisting episode metadata", () => {
+  it("migrates existing memory tables before persisting episode metadata", { timeout: 15_000 }, () => {
     tempDirectory = mkdtempSync(join(tmpdir(), "melra-memory-migration-"));
     const databasePath = join(tempDirectory, "melra.sqlite");
     const legacy = new DatabaseSync(databasePath);

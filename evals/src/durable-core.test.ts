@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DURABLE_CORE_MANIFEST_DIGEST,
+  digestDurableCoreManifest,
   runDurableCoreEvaluation,
   summarizeDurableCoreRuns,
   type DurableCoreRun,
@@ -50,6 +51,12 @@ describe("MELRA Durable Core Alpha evaluation", () => {
   it("pins the immutable manifest digest", () => {
     expect(DURABLE_CORE_MANIFEST_DIGEST).toBe(
       "b2f8e2a6819be1c18ffe799df9ce80a44301b1bc79835ea2f7c6facdf8275c38",
+    );
+  });
+
+  it("keeps the manifest identity stable across checkout line endings", () => {
+    expect(digestDurableCoreManifest(Buffer.from("{\r\n}\r\n"))).toBe(
+      digestDurableCoreManifest(Buffer.from("{\n}\n")),
     );
   });
 

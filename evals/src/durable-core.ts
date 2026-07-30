@@ -100,9 +100,15 @@ const manifestUrl = new URL(
 const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const executeFile = promisify(execFile);
 
+export function digestDurableCoreManifest(bytes: Buffer): string {
+  return createHash("sha256")
+    .update(bytes.toString("utf8").replaceAll("\r\n", "\n"))
+    .digest("hex");
+}
+
 export async function loadDurableCoreManifest(): Promise<DurableCoreManifest> {
   const bytes = await readFile(fileURLToPath(manifestUrl));
-  const digest = createHash("sha256").update(bytes).digest("hex");
+  const digest = digestDurableCoreManifest(bytes);
   if (digest !== DURABLE_CORE_MANIFEST_DIGEST) {
     throw new Error("durable_core_manifest_digest_mismatch");
   }
