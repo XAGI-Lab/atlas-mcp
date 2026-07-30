@@ -2,16 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createServer, type Server } from "node:http";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { detectBrowserExecutable } from "@melra/browser-runtime";
+import type { WorkflowAdvanceResult } from "@melra/protocol";
+import { SqliteStore } from "@melra/storage-sqlite";
 import { createMelraRuntime } from "../src/runtime.js";
 
 const detectedBrowserExecutable = await detectBrowserExecutable();
+const rootPackage = resolve(import.meta.dirname, "../../..");
+const cli = join(rootPackage, "apps/cli/dist/index.js");
+const childEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(
+    (entry): entry is [string, string] => entry[1] !== undefined,
+  ),
+);
 
 interface TextToolResult {
   content: Array<{ type: string; text?: string }>;
@@ -26,6 +35,56 @@ function parsed(result: unknown): Record<string, unknown> {
   const text = tool.content.find((item) => item.type === "text")?.text;
   if (text === undefined) throw new Error("missing_text_tool_result");
   return JSON.parse(text) as Record<string, unknown>;
+}
+
+async function connectMcp(
+  workspaceRoot: string,
+  dataDirectory: string,
+  policyPath: string,
+): Promise<{
+  client: Client;
+  transport: StdioClientTransport;
+  stderr: string[];
+}> {
+  const stderr: string[] = [];
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [cli, "serve"],
+    cwd: rootPackage,
+    env: {
+      ...childEnvironment,
+      MELRA_WORKSPACE: workspaceRoot,
+      MELRA_HOME: dataDirectory,
+      MELRA_POLICY: policyPath,
+    },
+    stderr: "pipe",
+  });
+  transport.stderr?.on("data", (chunk) => stderr.push(String(chunk)));
+  const client = new Client({ name: "melra-restart-e2e", version: "1.0.0" });
+  await client.connect(transport);
+  return { client, transport, stderr };
+}
+
+async function writeTestPolicy(root: string): Promise<string> {
+  const policyPath = join(root, "policy.json");
+  await writeFile(
+    policyPath,
+    `${JSON.stringify(
+      {
+        version: "restart-e2e",
+        workspaceRoot: root,
+        allowedCommands: ["node"],
+        allowedDomains: [],
+        allowLocalhost: false,
+        mutations: "confirm",
+        approvalTtlMs: 300_000,
+        maxFileBytes: 1_000_000,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  return policyPath;
 }
 
 describe("MELRA over real stdio transport", () => {
@@ -76,13 +135,6 @@ describe("MELRA over real stdio transport", () => {
       fixtureUrl = `http://127.0.0.1:${address.port}`;
     }
 
-    const rootPackage = resolve(import.meta.dirname, "../../..");
-    const cli = join(rootPackage, "apps/cli/dist/index.js");
-    const childEnvironment = Object.fromEntries(
-      Object.entries(process.env).filter(
-        (entry): entry is [string, string] => entry[1] !== undefined,
-      ),
-    );
     transport = new StdioClientTransport({
       command: process.execPath,
       args: [cli, "serve"],
@@ -249,6 +301,191 @@ describe("MELRA over real stdio transport", () => {
       await rm(restartRoot, { recursive: true, force: true });
     }
   });
+
+  it("resumes an approval-gated verified workflow in a new MCP process", async () => {
+    const restartRoot = await mkdtemp(join(tmpdir(), "melra-mcp-restart-"));
+    const restartHome = join(restartRoot, ".melra");
+    const policyPath = await writeTestPolicy(restartRoot);
+    const definition = JSON.parse(
+      await readFile(
+        join(rootPackage, "examples/workflows/restart-safe.json"),
+        "utf8",
+      ),
+    ) as Record<string, unknown>;
+    let first:
+      | Awaited<ReturnType<typeof connectMcp>>
+      | undefined = await connectMcp(restartRoot, restartHome, policyPath);
+    let second: Awaited<ReturnType<typeof connectMcp>> | undefined;
+
+    try {
+      const firstPid = first.transport.pid;
+      const planned = parsed(
+        await first.client.callTool({
+          name: "melra_workflow_plan",
+          arguments: { definition },
+        }),
+      );
+      const inspected = parsed(
+        await first.client.callTool({
+          name: "melra_workflow_advance",
+          arguments: { workflowId: planned.id },
+        }),
+      ) as unknown as WorkflowAdvanceResult;
+      expect(inspected.run.status).toBe("running");
+      const sequences = inspected.events.map((event) => event.sequence);
+
+      await first.client.close();
+      first = undefined;
+      second = await connectMcp(restartRoot, restartHome, policyPath);
+      expect(second.transport.pid).not.toBe(firstPid);
+
+      const awaiting = parsed(
+        await second.client.callTool({
+          name: "melra_workflow_advance",
+          arguments: { workflowId: planned.id },
+        }),
+      ) as unknown as WorkflowAdvanceResult;
+      expect(awaiting.run.status).toBe("awaiting_approval");
+      const approval = awaiting.run.nodes.write?.approval;
+      expect(approval).toBeDefined();
+      sequences.push(...awaiting.events.map((event) => event.sequence));
+
+      const tampered = parsed(
+        await second.client.callTool({
+          name: "melra_workflow_advance",
+          arguments: {
+            workflowId: planned.id,
+            approvals: [
+              {
+                approvalId: "99999999-9999-4999-8999-999999999999",
+                phrase: approval!.phrase,
+              },
+            ],
+          },
+        }),
+      ) as unknown as WorkflowAdvanceResult;
+      expect(tampered.run.status).toBe("awaiting_approval");
+      await expect(
+        readFile(join(restartRoot, "durable-core-result.txt"), "utf8"),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      sequences.push(...tampered.events.map((event) => event.sequence));
+
+      const written = parsed(
+        await second.client.callTool({
+          name: "melra_workflow_advance",
+          arguments: {
+            workflowId: planned.id,
+            approvals: [
+              {
+                approvalId: approval!.approvalId,
+                phrase: approval!.phrase,
+              },
+            ],
+          },
+        }),
+      ) as unknown as WorkflowAdvanceResult;
+      expect(written.run.nodes.write?.status).toBe("verified_complete");
+      sequences.push(...written.events.map((event) => event.sequence));
+
+      const completed = parsed(
+        await second.client.callTool({
+          name: "melra_workflow_advance",
+          arguments: { workflowId: planned.id },
+        }),
+      ) as unknown as WorkflowAdvanceResult;
+      expect(completed.run.status).toBe("verified_complete");
+      sequences.push(...completed.events.map((event) => event.sequence));
+      expect(
+        await readFile(join(restartRoot, "durable-core-result.txt"), "utf8"),
+      ).toBe("verified after restart");
+
+      const evidence = parsed(
+        await second.client.callTool({
+          name: "melra_receipt",
+          arguments: { taskId: written.run.nodes.write!.taskIds[0] },
+        }),
+      ) as {
+        receipts: Array<{ effect: string }>;
+        certificate: { result: string; digest: string };
+      };
+      expect(evidence.receipts).toHaveLength(1);
+      expect(evidence.receipts[0]?.effect).toBe("mutate");
+      expect(evidence.certificate.result).toBe("VERIFIED_SUCCESS");
+      expect(evidence.certificate.digest).toMatch(/^[a-f0-9]{64}$/);
+      expect(new Set(sequences).size).toBe(sequences.length);
+      expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
+    } finally {
+      await first?.client.close();
+      await second?.client.close();
+      await rm(restartRoot, { recursive: true, force: true });
+    }
+  }, 120_000);
+
+  it("never persists or returns a planned workflow secret in plaintext", async () => {
+    const secretRoot = await mkdtemp(join(tmpdir(), "melra-mcp-secret-"));
+    const secretHome = join(secretRoot, ".melra");
+    const policyPath = await writeTestPolicy(secretRoot);
+    const secret = "secret-restart-payload-7391";
+    const session = await connectMcp(secretRoot, secretHome, policyPath);
+
+    try {
+      const planned = parsed(
+        await session.client.callTool({
+          name: "melra_workflow_plan",
+          arguments: {
+            definition: {
+              schemaVersion: "1.0.0",
+              id: "7d57f7ba-9b98-4ff5-8f73-a24fbaf66d29",
+              version: 1,
+              name: "encrypted-restart-payload",
+              nodes: [
+                {
+                  id: "write",
+                  type: "operation",
+                  request: {
+                    goal: "Persist an encrypted workflow payload",
+                    operation: {
+                      kind: "file",
+                      action: "write",
+                      path: "secret.txt",
+                      content: secret,
+                    },
+                    requiredEvidence: [
+                      { type: "file_exists", path: "secret.txt" },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        }),
+      );
+      const status = parsed(
+        await session.client.callTool({
+          name: "melra_workflow_status",
+          arguments: { workflowId: planned.id },
+        }),
+      );
+      expect(JSON.stringify({ planned, status })).not.toContain(secret);
+      await session.client.close();
+
+      const store = new SqliteStore(join(secretHome, "melra.sqlite"));
+      const events = store.listWorkflowEvents(String(planned.id));
+      store.close();
+      expect(JSON.stringify(events)).not.toContain(secret);
+      for (const file of (await readdir(secretHome)).filter((name) =>
+        name.startsWith("melra.sqlite"),
+      )) {
+        expect(await readFile(join(secretHome, file))).not.toContain(
+          Buffer.from(secret),
+        );
+      }
+      expect(session.stderr.join("")).not.toContain(secret);
+    } finally {
+      await session.client.close();
+      await rm(secretRoot, { recursive: true, force: true });
+    }
+  }, 120_000);
 
   it("inspects computer-use support through the governed task path", async () => {
     const task = parsed(
