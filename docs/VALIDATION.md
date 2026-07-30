@@ -54,6 +54,22 @@ interrupted-mutation reconciliation, and a duplicate-advance race. Raw JSONL
 is written before the summary and records the implementation commit, runtime,
 platform, receipts, and certificates.
 
+### Local candidate artifacts
+
+The following artifacts were built from signed commit `72f7e21`. They are
+local release-candidate evidence, not published release artifacts; the tag
+workflow rebuilds and attests its own files.
+
+| Artifact | SHA-256 |
+|---|---|
+| `melra-node-0.3.0-alpha.0.tar.gz` | `e3837a0399c54e625d547e14b480a5208521f8288fe9460b0909e3176e438c9c` |
+| `melra-source-0.3.0-alpha.0.tar.gz` | `d7fd669c0eef7c9b54372e51b1d856bff912bb96f53e9f8a6f861049b48522f7` |
+| `melra-0.3.0a0-py3-none-any.whl` | `621fc6048414070c2f4e39839ba902fabc6114a1204b446011c1b16a3f34e7fb` |
+| `melra-0.3.0a0.tar.gz` | `6458d266a4e1bbd7bc9b888fdf252609ea30de8d34ab2cfdf1d40fac0a457bfc` |
+
+The portable Node runtime passed `melra doctor`; both tar archives enumerated
+successfully, and the wheel passed ZIP integrity validation.
+
 Public component benchmark artifacts remain:
 
 - LoCoMo objective evidence retrieval: 1,982 questions, coverage@20
