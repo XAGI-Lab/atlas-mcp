@@ -20,3 +20,4 @@ benchmarks/browser-agent/**/*.har
 benchmarks/browser-agent/**/*.png
 benchmarks/browser-agent/**/*.webm
 benchmarks/browser-agent/**/*transcript*.json
+.worktrees/
