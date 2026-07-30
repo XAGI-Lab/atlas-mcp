@@ -1,7 +1,7 @@
 // Copyright 2026 XAGI Labs Private Limited
 // SPDX-License-Identifier: Apache-2.0
 
-import type { TaskRequestInput, TaskStatus } from "@atlas-mcp/protocol";
+import type { TaskRequestInput, TaskStatus } from "@melra/protocol";
 
 export interface EvaluationScenario {
   id: string;
@@ -356,7 +356,7 @@ export const scenarios: EvaluationScenario[] = [
         action: "put",
         scope: "workspace",
         key: "product",
-        value: "ATLAS MCP",
+        value: "MELRA",
         confidence: 1,
         limit: 20,
       },

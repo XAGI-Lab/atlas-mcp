@@ -114,7 +114,7 @@ async function main() {
         ).length,
     },
     system: {
-      implementation: "@atlas-mcp/memory atlas-hybrid-v2",
+      implementation: "@melra/memory melra-hybrid-v2",
       ingestionUnit: "dialogue turn",
       modelCalls: 0,
       embeddingCalls: 0,

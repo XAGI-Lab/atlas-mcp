@@ -21,7 +21,7 @@ Status: reviewed for `0.2.0-alpha.1`; independent review pending.
 - source commit to released artifact.
 
 The MCP client and task content are potentially hostile. The host operating
-system and the configured local policy are trusted. ATLAS MCP is not a security
+system and the configured local policy are trusted. MELRA is not a security
 boundary against a fully compromised host.
 
 ## Threats and controls

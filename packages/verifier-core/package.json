@@ -1,7 +1,7 @@
 {
-  "name": "@atlas-mcp/verifier-core",
+  "name": "@melra/verifier-core",
   "version": "0.2.0-alpha.1",
-  "description": "Deterministic evidence predicates and result verification for ATLAS MCP.",
+  "description": "Deterministic evidence predicates and result verification for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@atlas-mcp/protocol": "workspace:*",
-    "@atlas-mcp/receipt-schema": "workspace:*"
+    "@melra/protocol": "workspace:*",
+    "@melra/receipt-schema": "workspace:*"
   }
 }

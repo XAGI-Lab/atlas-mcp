@@ -1,6 +1,6 @@
 # Roadmap
 
-ATLAS MCP is an open-source product for governed and verifiable MCP execution.
+MELRA is an open-source product for governed and verifiable MCP execution.
 Checked items are implemented on the current alpha branch; they are not a
 promise of stable API compatibility.
 

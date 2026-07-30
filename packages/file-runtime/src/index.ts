@@ -14,7 +14,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
-import type { FileOperation } from "@atlas-mcp/protocol";
+import type { FileOperation } from "@melra/protocol";
 
 export interface FileRuntimeOptions {
   root: string;
@@ -141,7 +141,7 @@ export class FileRuntime {
         const buffer = Buffer.from(operation.content, operation.encoding);
         if (buffer.byteLength > this.maxFileBytes) throw new Error("file_size_limit_exceeded");
         await mkdir(dirname(path), { recursive: true });
-        const temporary = `${path}.atlas-${randomUUID()}.tmp`;
+        const temporary = `${path}.melra-${randomUUID()}.tmp`;
         await writeFile(temporary, buffer, { flag: "wx" });
         await rename(temporary, path);
         return {

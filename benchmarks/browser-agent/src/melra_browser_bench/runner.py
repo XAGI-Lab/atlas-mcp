@@ -21,7 +21,7 @@ from .agent import (
     InfeasibleDecision,
     OpenAICompatibleAgent,
 )
-from .mcp_driver import AtlasBrowserDriver, DriverObservation
+from .mcp_driver import DriverObservation, MelraBrowserDriver
 from .miniwob import (
     MiniWobEnvironment,
     MiniWobStep,
@@ -158,7 +158,7 @@ async def run_task(
     run_input_digest: str,
     environment: TaskEnvironment,
     agent: AgentProtocol,
-    driver: BrowserDriver | AtlasBrowserDriver,
+    driver: BrowserDriver | MelraBrowserDriver,
     limits: RunLimits,
 ) -> BrowserTaskRecord:
     if not re.fullmatch(r"[a-f0-9]{64}", run_input_digest):
@@ -413,7 +413,7 @@ async def run_miniwob_suite(
                     workspace=task_workspace,
                     seed=seed,
                 ) as environment,
-                environment.atlas_driver() as driver,
+                environment.melra_driver() as driver,
             ):
                 record = await run_task(
                     task_id=task_id,

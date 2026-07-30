@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from atlas_browser_bench.manifest import (
+from melra_browser_bench.manifest import (
     AgentIdentity,
     EnvironmentIdentity,
     ImplementationIdentity,
     load_manifest,
 )
-from atlas_browser_bench.sanitize import (
+from melra_browser_bench.sanitize import (
     assert_publishable_run,
     sanitize_evidence,
     verify_public_artifact,

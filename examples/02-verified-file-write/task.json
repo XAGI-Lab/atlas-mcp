@@ -3,13 +3,13 @@
   "operation": {
     "kind": "file",
     "action": "write",
-    "path": "atlas-example.txt",
-    "content": "Created and verified by ATLAS MCP.\n"
+    "path": "melra-example.txt",
+    "content": "Created and verified by MELRA.\n"
   },
   "requiredEvidence": [
     {
       "type": "file_exists",
-      "path": "atlas-example.txt"
+      "path": "melra-example.txt"
     },
     {
       "type": "result_equals",

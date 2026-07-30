@@ -126,8 +126,8 @@ pnpm pack:check
 pnpm security:audit
 pnpm benchmark:browser:check
 pnpm benchmark:browser:verify-upstream
-docker build -t atlas-mcp:local .
-docker run --rm atlas-mcp:local doctor
+docker build -t melra:local .
+docker run --rm melra:local doctor
 pnpm docker:smoke
 ```
 
@@ -153,24 +153,24 @@ be attached to the immutable release or workflow run.
 
 ## CI evidence
 
-Pull request [#3](https://github.com/XAGI-Lab/atlas-mcp/pull/3) exercised
+Pull request [#3](https://github.com/XAGI-Lab/melra/pull/3) exercised
 source commit `ede8281` through:
 
-- [six Node jobs](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357518365)
+- [six Node jobs](https://github.com/XAGI-Lab/melra/actions/runs/30357518365)
   across Linux, macOS, and Windows on Node 22 and 24;
-- [CodeQL](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357512893)
+- [CodeQL](https://github.com/XAGI-Lab/melra/actions/runs/30357512893)
   for Actions workflows, JavaScript/TypeScript, and Python;
-- [dependency review](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357513471)
+- [dependency review](https://github.com/XAGI-Lab/melra/actions/runs/30357513471)
   and a separate
-  [dependency audit](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357513022);
-- [Docker build, doctor, and actual MCP smoke](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357515676);
-- [DCO validation](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30357515885).
+  [dependency audit](https://github.com/XAGI-Lab/melra/actions/runs/30357513022);
+- [Docker build, doctor, and actual MCP smoke](https://github.com/XAGI-Lab/melra/actions/runs/30357515676);
+- [DCO validation](https://github.com/XAGI-Lab/melra/actions/runs/30357515885).
 
 ## Immutable release evidence
 
-Release [`v0.1.0-alpha.1`](https://github.com/XAGI-Lab/atlas-mcp/releases/tag/v0.1.0-alpha.1)
+Release [`v0.1.0-alpha.1`](https://github.com/XAGI-Lab/melra/releases/tag/v0.1.0-alpha.1)
 was built from main commit `b2ca3cd1` by
-[release workflow run 30359767921](https://github.com/XAGI-Lab/atlas-mcp/actions/runs/30359767921).
+[release workflow run 30359767921](https://github.com/XAGI-Lab/melra/actions/runs/30359767921).
 Both the artifact and container jobs passed.
 
 - All five downloadable archives and distributions passed the published

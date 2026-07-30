@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from atlas_browser_bench.manifest import (
+from melra_browser_bench.manifest import (
     AgentIdentity,
     EnvironmentIdentity,
     ImplementationIdentity,

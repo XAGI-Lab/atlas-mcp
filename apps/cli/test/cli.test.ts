@@ -17,15 +17,15 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-describe("atlas-mcp CLI", () => {
+describe("melra CLI", () => {
   it("parses explicit benchmark browser connection options", () => {
     const parsed = parseCliEnvironment(
       {
-        ATLAS_MCP_WORKSPACE: "/tmp/atlas-workspace",
-        ATLAS_MCP_HOME: "/tmp/atlas-home",
-        ATLAS_MCP_BROWSER: "/Applications/Google Chrome",
-        ATLAS_MCP_BROWSER_CDP_ENDPOINT: "http://127.0.0.1:9222",
-        ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX: "-1",
+        MELRA_WORKSPACE: "/tmp/melra-workspace",
+        MELRA_HOME: "/tmp/melra-home",
+        MELRA_BROWSER: "/Applications/Google Chrome",
+        MELRA_BROWSER_CDP_ENDPOINT: "http://127.0.0.1:9222",
+        MELRA_BROWSER_CDP_CONTEXT_INDEX: "-1",
       },
       {
         cwd: "/tmp/fallback-workspace",
@@ -33,21 +33,21 @@ describe("atlas-mcp CLI", () => {
       },
     );
     expect(parsed).toEqual({
-      workspaceRoot: resolve("/tmp/atlas-workspace"),
-      dataDirectory: resolve("/tmp/atlas-home"),
+      workspaceRoot: resolve("/tmp/melra-workspace"),
+      dataDirectory: resolve("/tmp/melra-home"),
       browserExecutablePath: resolve("/Applications/Google Chrome"),
       browserCdpEndpoint: "http://127.0.0.1:9222/",
       browserCdpContextIndex: -1,
     });
     expect(
       parseCliEnvironment(
-        { ATLAS_MCP_BROWSER_HAR_PATH: "/tmp/atlas-run/network.har" },
+        { MELRA_BROWSER_HAR_PATH: "/tmp/melra-run/network.har" },
         {
           cwd: "/tmp/fallback-workspace",
           home: "/tmp/fallback-home",
         },
       ).browserHarPath,
-    ).toBe(resolve("/tmp/atlas-run/network.har"));
+    ).toBe(resolve("/tmp/melra-run/network.har"));
   });
 
   it("rejects unsafe or ambiguous browser connection options", () => {
@@ -57,27 +57,27 @@ describe("atlas-mcp CLI", () => {
     };
     expect(() =>
       parseCliEnvironment(
-        { ATLAS_MCP_BROWSER_CDP_ENDPOINT: "ws://127.0.0.1:9222" },
+        { MELRA_BROWSER_CDP_ENDPOINT: "ws://127.0.0.1:9222" },
         defaults,
       ),
     ).toThrow("browser_cdp_endpoint_invalid");
     expect(() =>
       parseCliEnvironment(
-        { ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX: "-2" },
+        { MELRA_BROWSER_CDP_CONTEXT_INDEX: "-2" },
         defaults,
       ),
     ).toThrow("browser_cdp_context_index_invalid");
     expect(() =>
       parseCliEnvironment(
-        { ATLAS_MCP_BROWSER_HAR_PATH: "relative/network.har" },
+        { MELRA_BROWSER_HAR_PATH: "relative/network.har" },
         defaults,
       ),
     ).toThrow("browser_har_path_must_be_absolute");
     expect(() =>
       parseCliEnvironment(
         {
-          ATLAS_MCP_BROWSER_CDP_ENDPOINT: "http://127.0.0.1:9222",
-          ATLAS_MCP_BROWSER_HAR_PATH: "/tmp/network.har",
+          MELRA_BROWSER_CDP_ENDPOINT: "http://127.0.0.1:9222",
+          MELRA_BROWSER_HAR_PATH: "/tmp/network.har",
         },
         defaults,
       ),
@@ -90,14 +90,14 @@ describe("atlas-mcp CLI", () => {
   });
 
   it("reports local readiness through doctor", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-cli-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
     roots.push(root);
     const result = await execute(process.execPath, [entry, "doctor"], {
       cwd: root,
       env: {
         ...process.env,
-        ATLAS_MCP_HOME: join(root, ".atlas"),
-        ATLAS_MCP_WORKSPACE: root,
+        MELRA_HOME: join(root, ".melra"),
+        MELRA_WORKSPACE: root,
       },
     });
     const report = JSON.parse(result.stdout) as {
@@ -116,9 +116,9 @@ describe("atlas-mcp CLI", () => {
   });
 
   it("initializes a safe local policy and client configuration", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-cli-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
     roots.push(root);
-    const home = join(root, ".atlas");
+    const home = join(root, ".melra");
     const result = await execute(
       process.execPath,
       [entry, "init", "--client", "claude"],
@@ -126,18 +126,18 @@ describe("atlas-mcp CLI", () => {
         cwd: root,
         env: {
           ...process.env,
-          ATLAS_MCP_HOME: home,
-          ATLAS_MCP_WORKSPACE: root,
+          MELRA_HOME: home,
+          MELRA_WORKSPACE: root,
         },
       },
     );
     const initialized = JSON.parse(result.stdout) as {
       initialized: boolean;
       policyPath: string;
-      config: { mcpServers: { atlas: { command: string } } };
+      config: { mcpServers: { melra: { command: string } } };
     };
     expect(initialized.initialized).toBe(true);
-    expect(initialized.config.mcpServers.atlas.command).toBe("atlas-mcp");
+    expect(initialized.config.mcpServers.melra.command).toBe("melra");
     const policy = JSON.parse(await readFile(initialized.policyPath, "utf8")) as {
       mutations: string;
       allowLocalhost: boolean;

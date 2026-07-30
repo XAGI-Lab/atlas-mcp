@@ -2,12 +2,12 @@
 
 **Status:** approved direction; written specification awaiting review  
 **Date:** 2026-07-28  
-**Product:** ATLAS MCP  
+**Product:** MELRA
 
 ## Goal
 
 Add a reproducible browser-agent evaluation that measures end-to-end task
-success through ATLAS MCP, then use the non-headline development suite to
+success through MELRA, then use the non-headline development suite to
 improve general browser reliability before running a registered final
 evaluation.
 
@@ -28,7 +28,7 @@ This cycle delivers:
 4. browser-runtime changes that are required for the benchmark and improve
    general task execution, but only when justified by MiniWoB or generic
    regression evidence;
-5. README examples showing where ATLAS MCP can be used for coding, browser,
+5. README examples showing where MELRA can be used for coding, browser,
    terminal, computer-use, and memory workflows.
 
 This cycle does not claim:
@@ -73,7 +73,7 @@ The initial manifests pin:
   `4fccaef496870558a0c65ae97c7350c625b498688df87051afd254db7899a76f`
 - WebArena-Verified Hard subset-manifest SHA-256:
   `3b0a4df231bb5a0c642215e521c3fa97701a384f52a734dc2db8f617ad0591a7`
-- ATLAS MCP browser baseline:
+- MELRA browser baseline:
   `a8a0a0907a7eed29249b94c89af3449efbcec4c3`
 - CPython: `3.11`
 
@@ -97,7 +97,7 @@ selection, targeting, policy, settling, or verification behavior.
 ### Registered WebArena-Verified Hard-30 subset
 
 The subset is selected from the official 258-task Hard set with seed
-`atlas-mcp-webarena-verified-hard-30-v1`. Within each site-family and task-type
+`melra-webarena-verified-hard-30-v1`. Within each site-family and task-type
 stratum, tasks are ordered by
 `SHA-256("<seed>:<task_id>")`. Selection skips repeated
 `intent_template_id` values so the 30 tasks represent 30 distinct templates.
@@ -129,19 +129,19 @@ the selection from the pinned upstream file and fails if any field drifts.
 
 A focused Python package under `benchmarks/browser-agent/` owns benchmark
 orchestration because BrowserGym and WebArena-Verified publish their supported
-harnesses in Python. It uses the existing `AtlasClient` from `sdk-py` to
+harnesses in Python. It uses the existing `MelraClient` from `sdk-py` to
 exercise the real six-tool stdio server rather than importing runtime
 internals.
 
 The package has five bounded responsibilities:
 
 1. **Manifest loader** — validates immutable upstream identities, registered
-   tasks, model settings, prompt hash, container digests, and ATLAS commits.
+   tasks, model settings, prompt hash, container digests, and MELRA commits.
 2. **Environment adapter** — starts or connects to the official task
    environment, resets it between tasks, and exposes its active page to the
-   ATLAS browser runtime.
+   MELRA browser runtime.
 3. **MCP driver** — translates each agent tool decision into
-   `atlas_plan`/`atlas_execute`, handles exact scoped approvals supplied by the
+   `melra_plan`/`melra_execute`, handles exact scoped approvals supplied by the
    benchmark policy, and captures receipts.
 4. **Evaluator adapter** — obtains MiniWoB rewards from BrowserGym and
    WebArena-Verified results from its deterministic response/network-trace
@@ -150,12 +150,12 @@ The package has five bounded responsibilities:
    a deterministic aggregate report from those records.
 
 The harness may coordinate environments and agents. It may not execute browser
-mutations outside ATLAS MCP.
+mutations outside MELRA.
 
 ### Shared browser control
 
 BrowserGym must retain ownership of MiniWoB task setup and evaluation while
-ATLAS MCP performs every browser action. A benchmark-only CDP connection
+MELRA performs every browser action. A benchmark-only CDP connection
 connects the Node browser runtime to the active Chromium instance. The
 BrowserGym adapter calls its normal post-action observation and evaluator
 after the MCP action. If a BrowserGym evaluator cannot observe an action
@@ -163,7 +163,7 @@ performed through the shared page, the task is an infrastructure error and
 the suite is not publishable.
 
 For WebArena-Verified, the official environment-control tooling resets and
-health-checks site containers. ATLAS MCP owns the browser session and records
+health-checks site containers. MELRA owns the browser session and records
 the network trace required by the official offline evaluator. Browser
 recording is configured outside task input so an agent cannot disable or
 redirect evidence capture.
@@ -189,7 +189,7 @@ records input, cached-input, reasoning, and output tokens when the provider
 reports them. Missing token accounting is reported as unavailable, never
 estimated.
 
-The model chooses actions and the final response. ATLAS MCP remains
+The model chooses actions and the final response. MELRA remains
 responsible for policy, approvals, execution, post-action observation,
 verification, receipts, and bounded failures.
 
@@ -201,7 +201,7 @@ flowchart LR
     Preflight --> Environment["Official task environment"]
     Environment --> Observation["Task intent + current observation"]
     Observation --> Agent["Fixed agent configuration"]
-    Agent --> Driver["ATLAS MCP stdio driver"]
+    Agent --> Driver["MELRA stdio driver"]
     Driver --> Runtime["Policy + browser runtime"]
     Runtime --> Evidence["Observation + receipt + trace"]
     Evidence --> Agent
@@ -212,7 +212,7 @@ flowchart LR
 
 Each task begins from an official reset. A run cannot silently reuse browser
 state, cookies, memory, or approvals from the preceding task. The environment,
-ATLAS data directory, and receipt store are isolated by run and task.
+MELRA data directory, and receipt store are isolated by run and task.
 
 ## Metrics and score publication
 
@@ -326,7 +326,7 @@ branch can merge.
 
 ## README product examples
 
-The README gains a “Where you can use ATLAS MCP” section with short examples:
+The README gains a “Where you can use MELRA” section with short examples:
 
 - **Coding clients:** inspect a repository, run a test, write a bounded fix,
   and verify the changed file.
@@ -339,7 +339,7 @@ The README gains a “Where you can use ATLAS MCP” section with short examples
 - **Project memory:** store a scoped decision or procedure and retrieve it in a
   later task without a hosted account.
 
-The section says that ATLAS MCP can be configured in stdio-capable MCP clients
+The section says that MELRA can be configured in stdio-capable MCP clients
 and links to the compatibility matrix. It distinguishes “documented setup”
 from “released-client verified” status and keeps examples within implemented
 capabilities.
@@ -366,7 +366,7 @@ This benchmark cycle succeeds only when:
 
 - all 125 MiniWoB tasks and all 30 registered Hard tasks are accounted for;
 - the baseline and candidate use identical pinned agent and environment inputs;
-- every browser mutation passes through ATLAS MCP;
+- every browser mutation passes through MELRA;
 - official evaluators, not process exit codes or action success, determine task
   success;
 - public artifacts reproduce the aggregate report and pass the privacy gate;

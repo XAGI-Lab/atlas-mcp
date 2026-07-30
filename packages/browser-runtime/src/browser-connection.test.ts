@@ -5,7 +5,7 @@ import { createServer, type Server } from "node:http";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BrowserOperationSchema } from "@atlas-mcp/protocol";
+import { BrowserOperationSchema } from "@melra/protocol";
 import { chromium } from "playwright-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { BrowserRuntime, detectBrowserExecutable } from "./index.js";
@@ -67,7 +67,7 @@ describe("browser connection evidence", () => {
   it("records and flushes HAR for an owned browser context", async () => {
     const executablePath = await detectBrowserExecutable();
     if (executablePath === undefined) return;
-    const root = await mkdtemp(join(tmpdir(), "atlas-browser-har-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-browser-har-"));
     roots.push(root);
     const { url } = await fixtureServer();
     const harPath = join(root, "network.har");
@@ -101,7 +101,7 @@ describe("browser connection evidence", () => {
   it("attaches to the selected CDP context without closing its owner", async () => {
     const executablePath = await detectBrowserExecutable();
     if (executablePath === undefined) return;
-    const root = await mkdtemp(join(tmpdir(), "atlas-browser-cdp-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-browser-cdp-"));
     roots.push(root);
     const port = await reservePort();
     const owner = await chromium.launch({

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { parseAtlasToolResult } from "./index.js";
+import { parseMelraToolResult } from "./index.js";
 
 describe("TypeScript SDK result parsing", () => {
   it("parses the server's JSON text contract", () => {
     expect(
-      parseAtlasToolResult({
+      parseMelraToolResult({
         content: [{ type: "text", text: '{"verified":true}' }],
       }),
     ).toEqual({ verified: true });
@@ -15,7 +15,7 @@ describe("TypeScript SDK result parsing", () => {
 
   it("does not hide MCP tool errors", () => {
     expect(() =>
-      parseAtlasToolResult({
+      parseMelraToolResult({
         isError: true,
         content: [{ type: "text", text: "approval_required" }],
       }),

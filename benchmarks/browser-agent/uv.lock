@@ -34,11 +34,11 @@ wheels = [
 ]
 
 [[package]]
-name = "atlas-browser-bench"
+name = "melra-browser-bench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "atlas-mcp" },
+    { name = "melra" },
     { name = "httpx" },
 ]
 
@@ -59,7 +59,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "atlas-mcp", directory = "../../sdk-py" },
+    { name = "melra", directory = "../../sdk-py" },
     { name = "browsergym-miniwob", marker = "extra == 'miniwob'", specifier = "==0.14.3" },
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "webarena-verified", marker = "extra == 'webarena'", specifier = "==1.2.3" },
@@ -74,7 +74,7 @@ test = [
 ]
 
 [[package]]
-name = "atlas-mcp"
+name = "melra"
 version = "0.2.0a1"
 source = { directory = "../../sdk-py" }
 dependencies = [

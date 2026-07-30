@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
-import { TaskRequestSchema } from "@atlas-mcp/protocol";
+import { TaskRequestSchema } from "@melra/protocol";
 import { SqliteStore } from "./index.js";
 
 let store: SqliteStore | undefined;
@@ -52,7 +52,7 @@ describe("SqliteStore", () => {
       id: "8170fc74-9885-4ee5-973e-161fa441e510",
       scope: "workspace",
       key: "runtime",
-      value: "ATLAS MCP uses SQLite",
+      value: "MELRA uses SQLite",
       source: "test",
       confidence: 0.9,
       tags: ["runtime"],
@@ -64,8 +64,8 @@ describe("SqliteStore", () => {
   });
 
   it("migrates existing memory tables before persisting episode metadata", () => {
-    tempDirectory = mkdtempSync(join(tmpdir(), "atlas-memory-migration-"));
-    const databasePath = join(tempDirectory, "atlas.sqlite");
+    tempDirectory = mkdtempSync(join(tmpdir(), "melra-memory-migration-"));
+    const databasePath = join(tempDirectory, "melra.sqlite");
     const legacy = new DatabaseSync(databasePath);
     legacy.exec(`
       CREATE TABLE memories (

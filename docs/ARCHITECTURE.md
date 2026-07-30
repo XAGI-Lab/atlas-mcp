@@ -32,19 +32,19 @@ implement the same contract.
 
 | Package | Responsibility |
 |---|---|
-| `@atlas-mcp/protocol` | MCP inputs, operations, task states, budgets, approvals |
-| `@atlas-mcp/runtime-core` | state transitions, retries, cancellation, budgets |
-| `@atlas-mcp/policy-core` | allow/deny/confirm policy and approval validation |
-| `@atlas-mcp/server` | MCP stdio transport and runtime routing |
-| `@atlas-mcp/file-runtime` | root-confined filesystem operations |
-| `@atlas-mcp/terminal-runtime` | shell-free process and background-job control |
-| `@atlas-mcp/browser-runtime` | isolated Playwright browser session |
-| `@atlas-mcp/computer-runtime` | typed local computer-use adapters |
-| `@atlas-mcp/memory` | scoped episode-aware hybrid retrieval, lifecycle, and redaction |
-| `@atlas-mcp/storage-sqlite` | tasks, receipts, certificates, and memory |
-| `@atlas-mcp/verifier-core` | deterministic evidence evaluation |
-| `@atlas-mcp/receipt-schema` | canonical receipts and certificates |
-| `@atlas-mcp/sdk` | TypeScript client |
+| `@melra/protocol` | MCP inputs, operations, task states, budgets, approvals |
+| `@melra/runtime-core` | state transitions, retries, cancellation, budgets |
+| `@melra/policy-core` | allow/deny/confirm policy and approval validation |
+| `@melra/server` | MCP stdio transport and runtime routing |
+| `@melra/file-runtime` | root-confined filesystem operations |
+| `@melra/terminal-runtime` | shell-free process and background-job control |
+| `@melra/browser-runtime` | isolated Playwright browser session |
+| `@melra/computer-runtime` | typed local computer-use adapters |
+| `@melra/memory` | scoped episode-aware hybrid retrieval, lifecycle, and redaction |
+| `@melra/storage-sqlite` | tasks, receipts, certificates, and memory |
+| `@melra/verifier-core` | deterministic evidence evaluation |
+| `@melra/receipt-schema` | canonical receipts and certificates |
+| `@melra/sdk` | TypeScript client |
 
 The Python SDK consumes the same MCP and JSON contracts.
 

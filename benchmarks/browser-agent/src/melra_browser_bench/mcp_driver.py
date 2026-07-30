@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from atlas_mcp import AtlasClient
+from melra import MelraClient
 
 from .agent import BrowserActionDecision
 
@@ -28,8 +28,8 @@ class DriverObservation:
     mcp_calls: int
 
 
-class AtlasBrowserDriver:
-    def __init__(self, client: AtlasClient) -> None:
+class MelraBrowserDriver:
+    def __init__(self, client: MelraClient) -> None:
         self._client = client
 
     async def perform(

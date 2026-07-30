@@ -6,12 +6,12 @@ This document describes `0.2.0-alpha.1`.
 
 | Tool | Side effect | Approval |
 |---|---:|---|
-| `atlas_capabilities` | none | no |
-| `atlas_plan` | stores a plan | no |
-| `atlas_execute` | depends on planned operation | scoped for mutations |
-| `atlas_task_status` | none | no |
-| `atlas_task_cancel` | cancels task | no |
-| `atlas_receipt` | none | no |
+| `melra_capabilities` | none | no |
+| `melra_plan` | stores a plan | no |
+| `melra_execute` | depends on planned operation | scoped for mutations |
+| `melra_task_status` | none | no |
+| `melra_task_cancel` | cancels task | no |
+| `melra_receipt` | none | no |
 
 ## Operations
 
@@ -112,7 +112,7 @@ Action: `info`. Returns local runtime capability information without mutation.
 URL globs are anchored and schema-bounded. A completed action with unmet
 required evidence returns `partial`, never `verified_success`.
 
-`atlas_execute` returns raw operation output directly to the connected client.
+`melra_execute` returns raw operation output directly to the connected client.
 Durable task state and receipts keep only centrally redacted input and output;
 file contents, browser text, terminal output, typed values, environment values,
 URL queries, and common secret formats are not retained there.

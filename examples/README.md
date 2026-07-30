@@ -3,7 +3,7 @@
 Each directory contains a complete task request accepted by:
 
 ```bash
-pnpm atlas run --request examples/<example>/task.json
+pnpm melra run --request examples/<example>/task.json
 ```
 
 Read-only examples execute immediately. Mutation examples request an exact
@@ -14,8 +14,8 @@ Browser access is denied by default. The browser example includes a narrowly
 scoped policy that allows only `example.com`:
 
 ```bash
-ATLAS_MCP_POLICY=examples/04-browser-inspection/policy.json \
-  pnpm atlas run --request examples/04-browser-inspection/task.json
+MELRA_POLICY=examples/04-browser-inspection/policy.json \
+  pnpm melra run --request examples/04-browser-inspection/task.json
 ```
 
 | Example | Capability | Expected result |

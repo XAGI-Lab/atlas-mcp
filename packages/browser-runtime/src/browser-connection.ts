@@ -87,7 +87,7 @@ export async function connectBrowser(
     options.executablePath ?? (await detectBrowserExecutable());
   if (executablePath === undefined) {
     throw new Error(
-      "browser_not_found: install Chrome, Chromium, or Edge and rerun atlas-mcp doctor",
+      "browser_not_found: install Chrome, Chromium, or Edge and rerun melra doctor",
     );
   }
   const browser = await chromium.launch({

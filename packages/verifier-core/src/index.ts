@@ -4,8 +4,8 @@
 import { createHash } from "node:crypto";
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
-import type { EvidencePredicate } from "@atlas-mcp/protocol";
-import type { EvidenceItem } from "@atlas-mcp/receipt-schema";
+import type { EvidencePredicate } from "@melra/protocol";
+import type { EvidenceItem } from "@melra/receipt-schema";
 
 function inside(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);

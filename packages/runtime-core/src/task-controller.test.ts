@@ -5,10 +5,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { TaskRequestSchema } from "@atlas-mcp/protocol";
-import { createDefaultPolicy } from "@atlas-mcp/policy-core";
-import { SqliteStore } from "@atlas-mcp/storage-sqlite";
-import { Verifier } from "@atlas-mcp/verifier-core";
+import { TaskRequestSchema } from "@melra/protocol";
+import { createDefaultPolicy } from "@melra/policy-core";
+import { SqliteStore } from "@melra/storage-sqlite";
+import { Verifier } from "@melra/verifier-core";
 import { TaskController } from "./task-controller.js";
 
 const roots: string[] = [];
@@ -31,7 +31,7 @@ async function setup(
     },
   },
 ) {
-  const root = await mkdtemp(join(tmpdir(), "atlas-controller-"));
+  const root = await mkdtemp(join(tmpdir(), "melra-controller-"));
   roots.push(root);
   const store = new SqliteStore(":memory:");
   stores.push(store);
@@ -71,7 +71,7 @@ describe("TaskController", () => {
           action: "put",
           scope: "workspace",
           key: "project",
-          value: "ATLAS MCP",
+          value: "MELRA",
         },
         requiredEvidence: [
           { type: "result_equals", path: "stored", value: true },

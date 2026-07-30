@@ -2,7 +2,7 @@
 
 ## Implemented control plane
 
-ATLAS MCP exposes computer use through the same bounded operation contract as
+MELRA exposes computer use through the same bounded operation contract as
 every other runtime. The current adapters provide:
 
 - read-only capability discovery;
@@ -44,7 +44,7 @@ perception score.
 
 ## Honest benchmark status
 
-ATLAS MCP has not submitted an official
+MELRA has not submitted an official
 [OSWorld](https://github.com/xlang-ai/OSWorld) or
 [OSWorld-MCP](https://arxiv.org/abs/2510.24563) result. Those environments
 measure full agent decision-making, application state, GUI execution, and

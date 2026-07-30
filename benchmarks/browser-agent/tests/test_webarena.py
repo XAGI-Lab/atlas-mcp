@@ -12,8 +12,8 @@ import pytest
 
 pytest.importorskip("webarena_verified")
 
-from atlas_browser_bench.manifest import load_manifest
-from atlas_browser_bench.webarena import (
+from melra_browser_bench.manifest import load_manifest
+from melra_browser_bench.webarena import (
     PairSideExecution,
     WebArenaEnvironment,
     build_pair_schedule,

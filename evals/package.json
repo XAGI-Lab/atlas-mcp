@@ -1,7 +1,7 @@
 {
-  "name": "@atlas-mcp/evals",
+  "name": "@melra/evals",
   "version": "0.2.0-alpha.1",
-  "description": "Deterministic safety and execution evaluations for ATLAS MCP.",
+  "description": "Deterministic safety and execution evaluations for MELRA.",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@atlas-mcp/protocol": "workspace:*",
-    "@atlas-mcp/server": "workspace:*"
+    "@melra/protocol": "workspace:*",
+    "@melra/server": "workspace:*"
   }
 }

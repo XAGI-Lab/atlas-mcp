@@ -2,7 +2,7 @@
 
 ## Implemented change
 
-After navigation and meaningful DOM actions, ATLAS MCP waits for a quiet
+After navigation and meaningful DOM actions, MELRA waits for a quiet
 mutation window instead of sleeping for a fixed duration. The operation
 returns:
 
@@ -50,7 +50,7 @@ The repository now includes two separate browser-agent evaluation tracks:
 
 The MiniWoB integration launches a pinned Chrome process, places BrowserGym's
 official task page in the shared CDP context, and drives each browser action
-through the real ATLAS MCP stdio server. BrowserGym—not the action return
+through the real MELRA stdio server. BrowserGym—not the action return
 value—determines task reward. Records are bounded, append-only, and resumable
 only when their frozen input digest matches.
 
@@ -68,7 +68,7 @@ its sanitized aggregate artifact passes the publication gate.
 ## MiniWoB development run (not a published score)
 
 The development suite has now been run end to end. This is a *development*
-signal used to find generic failures, not evidence about ATLAS MCP's quality,
+signal used to find generic failures, not evidence about MELRA's quality,
 and it is deliberately not published as a result artifact.
 
 First complete run, 2026-07-29, `gemini-3.1-flash-lite`, max 10 steps per task,
@@ -78,7 +78,7 @@ requests paced to 12/minute, single `run_input_digest`:
 |---|---:|
 | Tasks | 125 |
 | Successes | 15 (12.0%) |
-| Browser actions executed through ATLAS MCP | 461 |
+| Browser actions executed through MELRA | 461 |
 | Actions reaching `verified_success` | 406 (88.1%) |
 | Agent steps | 462 |
 | Input / output tokens | 449,085 / 22,108 |
@@ -139,7 +139,7 @@ itself mean they executed — check for `skipped` in the summary, or run with
 git clone https://github.com/Farama-Foundation/miniwob-plusplus.git /tmp/miniwob-plusplus
 git -C /tmp/miniwob-plusplus checkout 7fd85d71a4b60325c6585396ec4f48377d049838
 cp -R /tmp/miniwob-plusplus \
-  "$HOME/Library/Caches/atlas-mcp-benchmarks/miniwob-plusplus-7fd85d71"
+  "$HOME/Library/Caches/melra-benchmarks/miniwob-plusplus-7fd85d71"
 ```
 
 That revision is the `assets_revision` pinned in
@@ -152,6 +152,6 @@ hostname, so a `file://` URL is rejected:
 
 ```bash
 python3 -m http.server 8899 --bind 127.0.0.1 \
-  --directory "$HOME/Library/Caches/atlas-mcp-benchmarks/miniwob-plusplus-7fd85d71/miniwob/html"
+  --directory "$HOME/Library/Caches/melra-benchmarks/miniwob-plusplus-7fd85d71/miniwob/html"
 # then --base-url http://127.0.0.1:8899/miniwob/
 ```

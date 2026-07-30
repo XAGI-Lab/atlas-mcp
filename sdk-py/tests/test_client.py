@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from atlas_mcp import AtlasClient
+from melra import MelraClient
 
 
 @pytest.mark.asyncio
@@ -20,31 +20,31 @@ async def test_python_sdk_uses_the_real_stdio_server(tmp_path: Path) -> None:
     node = shutil.which("node")
     assert node is not None
 
-    async with AtlasClient(
+    async with MelraClient(
         command=node,
         args=[str(cli), "serve"],
         workspace=tmp_path,
-        data_directory=tmp_path / ".atlas",
+        data_directory=tmp_path / ".melra",
         environment={
             "PATH": os.environ["PATH"],
         },
-    ) as atlas:
-        direct_capabilities = await atlas.call_tool("atlas_capabilities", {})
+    ) as melra:
+        direct_capabilities = await melra.call_tool("melra_capabilities", {})
         assert direct_capabilities["tools"] == [
-            "atlas_capabilities",
-            "atlas_plan",
-            "atlas_execute",
-            "atlas_task_status",
-            "atlas_task_cancel",
-            "atlas_receipt",
+            "melra_capabilities",
+            "melra_plan",
+            "melra_execute",
+            "melra_task_status",
+            "melra_task_cancel",
+            "melra_receipt",
         ]
-        capabilities = await atlas.capabilities()
-        assert capabilities["product"] == "ATLAS MCP"
-        task = await atlas.plan(
+        capabilities = await melra.capabilities()
+        assert capabilities["product"] == "MELRA"
+        task = await melra.plan(
             {
                 "goal": "Inspect the system through Python",
                 "operation": {"kind": "system", "action": "info"},
             }
         )
-        execution = await atlas.execute(task["id"])
+        execution = await melra.execute(task["id"])
         assert execution["task"]["status"] == "verified_success"

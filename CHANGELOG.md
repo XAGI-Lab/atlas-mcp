@@ -16,8 +16,8 @@ All notable changes are documented here. The format follows
   `WebArena-Verified Hard-30 registered subset`, deterministic subset selection,
   paired aggregate statistics, and a fail-closed publication gate.
 - Opt-in browser instrumentation for benchmark and diagnostic harnesses:
-  `ATLAS_MCP_BROWSER_CDP_ENDPOINT`, `ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX`, and
-  `ATLAS_MCP_BROWSER_HAR_PATH`. Unset by default, so the isolated
+  `MELRA_BROWSER_CDP_ENDPOINT`, `MELRA_BROWSER_CDP_CONTEXT_INDEX`, and
+  `MELRA_BROWSER_HAR_PATH`. Unset by default, so the isolated
   launch-our-own-browser behavior is unchanged.
 
 ### Changed
@@ -113,7 +113,7 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.2.0-alpha.1...HEAD
-[0.2.0-alpha.1]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.1.0-alpha.1...v0.2.0-alpha.1
-[0.1.0-alpha.1]: https://github.com/XAGI-Lab/atlas-mcp/compare/v0.1.0-alpha.0...v0.1.0-alpha.1
-[0.1.0-alpha.0]: https://github.com/XAGI-Lab/atlas-mcp/releases/tag/v0.1.0-alpha.0
+[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.2.0-alpha.1...HEAD
+[0.2.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.1.0-alpha.1...v0.2.0-alpha.1
+[0.1.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.1.0-alpha.0...v0.1.0-alpha.1
+[0.1.0-alpha.0]: https://github.com/XAGI-Lab/melra/releases/tag/v0.1.0-alpha.0

@@ -8,7 +8,7 @@ import type { MemoryScope, TaskRecord } from "./types.js";
 import type {
   ActionReceipt,
   ExecutionCertificate,
-} from "@atlas-mcp/receipt-schema";
+} from "@melra/receipt-schema";
 
 export interface MemoryRecord {
   id: string;

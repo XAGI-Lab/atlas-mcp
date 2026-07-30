@@ -7,13 +7,13 @@ import type {
   Operation,
   TaskRecord,
   TaskRequest,
-} from "@atlas-mcp/protocol";
+} from "@melra/protocol";
 import {
   classifyOperation,
   evaluatePolicy,
   type LocalPolicy,
   validateApproval,
-} from "@atlas-mcp/policy-core";
+} from "@melra/policy-core";
 import {
   createCertificate,
   createReceiptId,
@@ -23,9 +23,9 @@ import {
   type CertificateResult,
   type EvidenceItem,
   type ExecutionCertificate,
-} from "@atlas-mcp/receipt-schema";
-import { SqliteStore } from "@atlas-mcp/storage-sqlite";
-import { Verifier } from "@atlas-mcp/verifier-core";
+} from "@melra/receipt-schema";
+import { SqliteStore } from "@melra/storage-sqlite";
+import { Verifier } from "@melra/verifier-core";
 
 export interface OperationExecutor {
   execute(

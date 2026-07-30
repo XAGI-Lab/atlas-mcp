@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe("Verifier", () => {
   it("checks structured fields and file effects", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-verifier-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-verifier-"));
     roots.push(root);
     await writeFile(join(root, "result.txt"), "verified");
     const verifier = await Verifier.create(root);
@@ -37,7 +37,7 @@ describe("Verifier", () => {
   });
 
   it("does not treat a mismatched predicate as success", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-verifier-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-verifier-"));
     roots.push(root);
     const verifier = await Verifier.create(root);
     const result = await verifier.verify(
@@ -48,7 +48,7 @@ describe("Verifier", () => {
   });
 
   it("verifies absence without allowing an escaping parent symlink", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-verifier-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-verifier-"));
     roots.push(root);
     const verifier = await Verifier.create(root);
     const absent = await verifier.verify(

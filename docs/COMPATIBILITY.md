@@ -42,7 +42,7 @@ cancellation, and receipt retrieval in that client.
 ## Data and schema migration
 
 The alpha SQLite schema is created automatically. Downgrades and cross-version
-migrations are not yet guaranteed. Back up `ATLAS_MCP_HOME` before upgrading an
+migrations are not yet guaranteed. Back up `MELRA_HOME` before upgrading an
 alpha release. Never place that directory inside a publicly synchronized
 workspace.
 

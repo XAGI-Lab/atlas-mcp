@@ -13,13 +13,13 @@ COPY packages ./packages
 COPY evals ./evals
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
-RUN pnpm deploy --filter @atlas-mcp/cli --prod /release
+RUN pnpm deploy --filter @melra/cli --prod /release
 
 FROM node:22-bookworm-slim AS runtime
 
-LABEL org.opencontainers.image.source="https://github.com/XAGI-Lab/atlas-mcp"
+LABEL org.opencontainers.image.source="https://github.com/XAGI-Lab/melra"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL org.opencontainers.image.title="ATLAS MCP"
+LABEL org.opencontainers.image.title="MELRA"
 LABEL org.opencontainers.image.description="Safe, reliable, and verifiable MCP execution runtime"
 
 RUN apt-get update \
@@ -27,11 +27,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
-ENV ATLAS_MCP_BROWSER=/usr/bin/chromium
-ENV ATLAS_MCP_WORKSPACE=/workspace
-ENV ATLAS_MCP_HOME=/data
+ENV MELRA_BROWSER=/usr/bin/chromium
+ENV MELRA_WORKSPACE=/workspace
+ENV MELRA_HOME=/data
 
-WORKDIR /opt/atlas-mcp
+WORKDIR /opt/melra
 COPY --from=build --chown=node:node /release ./
 
 RUN mkdir -p /workspace /data \
@@ -39,5 +39,5 @@ RUN mkdir -p /workspace /data \
 
 USER node
 VOLUME ["/workspace", "/data"]
-ENTRYPOINT ["node", "/opt/atlas-mcp/dist/index.js"]
+ENTRYPOINT ["node", "/opt/melra/dist/index.js"]
 CMD ["serve"]

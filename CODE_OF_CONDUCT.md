@@ -2,7 +2,7 @@
 
 ## Our commitment
 
-We are committed to making participation in ATLAS MCP a harassment-free
+We are committed to making participation in MELRA a harassment-free
 experience for everyone, regardless of background, identity, experience, or
 level of technical expertise.
 

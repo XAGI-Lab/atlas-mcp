@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from atlas_browser_bench.selection import select_registered_tasks
+from melra_browser_bench.selection import select_registered_tasks
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "hard-selection-sample.json"
 

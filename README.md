@@ -1,27 +1,29 @@
 <div align="center">
 
-<img src="docs/assets/atlas-mcp-logo.png" alt="ATLAS MCP logo" width="150" />
+<img src="docs/assets/melra-logo.png" alt="MELRA logo" width="150" />
 
-# ATLAS MCP
+# MELRA
+
+### Modular Execution Layer for Reliable Autonomy
 
 ### Safe execution · Durable memory · Verified outcomes
 
-An open-source **Model Context Protocol** runtime for files, terminal, browser,
-memory, and computer use — with policy checks, bounded execution, and
-cryptographic evidence for every result.
+An open-source execution system for durable, policy-governed autonomous
+workflows across files, terminal, browser, memory, and computer use—with MCP,
+CLI, and SDK interfaces plus independently verified outcomes.
 
 <br />
 
 <!-- Build & quality -->
-<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
-<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL status" /></a>
-<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/audit.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/audit.yml/badge.svg" alt="Dependency audit status" /></a>
-<a href="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/container.yml"><img src="https://github.com/XAGI-Lab/atlas-mcp/actions/workflows/container.yml/badge.svg" alt="Container build status" /></a>
+<a href="https://github.com/XAGI-Lab/melra/actions/workflows/ci.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
+<a href="https://github.com/XAGI-Lab/melra/actions/workflows/codeql.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/codeql.yml/badge.svg" alt="CodeQL status" /></a>
+<a href="https://github.com/XAGI-Lab/melra/actions/workflows/audit.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/audit.yml/badge.svg" alt="Dependency audit status" /></a>
+<a href="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml/badge.svg" alt="Container build status" /></a>
 
 <!-- Evidence -->
 <img src="https://img.shields.io/badge/evals-22%2F22_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="22 of 22 deterministic evaluations passing" />
-<img src="https://img.shields.io/badge/unit_tests-76_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="76 unit tests passing" />
-<img src="https://img.shields.io/badge/e2e-7_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="7 end-to-end cases passing" />
+<img src="https://img.shields.io/badge/tests-77_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="77 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/e2e-8_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="8 end-to-end cases passing" />
 <img src="https://img.shields.io/badge/vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known vulnerabilities" />
 
 <br />
@@ -46,22 +48,22 @@ cryptographic evidence for every result.
 
 <br />
 
-<a href="https://github.com/XAGI-Lab/atlas-mcp/releases"><img src="https://img.shields.io/github/v/release/XAGI-Lab/atlas-mcp?include_prereleases&style=flat-square&color=8b5cf6&logo=github" alt="Latest release" /></a>
+<a href="https://github.com/XAGI-Lab/melra/releases"><img src="https://img.shields.io/github/v/release/XAGI-Lab/melra?include_prereleases&style=flat-square&color=8b5cf6&logo=github" alt="Latest release" /></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-f97316?style=flat-square" alt="Apache-2.0 license" /></a>
 <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/DCO-required-6366f1?style=flat-square&logo=git&logoColor=white" alt="DCO sign-off required" /></a>
-<a href="https://github.com/XAGI-Lab/atlas-mcp/discussions"><img src="https://img.shields.io/badge/discussions-join-2563eb?style=flat-square&logo=github" alt="GitHub Discussions" /></a>
+<a href="https://github.com/XAGI-Lab/melra/discussions"><img src="https://img.shields.io/badge/discussions-join-2563eb?style=flat-square&logo=github" alt="GitHub Discussions" /></a>
 <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-ec4899?style=flat-square" alt="Pull requests welcome" /></a>
 
 <br /><br />
 
-<img src="docs/assets/atlas-mcp-hero.png" alt="ATLAS MCP governed execution flow" width="100%" />
+<img src="docs/assets/melra-hero.png" alt="MELRA governed execution flow" width="100%" />
 
 </div>
 
 <br />
 
 > [!WARNING]
-> **ATLAS MCP is an alpha release.** Its local stdio runtime is tested end to
+> **MELRA is an alpha release.** Its local stdio runtime is tested end to
 > end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
 > and command allowlists narrow, and review every consequential approval.
 
@@ -71,25 +73,25 @@ cryptographic evidence for every result.
 
 | | | |
 |---|---|---|
-| [Why ATLAS MCP](#why-atlas-mcp) | [Execution layers](#one-runtime-five-execution-layers-) | [Where to use it](#where-you-can-use-atlas-mcp-) |
+| [Why MELRA](#why-melra) | [Execution layers](#one-runtime-five-execution-layers-) | [Where to use it](#where-you-can-use-melra-) |
 | [Quickstart](#quickstart-) | [MCP tool surface](#a-deliberately-small-mcp-surface-) | [How execution works](#how-execution-works-) |
 | [Evidence](#evidence-not-leaderboard-theatre-) | [Safe defaults](#safe-defaults-) | [Reproduce the scores](#reproduce-the-scores-) |
 | [SDKs](#sdks-and-implementation-languages-) | [Repository map](#repository-map-) | [Documentation](#documentation-) |
 
 ---
 
-## Why ATLAS MCP
+## Why MELRA
 
 Most MCP servers hand a model a tool and hope for the best. A command runs, a
 click lands, a file is written — and "it returned without an error" is treated
 as success.
 
-ATLAS MCP separates **the action succeeded** from **the goal was achieved**.
+MELRA separates **the action succeeded** from **the goal was achieved**.
 
 <table>
 <tr>
 <th width="50%">🚫 Typical tool server</th>
-<th width="50%">✅ ATLAS MCP</th>
+<th width="50%">✅ MELRA</th>
 </tr>
 <tr>
 <td>
@@ -122,7 +124,7 @@ is `partial` — **never** `verified_success`.
 
 ## One runtime, five execution layers 🧭
 
-ATLAS MCP turns a tool call into a durable, inspectable task:
+MELRA turns a tool call into a durable, inspectable task:
 
 | | Layer | What is implemented |
 |:--:|---|---|
@@ -137,9 +139,9 @@ receipt, and certificate pipeline.
 
 ---
 
-## Where you can use ATLAS MCP 🛠️
+## Where you can use MELRA 🛠️
 
-ATLAS MCP works with any MCP client that can launch a local stdio server.
+MELRA works with any MCP client that can launch a local stdio server.
 
 <div align="center">
 
@@ -202,7 +204,7 @@ as `partial`.
 <br />
 
 ```bash
-pnpm atlas run --request examples/07-project-decision-memory/task.json
+pnpm melra run --request examples/07-project-decision-memory/task.json
 ```
 
 Records are scoped, provenance-tagged, and pass through secret redaction before
@@ -221,22 +223,22 @@ file writes, terminal checks, scoped memory, and computer capability discovery.
 Edge for browser work.
 
 ```bash
-git clone https://github.com/XAGI-Lab/atlas-mcp.git
-cd atlas-mcp
+git clone https://github.com/XAGI-Lab/melra.git
+cd melra
 corepack enable
 pnpm install --frozen-lockfile
 pnpm build
-pnpm atlas doctor
-pnpm atlas init --client generic
+pnpm melra doctor
+pnpm melra init --client generic
 ```
 
 <table>
 <tr><th>Goal</th><th>Command</th></tr>
-<tr><td>Start the stdio server</td><td><code>pnpm atlas serve</code></td></tr>
-<tr><td>Run a read-only system task</td><td><code>pnpm atlas run --request examples/01-system-info/task.json</code></td></tr>
-<tr><td>Run a verified mutation</td><td><code>pnpm atlas run --request examples/02-verified-file-write/task.json</code></td></tr>
-<tr><td>Inspect a stored receipt</td><td><code>pnpm atlas inspect &lt;task-id&gt;</code></td></tr>
-<tr><td>Test a policy file</td><td><code>pnpm atlas policy test</code></td></tr>
+<tr><td>Start the stdio server</td><td><code>pnpm melra serve</code></td></tr>
+<tr><td>Run a read-only system task</td><td><code>pnpm melra run --request examples/01-system-info/task.json</code></td></tr>
+<tr><td>Run a verified mutation</td><td><code>pnpm melra run --request examples/02-verified-file-write/task.json</code></td></tr>
+<tr><td>Inspect a stored receipt</td><td><code>pnpm melra inspect &lt;task-id&gt;</code></td></tr>
+<tr><td>Test a policy file</td><td><code>pnpm melra policy test</code></td></tr>
 </table>
 
 Mutations pause for an exact, expiring, task-scoped approval phrase. See
@@ -244,9 +246,9 @@ Mutations pause for an exact, expiring, task-scoped approval phrase. See
 Cursor, VS Code, generic clients, Python, and Docker.
 
 > [!CAUTION]
-> The npm package `atlas-mcp` and the PyPI package `atlas-mcp` are **unrelated
+> The npm package `melra` and the PyPI package `melra` are **unrelated
 > third-party projects**. Install only from this repository or from official
-> [XAGI-Lab releases](https://github.com/XAGI-Lab/atlas-mcp/releases).
+> [XAGI-Lab releases](https://github.com/XAGI-Lab/melra/releases).
 
 ---
 
@@ -256,12 +258,12 @@ Six tools, in front of five capability runtimes:
 
 | MCP tool | Purpose |
 |---|---|
-| `atlas_capabilities` | Discover operations, platform support, limits, and policy posture |
-| `atlas_plan` | Validate, persist, and policy-check one bounded operation |
-| `atlas_execute` | Execute an approved plan and verify the declared outcome |
-| `atlas_task_status` | Read durable task state |
-| `atlas_task_cancel` | Cooperatively cancel pending or running work |
-| `atlas_receipt` | Retrieve redacted evidence and the execution certificate |
+| `melra_capabilities` | Discover operations, platform support, limits, and policy posture |
+| `melra_plan` | Validate, persist, and policy-check one bounded operation |
+| `melra_execute` | Execute an approved plan and verify the declared outcome |
+| `melra_task_status` | Read durable task state |
+| `melra_task_cancel` | Cooperatively cancel pending or running work |
+| `melra_receipt` | Retrieve redacted evidence and the execution certificate |
 
 High-level tools keep schemas compact while the operation contract carries the
 specific file, terminal, browser, memory, computer, or system action.
@@ -301,7 +303,7 @@ execution — so a stale plan can never ride a since-tightened policy.
 ## Evidence, not leaderboard theatre 📊
 
 The numbers below come from committed scripts and JSON artifacts measured on an
-Apple Silicon Mac. They are **component measurements**, not a claim that ATLAS
+Apple Silicon Mac. They are **component measurements**, not a claim that MELRA
 MCP is universally "the best" or that unlike benchmarks are comparable.
 
 | | Capability | Current public result | What it means |
@@ -336,7 +338,7 @@ only after a full fixed-denominator run completes without infrastructure-invalid
 pairs *and* its sanitized artifact passes the publication gate.
 
 > [!IMPORTANT]
-> ATLAS MCP has **not** run an official OSWorld, OSWorld-MCP, WebArena, or
+> MELRA has **not** run an official OSWorld, OSWorld-MCP, WebArena, or
 > LongMemEval end-to-end submission. Those scores remain unclaimed until the
 > exact public harness, environment, model policy, and evaluator are released
 > with the result.
@@ -409,12 +411,12 @@ variable present in the environment:
 
 ```bash
 uv run --project benchmarks/browser-agent --extra miniwob \
-  atlas-browser-bench run-miniwob \
+  melra-browser-bench run-miniwob \
   --manifest benchmarks/browser-agent/manifests/miniwob-125-v1.json \
   --run-dir benchmarks/browser-agent/runs/miniwob-candidate \
   --workspace benchmarks/browser-agent/runs/workspaces \
   --base-url "$MINIWOB_BASE_URL" \
-  --browser-executable "$ATLAS_MCP_BROWSER" \
+  --browser-executable "$MELRA_BROWSER" \
   --implementation-commit "$(git rev-parse HEAD)" \
   --agent-config benchmarks/browser-agent/runs/config/agent.json
 ```
@@ -433,11 +435,11 @@ latency percentiles, and explicit claim boundaries.
 
 | SDK | Package | Language |
 |---|---|:--:|
-| TypeScript client | [`@atlas-mcp/sdk`](packages/sdk-ts) | <img src="https://img.shields.io/badge/-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" /> |
-| Python client | [`atlas-mcp`](sdk-py) | <img src="https://img.shields.io/badge/-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" /> |
-| JSON contracts | [`@atlas-mcp/protocol`](packages/protocol) · [`@atlas-mcp/receipt-schema`](packages/receipt-schema) | <img src="https://img.shields.io/badge/-000000?style=flat-square&logo=json&logoColor=white" alt="JSON" /> |
+| TypeScript client | [`@melra/sdk`](packages/sdk-ts) | <img src="https://img.shields.io/badge/-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" /> |
+| Python client | [`melra`](sdk-py) | <img src="https://img.shields.io/badge/-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" /> |
+| JSON contracts | [`@melra/protocol`](packages/protocol) · [`@melra/receipt-schema`](packages/receipt-schema) | <img src="https://img.shields.io/badge/-000000?style=flat-square&logo=json&logoColor=white" alt="JSON" /> |
 
-ATLAS MCP is capability-driven, not language-restricted. Rust, Go, Python,
+MELRA is capability-driven, not language-restricted. Rust, Go, Python,
 TypeScript, Swift, C#, or another language can be used when measurement shows a
 real improvement in isolation, portability, performance, reliability, or
 platform integration without fragmenting the public contracts.
@@ -491,7 +493,7 @@ threat analysis are all welcome.
 2. Sign your commits under the DCO (`git commit -s`).
 3. Run `pnpm check` before opening a pull request.
 4. Report vulnerabilities through
-   [GitHub private vulnerability reporting](https://github.com/XAGI-Lab/atlas-mcp/security/advisories/new)
+   [GitHub private vulnerability reporting](https://github.com/XAGI-Lab/melra/security/advisories/new)
    — never in a public issue.
 
 ---
@@ -509,6 +511,6 @@ in this repository.
 
 **Built in the open by [XAGI Labs](https://github.com/XAGI-Lab).**
 
-<sub>ATLAS MCP brand assets © XAGI Labs Private Limited, licensed CC BY-ND 4.0.</sub>
+<sub>MELRA brand assets © XAGI Labs Private Limited, licensed CC BY-ND 4.0.</sub>
 
 </div>

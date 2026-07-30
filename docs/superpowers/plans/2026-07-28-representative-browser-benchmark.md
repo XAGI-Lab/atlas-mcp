@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a reproducible MiniWoB development suite and a pre-registered WebArena-Verified Hard-30 paired evaluation that exercise browser actions through the real ATLAS MCP stdio server, then publish narrowly labeled evidence and accurate README usage examples.
+**Goal:** Build a reproducible MiniWoB development suite and a pre-registered WebArena-Verified Hard-30 paired evaluation that exercise browser actions through the real MELRA stdio server, then publish narrowly labeled evidence and accurate README usage examples.
 
-**Architecture:** A Python benchmark package owns official benchmark integration, manifests, agent orchestration, evaluation, sanitization, and reporting. The existing TypeScript browser runtime gains opt-in CDP attachment and HAR recording so official environments can observe ATLAS actions without weakening the default isolated session. The 125-task MiniWoB suite is used for development; the registered Hard-30 suite is run once after the candidate and all model/environment inputs are frozen.
+**Architecture:** A Python benchmark package owns official benchmark integration, manifests, agent orchestration, evaluation, sanitization, and reporting. The existing TypeScript browser runtime gains opt-in CDP attachment and HAR recording so official environments can observe MELRA actions without weakening the default isolated session. The 125-task MiniWoB suite is used for development; the registered Hard-30 suite is run once after the candidate and all model/environment inputs are frozen.
 
 **Tech Stack:** TypeScript 5.8, Node.js 22/24, Playwright Core 1.61, Python 3.11, uv, pytest, official MCP Python SDK 1.28, BrowserGym MiniWoB 0.14.3, WebArena-Verified 1.2.3, Docker only for the authorized Hard-30 environment.
 
@@ -16,12 +16,12 @@
 - WebArena-Verified source revision: `6473f72db5dcefc97b5725b59e734504edc28a21`.
 - WebArena-Verified Hard task-data SHA-256: `4fccaef496870558a0c65ae97c7350c625b498688df87051afd254db7899a76f`.
 - WebArena-Verified Hard subset-manifest SHA-256: `3b0a4df231bb5a0c642215e521c3fa97701a384f52a734dc2db8f617ad0591a7`.
-- ATLAS MCP browser baseline: `a8a0a0907a7eed29249b94c89af3449efbcec4c3`.
+- MELRA browser baseline: `a8a0a0907a7eed29249b94c89af3449efbcec4c3`.
 - The paired baseline uses that source plus the shared CDP/HAR instrumentation commit; the instrumentation commit is frozen before MiniWoB-driven behavior changes.
 - CPython version: `3.11`.
 - The registered task IDs are exactly `15, 21, 67, 105, 113, 166, 172, 226, 268, 284, 430, 446, 528, 544, 556, 566, 577, 603, 638, 646, 658, 675, 701, 708, 733, 738, 780, 788, 795, 799`.
 - The registered set contains 16 mutate, 5 navigate, and 9 retrieve tasks across 7 GitLab, 5 Reddit, 6 Shopping, 6 Shopping admin, and 6 cross-site tasks.
-- Every browser mutation in a scored task must pass through `atlas_plan` and `atlas_execute`.
+- Every browser mutation in a scored task must pass through `melra_plan` and `melra_execute`.
 - Agent errors, invalid actions, policy blocks, timeouts, and unmet verification count as task failures.
 - Raw HAR, cookies, authorization headers, query values, form payloads, typed text, absolute local paths, and secrets must never be committed.
 - Public text must say `WebArena-Verified Hard-30 registered subset`; it must not claim a full WebArena score or official leaderboard rank.
@@ -36,16 +36,16 @@
 
 - `benchmarks/browser-agent/pyproject.toml` — dependency groups and CLI entry point.
 - `benchmarks/browser-agent/uv.lock` — reproducible Python resolution.
-- `benchmarks/browser-agent/src/atlas_browser_bench/manifest.py` — manifest types and validation.
-- `benchmarks/browser-agent/src/atlas_browser_bench/selection.py` — deterministic Hard-30 selection.
-- `benchmarks/browser-agent/src/atlas_browser_bench/metrics.py` — aggregate and paired statistics.
-- `benchmarks/browser-agent/src/atlas_browser_bench/sanitize.py` — publication-safe evidence conversion.
-- `benchmarks/browser-agent/src/atlas_browser_bench/agent.py` — fixed agent protocol and provider boundary.
-- `benchmarks/browser-agent/src/atlas_browser_bench/mcp_driver.py` — real stdio plan/execute adapter.
-- `benchmarks/browser-agent/src/atlas_browser_bench/miniwob.py` — BrowserGym/CDP environment adapter.
-- `benchmarks/browser-agent/src/atlas_browser_bench/webarena.py` — official task and evaluator adapter.
-- `benchmarks/browser-agent/src/atlas_browser_bench/runner.py` — isolated task and paired-run orchestration.
-- `benchmarks/browser-agent/src/atlas_browser_bench/cli.py` — manifest, upstream, suite-run, publication, and verification commands.
+- `benchmarks/browser-agent/src/melra_browser_bench/manifest.py` — manifest types and validation.
+- `benchmarks/browser-agent/src/melra_browser_bench/selection.py` — deterministic Hard-30 selection.
+- `benchmarks/browser-agent/src/melra_browser_bench/metrics.py` — aggregate and paired statistics.
+- `benchmarks/browser-agent/src/melra_browser_bench/sanitize.py` — publication-safe evidence conversion.
+- `benchmarks/browser-agent/src/melra_browser_bench/agent.py` — fixed agent protocol and provider boundary.
+- `benchmarks/browser-agent/src/melra_browser_bench/mcp_driver.py` — real stdio plan/execute adapter.
+- `benchmarks/browser-agent/src/melra_browser_bench/miniwob.py` — BrowserGym/CDP environment adapter.
+- `benchmarks/browser-agent/src/melra_browser_bench/webarena.py` — official task and evaluator adapter.
+- `benchmarks/browser-agent/src/melra_browser_bench/runner.py` — isolated task and paired-run orchestration.
+- `benchmarks/browser-agent/src/melra_browser_bench/cli.py` — manifest, upstream, suite-run, publication, and verification commands.
 - `benchmarks/browser-agent/manifests/*.json` — immutable suite and run manifests.
 - `benchmarks/browser-agent/tests/` — behavior tests for each boundary.
 
@@ -60,7 +60,7 @@
 
 ### Product evidence and documentation
 
-- `README.md` — practical “Where you can use ATLAS MCP” examples.
+- `README.md` — practical “Where you can use MELRA” examples.
 - `ROADMAP.md` — mark only benchmark infrastructure/results actually completed.
 - `docs/research/BROWSER.md` — method, result, limitations, and reproduction.
 - `docs/research/METHODOLOGY.md` — registered-subset and paired-run rules.
@@ -76,9 +76,9 @@
 
 **Files:**
 - Create: `benchmarks/browser-agent/pyproject.toml`
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/__init__.py`
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/cli.py`
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/manifest.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/__init__.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/cli.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/manifest.py`
 - Create: `benchmarks/browser-agent/manifests/webarena-verified-hard-30-v1.json`
 - Create: `benchmarks/browser-agent/tests/test_manifest.py`
 - Modify: `.gitignore`
@@ -88,8 +88,8 @@
 - Produces: `load_manifest(path: Path) -> BenchmarkManifest`
 - Produces: `BenchmarkManifest.freeze_run(candidate, agent, environment, instrumentation_commit) -> BenchmarkManifest`
 - Produces: `BenchmarkManifest.validate_publishable() -> None`
-- Produces CLI: `atlas-browser-bench validate-manifest`
-- Produces CLI: `atlas-browser-bench freeze-run`
+- Produces CLI: `melra-browser-bench validate-manifest`
+- Produces CLI: `melra-browser-bench freeze-run`
 - Consumes later: exact task metadata, upstream pins, baseline/candidate identities, agent identity, environment identity.
 
 - [ ] **Step 1: Write the failing manifest behavior test**
@@ -161,7 +161,7 @@ uv run --project benchmarks/browser-agent --group test \
   pytest benchmarks/browser-agent/tests/test_manifest.py -q
 ```
 
-Expected: collection fails because `atlas_browser_bench.manifest` does not
+Expected: collection fails because `melra_browser_bench.manifest` does not
 exist.
 
 - [ ] **Step 3: Implement the minimal typed manifest**
@@ -239,10 +239,10 @@ Use:
 
 ```toml
 [project]
-name = "atlas-browser-bench"
+name = "melra-browser-bench"
 version = "0.1.0"
 requires-python = ">=3.11,<3.12"
-dependencies = ["atlas-mcp", "httpx>=0.28,<1"]
+dependencies = ["melra", "httpx>=0.28,<1"]
 
 [project.optional-dependencies]
 miniwob = ["browsergym-miniwob==0.14.3"]
@@ -252,10 +252,10 @@ webarena = ["webarena-verified==1.2.3"]
 test = ["pytest>=9,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
 
 [project.scripts]
-atlas-browser-bench = "atlas_browser_bench.cli:main"
+melra-browser-bench = "melra_browser_bench.cli:main"
 
 [tool.uv.sources]
-atlas-mcp = { path = "../../sdk-py" }
+melra = { path = "../../sdk-py" }
 ```
 
 Add these ignore patterns:
@@ -272,7 +272,7 @@ Add root commands:
 
 ```json
 "benchmark:browser:check": "uv run --project benchmarks/browser-agent --group test ruff check benchmarks/browser-agent && uv run --project benchmarks/browser-agent --group test pytest benchmarks/browser-agent",
-"benchmark:browser:verify-upstream": "uv run --project benchmarks/browser-agent atlas-browser-bench verify-upstream"
+"benchmark:browser:verify-upstream": "uv run --project benchmarks/browser-agent melra-browser-bench verify-upstream"
 ```
 
 Implement `cli.main()` with `argparse` subcommands. `validate-manifest` loads
@@ -306,10 +306,10 @@ git commit -s -m "bench(browser): register representative task contract"
 ### Task 2: Make Hard-30 selection independently reproducible
 
 **Files:**
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/selection.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/selection.py`
 - Create: `benchmarks/browser-agent/tests/fixtures/hard-selection-sample.json`
 - Create: `benchmarks/browser-agent/tests/test_selection.py`
-- Modify: `benchmarks/browser-agent/src/atlas_browser_bench/cli.py`
+- Modify: `benchmarks/browser-agent/src/melra_browser_bench/cli.py`
 
 **Interfaces:**
 - Produces: `select_registered_tasks(tasks, seed, quotas) -> tuple[RegisteredTask, ...]`
@@ -417,7 +417,7 @@ git commit -s -m "bench(browser): verify registered upstream selection"
 ### Task 3: Add aggregate and paired statistics
 
 **Files:**
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/metrics.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/metrics.py`
 - Create: `benchmarks/browser-agent/tests/test_metrics.py`
 
 **Interfaces:**
@@ -463,7 +463,7 @@ uv run --project benchmarks/browser-agent --group test \
   pytest benchmarks/browser-agent/tests/test_metrics.py -q
 ```
 
-Expected: import failure for `atlas_browser_bench.metrics`.
+Expected: import failure for `melra_browser_bench.metrics`.
 
 - [ ] **Step 3: Implement minimal deterministic math**
 
@@ -514,16 +514,16 @@ git commit -s -m "bench(browser): add paired task statistics"
 ### Task 4: Add evidence sanitization and publication gates
 
 **Files:**
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/sanitize.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/sanitize.py`
 - Create: `benchmarks/browser-agent/tests/test_sanitize.py`
 - Create: `benchmarks/browser-agent/tests/fixtures/unsafe-evidence.json`
-- Modify: `benchmarks/browser-agent/src/atlas_browser_bench/cli.py`
+- Modify: `benchmarks/browser-agent/src/melra_browser_bench/cli.py`
 
 **Interfaces:**
 - Produces: `sanitize_evidence(value: object, roots: Sequence[Path]) -> object`
 - Produces: `assert_publishable_run(run_dir: Path, manifest: BenchmarkManifest) -> None`
-- Produces CLI: `atlas-browser-bench publish`
-- Produces CLI: `atlas-browser-bench verify-public`
+- Produces CLI: `melra-browser-bench publish`
+- Produces CLI: `melra-browser-bench verify-public`
 
 - [ ] **Step 1: Write the failing privacy test**
 
@@ -633,9 +633,9 @@ git commit -s -m "bench(browser): gate public evidence"
 - Adds: `BrowserRuntimeOptions.cdpEndpoint?: string`
 - Adds: `BrowserRuntimeOptions.cdpContextIndex?: number`
 - Adds: `BrowserRuntimeOptions.recordHarPath?: string`
-- Adds CLI env: `ATLAS_MCP_BROWSER_CDP_ENDPOINT`
-- Adds CLI env: `ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX`
-- Adds CLI env: `ATLAS_MCP_BROWSER_HAR_PATH`
+- Adds CLI env: `MELRA_BROWSER_CDP_ENDPOINT`
+- Adds CLI env: `MELRA_BROWSER_CDP_CONTEXT_INDEX`
+- Adds CLI env: `MELRA_BROWSER_HAR_PATH`
 
 - [ ] **Step 1: Write a real failing HAR lifecycle test**
 
@@ -646,7 +646,7 @@ flush a real HAR file on close.
 it("records and flushes HAR for an owned browser context", async () => {
   const executablePath = await detectBrowserExecutable();
   if (executablePath === undefined) return;
-  const root = await mkdtemp(join(tmpdir(), "atlas-browser-har-"));
+  const root = await mkdtemp(join(tmpdir(), "melra-browser-har-"));
   const server = createServer((_, response) => response.end("verified page"));
   await listen(server);
   const harPath = join(root, "network.har");
@@ -679,7 +679,7 @@ it("records and flushes HAR for an owned browser context", async () => {
 Run:
 
 ```bash
-pnpm --filter @atlas-mcp/browser-runtime test -- browser-connection.test.ts
+pnpm --filter @melra/browser-runtime test -- browser-connection.test.ts
 ```
 
 Expected: TypeScript fails because `recordHarPath` is not a runtime option.
@@ -737,14 +737,14 @@ flushed. It does not close an externally owned CDP browser or context.
 - [ ] **Step 4: Add a real CDP attachment characterization test**
 
 Launch installed Chrome with a temporary user-data directory and fixed free
-debugging port, create a page through Playwright, attach ATLAS to the last
+debugging port, create a page through Playwright, attach MELRA to the last
 context, execute `inspect`, and assert the returned page text is the literal
 fixture. Skip only when no supported browser executable exists.
 
 Run:
 
 ```bash
-pnpm --filter @atlas-mcp/browser-runtime test -- browser-connection.test.ts
+pnpm --filter @melra/browser-runtime test -- browser-connection.test.ts
 ```
 
 Expected: HAR and CDP cases pass.
@@ -753,16 +753,16 @@ Expected: HAR and CDP cases pass.
 
 Rename `environment()` to an exported `parseCliEnvironment(source)` and add a
 test that passes a complete literal environment mapping. Assert that the three
-parsed values reach `createAtlasRuntime`; also assert that a non-HTTP(S) CDP
+parsed values reach `createMelraRuntime`; also assert that a non-HTTP(S) CDP
 endpoint, a context index below `-1`, and a non-absolute HAR path are rejected.
 The help text lists variable names but never their current values.
 
 Run:
 
 ```bash
-pnpm --filter @atlas-mcp/cli test
-pnpm --filter @atlas-mcp/server test
-pnpm --filter @atlas-mcp/browser-runtime test
+pnpm --filter @melra/cli test
+pnpm --filter @melra/server test
+pnpm --filter @melra/browser-runtime test
 pnpm typecheck
 ```
 
@@ -791,19 +791,19 @@ empty.
 ### Task 6: Drive every agent action through the real MCP server
 
 **Files:**
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/agent.py`
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/mcp_driver.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/agent.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/mcp_driver.py`
 - Create: `benchmarks/browser-agent/tests/test_agent.py`
 - Create: `benchmarks/browser-agent/tests/test_mcp_driver.py`
-- Modify: `sdk-py/src/atlas_mcp/client.py`
+- Modify: `sdk-py/src/melra/client.py`
 - Modify: `sdk-py/tests/test_client.py`
 
 **Interfaces:**
 - Produces: `AgentDecision = BrowserActionDecision | FinalDecision | InfeasibleDecision`
 - Produces: `AgentProtocol.decide(context: AgentContext) -> Awaitable[AgentDecision]`
 - Produces: `OpenAICompatibleAgent.decide(context: AgentContext) -> Awaitable[AgentDecision]`
-- Produces: `AtlasBrowserDriver.perform(decision, expected_evidence) -> DriverObservation`
-- Adds SDK: `AtlasClient.call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]`
+- Produces: `MelraBrowserDriver.perform(decision, expected_evidence) -> DriverObservation`
+- Adds SDK: `MelraClient.call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]`
 
 - [ ] **Step 1: Write a failing real-stdio driver test**
 
@@ -813,8 +813,8 @@ mistaking action success for verified task success.
 ```python
 async def test_mutation_uses_plan_execute_and_receipt(tmp_path: Path) -> None:
     policy = write_browser_policy(tmp_path, allowed_domains=["example.com"])
-    async with built_atlas_client(tmp_path, policy=policy) as client:
-        driver = AtlasBrowserDriver(client)
+    async with built_melra_client(tmp_path, policy=policy) as client:
+        driver = MelraBrowserDriver(client)
         observation = await driver.perform(
             BrowserActionDecision(
                 action="type",
@@ -830,7 +830,7 @@ async def test_mutation_uses_plan_execute_and_receipt(tmp_path: Path) -> None:
 ```
 
 Use the existing local browser fixture and built CLI; do not mock
-`AtlasClient`.
+`MelraClient`.
 
 - [ ] **Step 2: Verify RED**
 
@@ -841,19 +841,19 @@ uv run --project benchmarks/browser-agent --group test \
   pytest benchmarks/browser-agent/tests/test_mcp_driver.py -q
 ```
 
-Expected: missing `AtlasBrowserDriver`.
+Expected: missing `MelraBrowserDriver`.
 
 - [ ] **Step 3: Expose a public SDK tool call without duplicating parsing**
 
 Rename private `_call` to `call_tool`, update existing SDK methods to delegate
 to it, and keep existing error behavior. Add a Python SDK test that calls
-`atlas_capabilities` through `call_tool` and asserts the six real tool names.
+`melra_capabilities` through `call_tool` and asserts the six real tool names.
 
 - [ ] **Step 4: Implement the driver**
 
 ```python
-class AtlasBrowserDriver:
-    def __init__(self, client: AtlasClient) -> None:
+class MelraBrowserDriver:
+    def __init__(self, client: MelraClient) -> None:
         self._client = client
 
     async def perform(
@@ -935,31 +935,31 @@ git commit -s -m "bench(browser): execute agent actions over MCP"
 ### Task 7: Add the MiniWoB development adapter and full-suite runner
 
 **Files:**
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/chrome.py`
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/miniwob.py`
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/runner.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/chrome.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/miniwob.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/runner.py`
 - Create: `benchmarks/browser-agent/tests/test_miniwob.py`
 - Create: `benchmarks/browser-agent/manifests/miniwob-125-v1.json`
-- Modify: `benchmarks/browser-agent/src/atlas_browser_bench/cli.py`
+- Modify: `benchmarks/browser-agent/src/melra_browser_bench/cli.py`
 
 **Interfaces:**
 - Produces: `ChromeCdpProcess.start(executable: Path) -> AsyncContextManager[ChromeCdpProcess]`
 - Produces: `MiniWobEnvironment.open(task_name: str) -> AsyncContextManager[TaskEnvironment]`
 - Produces: `run_task(environment, agent, driver, limits) -> TaskRecord`
-- Produces CLI: `atlas-browser-bench run-miniwob --manifest ... --run-dir ...`
+- Produces CLI: `melra-browser-bench run-miniwob --manifest ... --run-dir ...`
 
 - [ ] **Step 1: Write a failing shared-page integration test**
 
-The break this catches is an action occurring in an ATLAS-owned page while the
+The break this catches is an action occurring in an MELRA-owned page while the
 official evaluator observes a different page.
 
 ```python
 @pytest.mark.integration
-async def test_atlas_action_changes_the_page_browsergym_scores() -> None:
+async def test_melra_action_changes_the_page_browsergym_scores() -> None:
     async with MiniWobEnvironment.open("miniwob.click-test") as environment:
         before = environment.observation()
         assert before.reward == 0
-        async with environment.atlas_driver() as driver:
+        async with environment.melra_driver() as driver:
             await driver.perform(
                 BrowserActionDecision(
                     action="click",
@@ -995,7 +995,7 @@ Expected: `MiniWobEnvironment` is missing.
 ```text
 --headless=new
 --remote-debugging-port=0
---user-data-dir=the Path returned by tempfile.mkdtemp(prefix="atlas-cdp-")
+--user-data-dir=the Path returned by tempfile.mkdtemp(prefix="melra-cdp-")
 --no-first-run
 --no-default-browser-check
 about:blank
@@ -1007,7 +1007,7 @@ parses the first line as the loopback port, and then polls
 available or a 10-second deadline expires. The BrowserGym adapter temporarily
 replaces its launch boundary with `chromium.connect_over_cdp(endpoint)`,
 restores the original boundary in `finally`, calls the official `reset`, and
-starts ATLAS with `ATLAS_MCP_BROWSER_CDP_ENDPOINT` plus context index `-1`.
+starts MELRA with `MELRA_BROWSER_CDP_ENDPOINT` plus context index `-1`.
 
 After each MCP action it calls BrowserGym's normal post-step observation and
 task validation without executing a second browser action.
@@ -1033,7 +1033,7 @@ the pinned `miniwob` extra installed.
 async def run_task(
     environment: TaskEnvironment,
     agent: AgentProtocol,
-    driver: AtlasBrowserDriver,
+    driver: MelraBrowserDriver,
     *,
     max_steps: int,
 ) -> TaskRecord:
@@ -1077,19 +1077,19 @@ git commit -s -m "bench(browser): add MiniWoB development runner"
 ### Task 8: Add WebArena-Verified evaluation and paired orchestration
 
 **Files:**
-- Create: `benchmarks/browser-agent/src/atlas_browser_bench/webarena.py`
+- Create: `benchmarks/browser-agent/src/melra_browser_bench/webarena.py`
 - Create: `benchmarks/browser-agent/tests/test_webarena.py`
 - Create: `benchmarks/browser-agent/tests/fixtures/webarena/config.json`
 - Create: `benchmarks/browser-agent/tests/fixtures/webarena/network.har`
-- Modify: `benchmarks/browser-agent/src/atlas_browser_bench/runner.py`
-- Modify: `benchmarks/browser-agent/src/atlas_browser_bench/cli.py`
+- Modify: `benchmarks/browser-agent/src/melra_browser_bench/runner.py`
+- Modify: `benchmarks/browser-agent/src/melra_browser_bench/cli.py`
 
 **Interfaces:**
 - Produces: `WebArenaEnvironment.preflight(task: RegisteredTask) -> PreflightResult`
 - Produces: `WebArenaEnvironment.evaluate(task_id, response, har_path) -> OfficialResult`
 - Produces: `run_paired_hard30(manifest, baseline, candidate, agent) -> PairReport`
-- Produces CLI: `atlas-browser-bench run-hard30 --manifest ... --run-dir ...`
-- Produces CLI: `atlas-browser-bench preflight-hard30 --manifest ...`
+- Produces CLI: `melra-browser-bench run-hard30 --manifest ... --run-dir ...`
+- Produces CLI: `melra-browser-bench preflight-hard30 --manifest ...`
 
 - [ ] **Step 1: Write a failing official-evaluator boundary test**
 
@@ -1237,10 +1237,10 @@ safe by default:
 }
 ```
 
-Validate each manifest by executing `atlas_plan` against a temporary workspace
+Validate each manifest by executing `melra_plan` against a temporary workspace
 and assert it reaches the documented plan state.
 
-- [ ] **Step 2: Add “Where you can use ATLAS MCP”**
+- [ ] **Step 2: Add “Where you can use MELRA”**
 
 Place the section before the scorecard. Cover:
 
@@ -1262,7 +1262,7 @@ Add exact commands:
 pnpm benchmark:browser:check
 pnpm benchmark:browser:verify-upstream
 uv run --project benchmarks/browser-agent --extra miniwob \
-  atlas-browser-bench run-miniwob --manifest \
+  melra-browser-bench run-miniwob --manifest \
   benchmarks/browser-agent/manifests/miniwob-125-v1.json \
   --run-dir benchmarks/browser-agent/runs/miniwob-candidate
 ```
@@ -1275,8 +1275,8 @@ Run:
 
 ```bash
 pnpm build
-pnpm atlas policy test --request examples/04-browser-inspection/task.json
-pnpm atlas policy test --request examples/07-project-decision-memory/task.json
+pnpm melra policy test --request examples/04-browser-inspection/task.json
+pnpm melra policy test --request examples/07-project-decision-memory/task.json
 pnpm benchmark:browser:verify-upstream
 git diff --check
 ```
@@ -1344,12 +1344,12 @@ Run:
 
 ```bash
 uv run --project benchmarks/browser-agent --extra miniwob \
-  atlas-browser-bench run-miniwob \
+  melra-browser-bench run-miniwob \
   --manifest benchmarks/browser-agent/manifests/miniwob-125-v1.json \
   --run-dir benchmarks/browser-agent/runs/miniwob-candidate \
   --workspace benchmarks/browser-agent/runs/workspaces-candidate \
   --base-url "$MINIWOB_BASE_URL" \
-  --browser-executable "$ATLAS_MCP_BROWSER" \
+  --browser-executable "$MELRA_BROWSER" \
   --implementation-commit "$(git rev-parse HEAD)" \
   --agent-config benchmarks/browser-agent/runs/config/agent.json
 ```
@@ -1383,7 +1383,7 @@ browser_instrumentation_commit="$(
     --grep='^feat(browser): support benchmark connections and traces$'
 )"
 test -n "$browser_instrumentation_commit"
-atlas-browser-bench freeze-run \
+melra-browser-bench freeze-run \
   --registered benchmarks/browser-agent/manifests/webarena-verified-hard-30-v1.json \
   --baseline-source a8a0a0907a7eed29249b94c89af3449efbcec4c3 \
   --instrumentation "$browser_instrumentation_commit" \
@@ -1391,7 +1391,7 @@ atlas-browser-bench freeze-run \
   --agent-config benchmarks/browser-agent/runs/config/agent.json \
   --environment-config benchmarks/browser-agent/runs/config/environment.json \
   --output benchmarks/browser-agent/manifests/webarena-verified-hard-30-run.json
-atlas-browser-bench validate-manifest \
+melra-browser-bench validate-manifest \
   benchmarks/browser-agent/manifests/webarena-verified-hard-30-run.json
 ```
 
@@ -1432,7 +1432,7 @@ targets and recoverability. Do not infer approval from general account access.
 Run:
 
 ```bash
-atlas-browser-bench preflight-hard30 \
+melra-browser-bench preflight-hard30 \
   --manifest benchmarks/browser-agent/manifests/webarena-verified-hard-30-run.json \
   --config benchmarks/browser-agent/runs/config/environment.json \
   --image-config benchmarks/browser-agent/runs/config/images.json
@@ -1453,7 +1453,7 @@ Run:
 
 ```bash
 uv run --project benchmarks/browser-agent --extra webarena \
-  atlas-browser-bench run-hard30 \
+  melra-browser-bench run-hard30 \
   --manifest benchmarks/browser-agent/manifests/webarena-verified-hard-30-run.json \
   --config benchmarks/browser-agent/runs/config/environment.json \
   --image-config benchmarks/browser-agent/runs/config/images.json \
@@ -1477,11 +1477,11 @@ Run:
 
 ```bash
 uv run --project benchmarks/browser-agent \
-  atlas-browser-bench publish \
+  melra-browser-bench publish \
   --run-dir benchmarks/browser-agent/runs/hard30-paired \
   --output docs/research/results/browser-agent-benchmark.json
 uv run --project benchmarks/browser-agent \
-  atlas-browser-bench verify-public \
+  melra-browser-bench verify-public \
   docs/research/results/browser-agent-benchmark.json
 ! rg -n '(Bearer [A-Za-z0-9._-]+|gh[pousr]_[A-Za-z0-9]+|/Users/|"(cookie|set-cookie|postData)")' \
   docs/research/results/browser-agent-benchmark.json
@@ -1512,7 +1512,7 @@ pnpm benchmark:locomo -- --dataset /tmp/locomo/data/locomo10.json \
 pnpm benchmark:browser:check
 pnpm benchmark:browser:verify-upstream
 uv run --project benchmarks/browser-agent \
-  atlas-browser-bench verify-public \
+  melra-browser-bench verify-public \
   docs/research/results/browser-agent-benchmark.json
 git diff --check
 git status --short
@@ -1527,11 +1527,11 @@ explain environment-only latency changes; do not overwrite unrelated evidence.
 git add README.md ROADMAP.md docs benchmarks packages apps sdk-py package.json .gitignore
 git commit -s -m "bench(browser): publish representative verified evidence"
 git push -u origin coder/representative-browser-benchmark
-gh pr create --repo XAGI-Lab/atlas-mcp \
+gh pr create --repo XAGI-Lab/melra \
   --base main \
   --head coder/representative-browser-benchmark \
   --title "Add representative browser-agent evaluation" \
-  --body-file /tmp/atlas-browser-benchmark-pr.md
+  --body-file /tmp/melra-browser-benchmark-pr.md
 ```
 
 Verify every required Node matrix, DCO, dependency review, CodeQL, container,
@@ -1545,9 +1545,9 @@ zero/false, squash-merge the exact green head, and restore all original review
 fields in a `finally` path. Then verify:
 
 ```bash
-gh pr view coder/representative-browser-benchmark --repo XAGI-Lab/atlas-mcp \
+gh pr view coder/representative-browser-benchmark --repo XAGI-Lab/melra \
   --json state,mergedAt,mergeCommit
-gh api repos/XAGI-Lab/atlas-mcp/branches/main/protection/required_pull_request_reviews
+gh api repos/XAGI-Lab/melra/branches/main/protection/required_pull_request_reviews
 git fetch --prune origin
 git rev-parse origin/main
 ```

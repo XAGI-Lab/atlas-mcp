@@ -13,7 +13,7 @@
    package.
 2. Run `pnpm check`, `pnpm evals`, `pnpm e2e`, `pnpm pack:check`, and
    `pnpm security:audit`.
-3. Build the Docker image and run `atlas-mcp doctor` plus an actual stdio MCP
+3. Build the Docker image and run `melra doctor` plus an actual stdio MCP
    session inside it.
 4. Run dependency, secret, license, and public-content scans.
 5. Record the supported OS and named-client results in `VALIDATION.md`.
@@ -39,7 +39,7 @@ Verify downloaded artifacts:
 
 ```bash
 sha256sum --check SHA256SUMS
-gh attestation verify <artifact> --repo XAGI-Lab/atlas-mcp
+gh attestation verify <artifact> --repo XAGI-Lab/melra
 ```
 
 Artifact attestations prove which GitHub workflow built a digest. They do not

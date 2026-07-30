@@ -1,7 +1,7 @@
 {
-  "name": "@atlas-mcp/receipt-schema",
+  "name": "@melra/receipt-schema",
   "version": "0.2.0-alpha.1",
-  "description": "Canonical receipts, redaction, and execution certificates for ATLAS MCP.",
+  "description": "Canonical receipts, redaction, and execution certificates for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

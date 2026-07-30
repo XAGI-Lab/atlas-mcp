@@ -17,11 +17,11 @@ from typing import Any, TypeVar
 from unittest.mock import patch
 from urllib.parse import urlparse
 
-from atlas_mcp import AtlasClient
+from melra import MelraClient
 
 from .agent import AgentContext, BrowserActionDecision
 from .chrome import ChromeCdpProcess
-from .mcp_driver import AtlasBrowserDriver
+from .mcp_driver import MelraBrowserDriver
 
 T = TypeVar("T")
 
@@ -66,7 +66,7 @@ def playwright_executor() -> ThreadPoolExecutor:
     with _PLAYWRIGHT_EXECUTOR_LOCK:
         if _PLAYWRIGHT_EXECUTOR is None:
             _PLAYWRIGHT_EXECUTOR = ThreadPoolExecutor(
-                max_workers=1, thread_name_prefix="atlas-miniwob"
+                max_workers=1, thread_name_prefix="melra-miniwob"
             )
         return _PLAYWRIGHT_EXECUTOR
 
@@ -223,19 +223,19 @@ class MiniWobEnvironment:
     async def prepare_external_action(self) -> None:
         def prepare() -> None:
             unwrapped = self._gym_environment.unwrapped
-            unwrapped.last_action = "atlas_mcp_external_action"
+            unwrapped.last_action = "melra_external_action"
             info, _, _ = unwrapped.pre_step()
-            unwrapped._atlas_external_step_info = info
+            unwrapped._melra_external_step_info = info
 
         await self._worker(prepare)
 
     async def observe_after_mcp_action(self) -> MiniWobStep:
         def observe() -> MiniWobStep:
             unwrapped = self._gym_environment.unwrapped
-            info = getattr(unwrapped, "_atlas_external_step_info", None)
+            info = getattr(unwrapped, "_melra_external_step_info", None)
             if not isinstance(info, dict):
                 raise TypeError("miniwob_external_action_not_prepared")
-            del unwrapped._atlas_external_step_info
+            del unwrapped._melra_external_step_info
             observation, reward, terminated, truncated, result_info = unwrapped.post_step(info)
             return MiniWobStep(
                 observation=_serializable_observation(unwrapped, observation),
@@ -297,15 +297,15 @@ class MiniWobEnvironment:
                 return []
 
     @asynccontextmanager
-    async def atlas_driver(self) -> AsyncIterator[AtlasBrowserDriver]:
+    async def melra_driver(self) -> AsyncIterator[MelraBrowserDriver]:
         node = shutil.which("node")
         cli = self._repository / "apps" / "cli" / "dist" / "index.js"
         if node is None or not cli.is_file():
-            raise RuntimeError("built_atlas_cli_required")
+            raise RuntimeError("built_melra_cli_required")
         parsed_url = urlparse(self._base_url)
         if parsed_url.hostname is None:
             raise ValueError("miniwob_base_url_hostname_required")
-        data_directory = self._workspace / ".atlas-miniwob"
+        data_directory = self._workspace / ".melra-miniwob"
         data_directory.mkdir(parents=True, exist_ok=True)
         policy_path = data_directory / "policy.json"
         policy_path.write_text(
@@ -324,16 +324,16 @@ class MiniWobEnvironment:
             ),
             encoding="utf-8",
         )
-        async with AtlasClient(
+        async with MelraClient(
             command=node,
             args=[str(cli), "serve"],
             workspace=self._workspace,
             data_directory=data_directory,
             environment={
                 "PATH": os.environ["PATH"],
-                "ATLAS_MCP_POLICY": str(policy_path),
-                "ATLAS_MCP_BROWSER_CDP_ENDPOINT": self._chrome.endpoint,
-                "ATLAS_MCP_BROWSER_CDP_CONTEXT_INDEX": str(self._context_index),
+                "MELRA_POLICY": str(policy_path),
+                "MELRA_BROWSER_CDP_ENDPOINT": self._chrome.endpoint,
+                "MELRA_BROWSER_CDP_CONTEXT_INDEX": str(self._context_index),
             },
         ) as client:
-            yield AtlasBrowserDriver(client)
+            yield MelraBrowserDriver(client)

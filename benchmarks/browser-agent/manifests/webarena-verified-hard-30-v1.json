@@ -12,7 +12,7 @@
     "subset_manifest_sha256": "3b0a4df231bb5a0c642215e521c3fa97701a384f52a734dc2db8f617ad0591a7"
   },
   "selection": {
-    "seed": "atlas-mcp-webarena-verified-hard-30-v1",
+    "seed": "melra-webarena-verified-hard-30-v1",
     "quotas": [
       { "site_family": "cross-site", "task_type": "MUTATE", "count": 3 },
       { "site_family": "cross-site", "task_type": "NAVIGATE", "count": 2 },

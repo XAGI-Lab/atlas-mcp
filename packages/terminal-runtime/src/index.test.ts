@@ -5,7 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { TerminalOperationSchema } from "@atlas-mcp/protocol";
+import { TerminalOperationSchema } from "@melra/protocol";
 import { TerminalRuntime, redactTerminalOutput } from "./index.js";
 
 const roots: string[] = [];
@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe("TerminalRuntime", () => {
   it("runs executable and argument arrays without a shell", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-terminal-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-terminal-"));
     roots.push(root);
     const runtime = await TerminalRuntime.create({ root });
     const result = await runtime.execute(
@@ -38,7 +38,7 @@ describe("TerminalRuntime", () => {
   });
 
   it("stops commands at the configured timeout", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-terminal-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-terminal-"));
     roots.push(root);
     const runtime = await TerminalRuntime.create({ root });
     const result = await runtime.execute(
@@ -55,7 +55,7 @@ describe("TerminalRuntime", () => {
   });
 
   it("supervises bounded background jobs and output", async () => {
-    const root = await mkdtemp(join(tmpdir(), "atlas-terminal-"));
+    const root = await mkdtemp(join(tmpdir(), "melra-terminal-"));
     roots.push(root);
     const runtime = await TerminalRuntime.create({ root });
     const started = await runtime.execute(

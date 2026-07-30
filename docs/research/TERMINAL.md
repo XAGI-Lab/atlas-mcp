@@ -2,7 +2,7 @@
 
 ## Implemented execution model
 
-ATLAS MCP launches an executable with a separate argument vector and
+MELRA launches an executable with a separate argument vector and
 `shell: false`. It confines the working directory, filters environment
 variables, bounds output and time, redacts secret patterns, and supervises
 background job status, output, stop, and shutdown.

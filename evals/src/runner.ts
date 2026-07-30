@@ -5,8 +5,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createAtlasRuntime } from "@atlas-mcp/server";
-import { TaskRequestSchema } from "@atlas-mcp/protocol";
+import { createMelraRuntime } from "@melra/server";
+import { TaskRequestSchema } from "@melra/protocol";
 import { scenarios, type EvaluationScenario } from "./scenarios.js";
 
 export interface EvaluationResult {
@@ -30,10 +30,10 @@ export interface EvaluationReport {
 
 async function runScenario(scenario: EvaluationScenario): Promise<EvaluationResult> {
   const started = performance.now();
-  const root = await mkdtemp(join(tmpdir(), `atlas-eval-${scenario.id}-`));
-  const runtime = await createAtlasRuntime({
+  const root = await mkdtemp(join(tmpdir(), `melra-eval-${scenario.id}-`));
+  const runtime = await createMelraRuntime({
     workspaceRoot: root,
-    dataDirectory: join(root, ".atlas"),
+    dataDirectory: join(root, ".melra"),
   });
   try {
     for (const fixture of scenario.fixtures ?? []) {

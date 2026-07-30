@@ -8,7 +8,7 @@ import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { detectBrowserExecutable } from "@atlas-mcp/browser-runtime";
+import { detectBrowserExecutable } from "@melra/browser-runtime";
 
 const detectedBrowserExecutable = await detectBrowserExecutable();
 
@@ -27,7 +27,7 @@ function parsed(result: unknown): Record<string, unknown> {
   return JSON.parse(text) as Record<string, unknown>;
 }
 
-describe("ATLAS MCP over real stdio transport", () => {
+describe("MELRA over real stdio transport", () => {
   let root: string;
   let dataDirectory: string;
   let client: Client;
@@ -37,7 +37,7 @@ describe("ATLAS MCP over real stdio transport", () => {
   let fixtureUrl: string | undefined;
 
   beforeAll(async () => {
-    root = await mkdtemp(join(tmpdir(), "atlas-mcp-e2e-"));
+    root = await mkdtemp(join(tmpdir(), "melra-e2e-"));
     dataDirectory = join(root, ".data");
     const policyPath = join(root, "policy.json");
     await writeFile(
@@ -62,7 +62,7 @@ describe("ATLAS MCP over real stdio transport", () => {
       fixtureServer = createServer((_request, response) => {
         response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
         response.end(
-          "<!doctype html><html><head><title>ATLAS Fixture</title></head><body><main><h1>ATLAS Browser Verified</h1><button>Inspect</button></main></body></html>",
+          "<!doctype html><html><head><title>MELRA Fixture</title></head><body><main><h1>MELRA Browser Verified</h1><button>Inspect</button></main></body></html>",
         );
       });
       await new Promise<void>((resolvePromise) => {
@@ -88,16 +88,16 @@ describe("ATLAS MCP over real stdio transport", () => {
       cwd: rootPackage,
       env: {
         ...childEnvironment,
-        ATLAS_MCP_WORKSPACE: root,
-        ATLAS_MCP_HOME: dataDirectory,
-        ATLAS_MCP_POLICY: policyPath,
+        MELRA_WORKSPACE: root,
+        MELRA_HOME: dataDirectory,
+        MELRA_POLICY: policyPath,
         ...(browserExecutable === undefined
           ? {}
-          : { ATLAS_MCP_BROWSER: browserExecutable }),
+          : { MELRA_BROWSER: browserExecutable }),
       },
       stderr: "pipe",
     });
-    client = new Client({ name: "atlas-mcp-e2e", version: "1.0.0" });
+    client = new Client({ name: "melra-e2e", version: "1.0.0" });
     await client.connect(transport);
   }, 120_000);
 
@@ -116,17 +116,17 @@ describe("ATLAS MCP over real stdio transport", () => {
   it("advertises exactly the compact six-tool product surface", async () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
-      "atlas_capabilities",
-      "atlas_execute",
-      "atlas_plan",
-      "atlas_receipt",
-      "atlas_task_cancel",
-      "atlas_task_status",
+      "melra_capabilities",
+      "melra_execute",
+      "melra_plan",
+      "melra_receipt",
+      "melra_task_cancel",
+      "melra_task_status",
     ]);
     const capabilities = parsed(
-      await client.callTool({ name: "atlas_capabilities", arguments: {} }),
+      await client.callTool({ name: "melra_capabilities", arguments: {} }),
     );
-    expect(capabilities.product).toBe("ATLAS MCP");
+    expect(capabilities.product).toBe("MELRA");
     expect(
       (capabilities.operations as Record<string, unknown>).computer,
     ).toEqual([
@@ -140,10 +140,22 @@ describe("ATLAS MCP over real stdio transport", () => {
     ]);
   });
 
+  it("rejects the retired tool prefix", async () => {
+    const retiredPrefix = ["at", "las"].join("");
+    const result = (await client.callTool({
+        name: `${retiredPrefix}_plan`,
+        arguments: { goal: "This compatibility alias must not exist." },
+      })) as TextToolResult;
+    expect(result.isError).toBe(true);
+    expect(result.content.map((item) => item.text ?? "").join("\n")).toMatch(
+      /not found/i,
+    );
+  });
+
   it("inspects computer-use support through the governed task path", async () => {
     const task = parsed(
       await client.callTool({
-        name: "atlas_plan",
+        name: "melra_plan",
         arguments: {
           goal: "Inspect local computer-use support",
           operation: { kind: "computer", action: "capabilities" },
@@ -160,7 +172,7 @@ describe("ATLAS MCP over real stdio transport", () => {
     expect(task.status).toBe("planned");
     const execution = parsed(
       await client.callTool({
-        name: "atlas_execute",
+        name: "melra_execute",
         arguments: { taskId: task.id },
       }),
     ) as {
@@ -174,7 +186,7 @@ describe("ATLAS MCP over real stdio transport", () => {
   it("plans, executes, verifies, and receipts a system task", async () => {
     const task = parsed(
       await client.callTool({
-        name: "atlas_plan",
+        name: "melra_plan",
         arguments: {
           goal: "Inspect the local runtime",
           operation: { kind: "system", action: "info" },
@@ -184,7 +196,7 @@ describe("ATLAS MCP over real stdio transport", () => {
     expect(task.status).toBe("planned");
     const execution = parsed(
       await client.callTool({
-        name: "atlas_execute",
+        name: "melra_execute",
         arguments: { taskId: task.id },
       }),
     ) as { task: Record<string, unknown>; certificate: Record<string, unknown> };
@@ -192,7 +204,7 @@ describe("ATLAS MCP over real stdio transport", () => {
     expect(execution.certificate.result).toBe("VERIFIED_SUCCESS");
     const evidence = parsed(
       await client.callTool({
-        name: "atlas_receipt",
+        name: "melra_receipt",
         arguments: { taskId: task.id },
       }),
     ) as { receipts: unknown[]; certificate: Record<string, unknown> };
@@ -203,7 +215,7 @@ describe("ATLAS MCP over real stdio transport", () => {
   it("enforces scoped approval and verifies a real file effect", async () => {
     const task = parsed(
       await client.callTool({
-        name: "atlas_plan",
+        name: "melra_plan",
         arguments: {
           goal: "Create a verified artifact",
           operation: {
@@ -223,7 +235,7 @@ describe("ATLAS MCP over real stdio transport", () => {
     expect(task.status).toBe("awaiting_approval");
     const execution = parsed(
       await client.callTool({
-        name: "atlas_execute",
+        name: "melra_execute",
         arguments: {
           taskId: task.id,
           approval: {
@@ -240,7 +252,7 @@ describe("ATLAS MCP over real stdio transport", () => {
   it("runs a shell-free terminal command through approval and exit verification", async () => {
     const task = parsed(
       await client.callTool({
-        name: "atlas_plan",
+        name: "melra_plan",
         arguments: {
           goal: "Run a deterministic terminal check",
           operation: {
@@ -265,7 +277,7 @@ describe("ATLAS MCP over real stdio transport", () => {
     };
     const execution = parsed(
       await client.callTool({
-        name: "atlas_execute",
+        name: "melra_execute",
         arguments: {
           taskId: task.id,
           approval: {
@@ -281,7 +293,7 @@ describe("ATLAS MCP over real stdio transport", () => {
   it("persists and retrieves scoped local memory through MCP", async () => {
     const task = parsed(
       await client.callTool({
-        name: "atlas_plan",
+        name: "melra_plan",
         arguments: {
           goal: "Remember the verified product name",
           operation: {
@@ -289,7 +301,7 @@ describe("ATLAS MCP over real stdio transport", () => {
             action: "put",
             scope: "workspace",
             key: "product",
-            value: "ATLAS MCP",
+            value: "MELRA",
           },
           requiredEvidence: [
             { type: "result_equals", path: "stored", value: true },
@@ -302,7 +314,7 @@ describe("ATLAS MCP over real stdio transport", () => {
     };
     const stored = parsed(
       await client.callTool({
-        name: "atlas_execute",
+        name: "melra_execute",
         arguments: {
           taskId: task.id,
           approval: {
@@ -316,27 +328,27 @@ describe("ATLAS MCP over real stdio transport", () => {
 
     const search = parsed(
       await client.callTool({
-        name: "atlas_plan",
+        name: "melra_plan",
         arguments: {
           goal: "Retrieve product memory",
           operation: {
             kind: "memory",
             action: "search",
             scope: "workspace",
-            query: "ATLAS",
+            query: "MELRA",
           },
         },
       }),
     );
     const found = parsed(
       await client.callTool({
-        name: "atlas_execute",
+        name: "melra_execute",
         arguments: { taskId: search.id },
       }),
     ) as {
       output: { memories: Array<{ value: string }> };
     };
-    expect(found.output.memories[0]?.value).toBe("ATLAS MCP");
+    expect(found.output.memories[0]?.value).toBe("MELRA");
   });
 
   it.skipIf(browserExecutable === undefined)(
@@ -344,7 +356,7 @@ describe("ATLAS MCP over real stdio transport", () => {
     async () => {
       const task = parsed(
         await client.callTool({
-          name: "atlas_plan",
+          name: "melra_plan",
           arguments: {
             goal: "Open the deterministic browser fixture",
             operation: {
@@ -353,7 +365,7 @@ describe("ATLAS MCP over real stdio transport", () => {
               url: fixtureUrl,
             },
             requiredEvidence: [
-              { type: "page_contains", text: "ATLAS Browser Verified" },
+              { type: "page_contains", text: "MELRA Browser Verified" },
               { type: "url_matches", pattern: `${fixtureUrl}*` },
             ],
           },
@@ -361,7 +373,7 @@ describe("ATLAS MCP over real stdio transport", () => {
       );
       const execution = parsed(
         await client.callTool({
-          name: "atlas_execute",
+          name: "melra_execute",
           arguments: { taskId: task.id },
         }),
       ) as { task: Record<string, unknown> };

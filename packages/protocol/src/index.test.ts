@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  AtlasReceiptInputSchema,
+  MelraReceiptInputSchema,
   TaskRequestSchema,
   TOOL_NAMES,
 } from "./index.js";
@@ -46,9 +46,9 @@ describe("public protocol schemas", () => {
 
   it("keeps the compact tool and receipt lookup contracts strict", () => {
     expect(TOOL_NAMES).toHaveLength(6);
-    expect(() => AtlasReceiptInputSchema.parse({})).toThrow();
+    expect(() => MelraReceiptInputSchema.parse({})).toThrow();
     expect(
-      AtlasReceiptInputSchema.parse({
+      MelraReceiptInputSchema.parse({
         taskId: "8c73f2ad-f503-47c6-83d5-7a866a70bdf0",
       }).taskId,
     ).toBe("8c73f2ad-f503-47c6-83d5-7a866a70bdf0");

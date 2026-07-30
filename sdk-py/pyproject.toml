@@ -3,9 +3,9 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "atlas-mcp"
+name = "melra"
 version = "0.2.0a1"
-description = "Python client SDK for ATLAS MCP."
+description = "Python client SDK for MELRA."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
@@ -13,8 +13,8 @@ authors = [{ name = "XAGI Labs Private Limited" }]
 dependencies = ["mcp==1.28.1"]
 
 [project.urls]
-Repository = "https://github.com/XAGI-Lab/atlas-mcp"
-Documentation = "https://github.com/XAGI-Lab/atlas-mcp#readme"
+Repository = "https://github.com/XAGI-Lab/melra"
+Documentation = "https://github.com/XAGI-Lab/melra#readme"
 
 [dependency-groups]
 dev = [
@@ -24,7 +24,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/atlas_mcp"]
+packages = ["src/melra"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

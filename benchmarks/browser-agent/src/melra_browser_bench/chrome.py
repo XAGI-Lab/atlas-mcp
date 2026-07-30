@@ -25,7 +25,7 @@ class ChromeCdpProcess:
     async def start(cls, executable: Path) -> AsyncIterator[ChromeCdpProcess]:
         if not executable.is_file():
             raise FileNotFoundError(f"browser executable not found: {executable}")
-        user_data_directory = Path(tempfile.mkdtemp(prefix="atlas-cdp-"))
+        user_data_directory = Path(tempfile.mkdtemp(prefix="melra-cdp-"))
         process = await asyncio.create_subprocess_exec(
             str(executable),
             "--headless=new",

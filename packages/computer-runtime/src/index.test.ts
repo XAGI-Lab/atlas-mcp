@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { ComputerOperationSchema } from "@atlas-mcp/protocol";
+import { ComputerOperationSchema } from "@melra/protocol";
 import {
   ComputerRuntime,
   type ComputerAdapter,

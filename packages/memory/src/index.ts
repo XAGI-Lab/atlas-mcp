@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomUUID } from "node:crypto";
-import type { MemoryOperation } from "@atlas-mcp/protocol";
+import type { MemoryOperation } from "@melra/protocol";
 import {
   SqliteStore,
   type MemoryRecord,
-} from "@atlas-mcp/storage-sqlite";
+} from "@melra/storage-sqlite";
 
 const SECRET_PATTERNS: Array<[RegExp, string]> = [
   [/\b(?:sk|pk|api)[-_][a-z0-9_-]{16,}\b/gi, "[REDACTED_API_KEY]"],
@@ -416,7 +416,7 @@ export class LocalMemory {
             operation.limit,
           ),
           candidateCount: candidates.length,
-          ranking: "atlas-hybrid-v2",
+          ranking: "melra-hybrid-v2",
         };
       }
       case "list":

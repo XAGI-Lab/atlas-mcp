@@ -1,10 +1,10 @@
-# ATLAS MCP Python SDK
+# MELRA Python SDK
 
-Async Python client for the six-tool ATLAS MCP task interface.
+Async Python client for the six-tool MELRA task interface.
 
 ```python
-from atlas_mcp import AtlasClient
+from melra import MelraClient
 
-async with AtlasClient(workspace="/path/to/project") as atlas:
-    capabilities = await atlas.capabilities()
+async with MelraClient(workspace="/path/to/project") as melra:
+    capabilities = await melra.capabilities()
 ```

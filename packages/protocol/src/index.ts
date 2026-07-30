@@ -337,36 +337,36 @@ export interface TaskRecord {
   updatedAt: string;
 }
 
-export const AtlasCapabilitiesInputSchema = z.object({}).strict();
-export const AtlasPlanInputSchema = TaskRequestSchema;
-export const AtlasExecuteInputSchema = z
+export const MelraCapabilitiesInputSchema = z.object({}).strict();
+export const MelraPlanInputSchema = TaskRequestSchema;
+export const MelraExecuteInputSchema = z
   .object({
     taskId: z.string().uuid(),
     approval: ApprovalResponseSchema.optional(),
   })
   .strict();
-export const AtlasTaskStatusInputSchema = z
+export const MelraTaskStatusInputSchema = z
   .object({ taskId: z.string().uuid() })
   .strict();
-export const AtlasTaskCancelInputSchema = z
+export const MelraTaskCancelInputSchema = z
   .object({ taskId: z.string().uuid() })
   .strict();
-export const AtlasReceiptBaseSchema = z
+export const MelraReceiptBaseSchema = z
   .object({
     taskId: z.string().uuid().optional(),
     receiptId: z.string().uuid().optional(),
   })
   .strict();
-export const AtlasReceiptInputSchema = AtlasReceiptBaseSchema
+export const MelraReceiptInputSchema = MelraReceiptBaseSchema
   .refine((value) => value.taskId !== undefined || value.receiptId !== undefined, {
     message: "taskId or receiptId is required",
   });
 
 export const TOOL_NAMES = [
-  "atlas_capabilities",
-  "atlas_plan",
-  "atlas_execute",
-  "atlas_task_status",
-  "atlas_task_cancel",
-  "atlas_receipt",
+  "melra_capabilities",
+  "melra_plan",
+  "melra_execute",
+  "melra_task_status",
+  "melra_task_cancel",
+  "melra_receipt",
 ] as const;

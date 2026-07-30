@@ -15,11 +15,11 @@ import pytest
 
 pytest.importorskip("browsergym.miniwob")
 
-from atlas_browser_bench.agent import BrowserActionDecision
-from atlas_browser_bench.miniwob import MiniWobEnvironment, discover_miniwob_tasks
+from melra_browser_bench.agent import BrowserActionDecision
+from melra_browser_bench.miniwob import MiniWobEnvironment, discover_miniwob_tasks
 
 MANIFEST = Path(__file__).parents[1] / "manifests" / "miniwob-125-v1.json"
-ASSETS = Path.home() / "Library" / "Caches" / "atlas-mcp-benchmarks" / "miniwob-plusplus-7fd85d71"
+ASSETS = Path.home() / "Library" / "Caches" / "melra-benchmarks" / "miniwob-plusplus-7fd85d71"
 
 
 class _QuietHandler(SimpleHTTPRequestHandler):
@@ -60,7 +60,7 @@ def test_registered_manifest_matches_pinned_browsergym() -> None:
 
 
 @pytest.mark.asyncio
-async def test_atlas_action_changes_the_page_browsergym_scores(tmp_path: Path) -> None:
+async def test_melra_action_changes_the_page_browsergym_scores(tmp_path: Path) -> None:
     executable = browser_executable()
     if executable is None:
         pytest.skip("supported browser is not installed")
@@ -76,7 +76,7 @@ async def test_atlas_action_changes_the_page_browsergym_scores(tmp_path: Path) -
         ) as environment:
             assert environment.initial.reward == 0
             assert environment.initial.terminated is False
-            async with environment.atlas_driver() as driver:
+            async with environment.melra_driver() as driver:
                 await environment.prepare_external_action()
                 observation = await driver.perform(
                     BrowserActionDecision(

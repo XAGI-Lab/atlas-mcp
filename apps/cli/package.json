@@ -1,11 +1,11 @@
 {
-  "name": "@atlas-mcp/cli",
+  "name": "@melra/cli",
   "version": "0.2.0-alpha.1",
-  "description": "ATLAS MCP local execution runtime and command-line interface.",
+  "description": "MELRA local execution runtime and command-line interface.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "atlas-mcp": "./dist/index.js"
+    "melra": "./dist/index.js"
   },
   "exports": {
     ".": {
@@ -24,11 +24,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@atlas-mcp/browser-runtime": "workspace:*",
-    "@atlas-mcp/computer-runtime": "workspace:*",
-    "@atlas-mcp/policy-core": "workspace:*",
-    "@atlas-mcp/protocol": "workspace:*",
-    "@atlas-mcp/server": "workspace:*",
-    "@atlas-mcp/storage-sqlite": "workspace:*"
+    "@melra/browser-runtime": "workspace:*",
+    "@melra/computer-runtime": "workspace:*",
+    "@melra/policy-core": "workspace:*",
+    "@melra/protocol": "workspace:*",
+    "@melra/server": "workspace:*",
+    "@melra/storage-sqlite": "workspace:*"
   }
 }
