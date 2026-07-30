@@ -1537,24 +1537,18 @@ gh pr create --repo XAGI-Lab/melra \
 Verify every required Node matrix, DCO, dependency review, CodeQL, container,
 and benchmark-contract check is successful at the exact PR head.
 
-- [ ] **Step 8: Merge with the task-scoped authorization and restore protection**
+- [ ] **Step 8: Merge the exact green head**
 
-If Gautam's review is the only remaining gate, re-read the exact main
-protection configuration, temporarily set only the required-review fields to
-zero/false, squash-merge the exact green head, and restore all original review
-fields in a `finally` path. Then verify:
+Merge only after every required check succeeds. Then verify:
 
 ```bash
 gh pr view coder/representative-browser-benchmark --repo XAGI-Lab/melra \
   --json state,mergedAt,mergeCommit
-gh api repos/XAGI-Lab/melra/branches/main/protection/required_pull_request_reviews
 git fetch --prune origin
 git rev-parse origin/main
 ```
 
-Expected: PR is merged, main contains the exact candidate changes, and
-`dismiss_stale_reviews=true`, `require_code_owner_reviews=true`,
-`require_last_push_approval=true`, `required_approving_review_count=1`.
+Expected: the PR is merged and main contains the exact candidate changes.
 
 ---
 

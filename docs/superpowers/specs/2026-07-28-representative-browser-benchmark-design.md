@@ -356,9 +356,8 @@ capabilities.
    authorization needed for Hard-30.
 8. Run the paired registered Hard-30 evaluation once, publish all allowed
    evidence, and update the scorecard with its precise claim boundary.
-9. Commit, push, open a PR, wait for required checks, and use the
-   user-authorized approval override for this task if the only remaining gate
-   is Gautam's review.
+9. Commit, push, open a PR, wait for required checks, and merge the exact
+   green head.
 
 ## Success criteria
 
