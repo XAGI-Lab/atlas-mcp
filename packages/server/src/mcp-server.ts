@@ -14,6 +14,11 @@ import {
   PRODUCT_VERSION,
   PROTOCOL_VERSION,
   TaskRequestSchema,
+  TOOL_NAMES,
+  WorkflowAdvanceInputSchema,
+  WorkflowDefinitionSchema,
+  WorkflowIdInputSchema,
+  WorkflowPlanInputSchema,
 } from "@melra/protocol";
 import type { MelraRuntime } from "./runtime.js";
 
@@ -53,14 +58,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
         product: "MELRA",
         version: PRODUCT_VERSION,
         protocolVersion: PROTOCOL_VERSION,
-        tools: [
-          "melra_capabilities",
-          "melra_plan",
-          "melra_execute",
-          "melra_task_status",
-          "melra_task_cancel",
-          "melra_receipt",
-        ],
+        tools: TOOL_NAMES,
         operations: {
           file: ["list", "read", "stat", "hash", "write", "move", "delete", "mkdir"],
           terminal: ["run", "start", "status", "output", "stop"],
@@ -203,6 +201,94 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
             : { receiptId: parsed.receiptId }),
         }),
       );
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_plan",
+    {
+      title: "Plan a MELRA workflow",
+      description:
+        "Validate, preflight, encrypt, and persist a bounded workflow without executing it.",
+      inputSchema: WorkflowPlanInputSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowPlanInputSchema.parse(input);
+      return toolResult(
+        runtime.workflows.plan(
+          WorkflowDefinitionSchema.parse(parsed.definition),
+        ),
+      );
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_advance",
+    {
+      title: "Advance a MELRA workflow",
+      description:
+        "Execute one ready workflow scheduling wave through governed MELRA tasks.",
+      inputSchema: WorkflowAdvanceInputSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowAdvanceInputSchema.parse(input);
+      return toolResult(
+        await runtime.workflows.advance(
+          parsed.workflowId,
+          parsed.approvals,
+        ),
+      );
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_status",
+    {
+      title: "Inspect a MELRA workflow",
+      description: "Read the current durable workflow projection.",
+      inputSchema: WorkflowIdInputSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowIdInputSchema.parse(input);
+      return toolResult(runtime.workflows.status(parsed.workflowId));
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_cancel",
+    {
+      title: "Cancel a MELRA workflow",
+      description:
+        "Cooperatively cancel nonterminal workflow nodes and their tasks.",
+      inputSchema: WorkflowIdInputSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowIdInputSchema.parse(input);
+      return toolResult(runtime.workflows.cancel(parsed.workflowId));
     },
   );
   return server;

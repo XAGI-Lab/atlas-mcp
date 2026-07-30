@@ -8,9 +8,14 @@ import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { DatabaseSync } from "node:sqlite";
 import {
+  ApprovalResponseSchema,
   TaskRequestSchema,
+  WorkflowDefinitionSchema,
   PRODUCT_VERSION,
+  type ApprovalResponse,
   type TaskRequest,
+  type WorkflowDefinition,
+  type WorkflowRun,
 } from "@melra/protocol";
 import {
   createMelraRuntime,
@@ -79,6 +84,136 @@ async function readTaskRequest(args: string[]): Promise<TaskRequest> {
     return TaskRequestSchema.parse(JSON.parse(input));
   }
   throw new Error("provide --request <file> or pipe a JSON task request");
+}
+
+async function readWorkflowDefinition(
+  args: string[],
+): Promise<WorkflowDefinition> {
+  const definitionPath = argument("--definition", args);
+  if (definitionPath === undefined) {
+    throw new Error("workflow plan requires --definition <file>");
+  }
+  return WorkflowDefinitionSchema.parse(
+    JSON.parse(await readFile(resolve(definitionPath), "utf8")),
+  );
+}
+
+function workflowExitCode(status: WorkflowRun["status"]): number {
+  if (status === "awaiting_approval") return 3;
+  if (
+    [
+      "failed",
+      "partially_complete",
+      "cancelled",
+      "recovery_required",
+    ].includes(status)
+  ) {
+    return 2;
+  }
+  return 0;
+}
+
+function workflowApprovals(args: string[]): ApprovalResponse[] {
+  const approvals: ApprovalResponse[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== "--approval") continue;
+    const value = args[index + 1];
+    if (value === undefined) throw new Error("--approval requires a value");
+    const separator = value.indexOf(":");
+    if (separator < 1 || separator === value.length - 1) {
+      throw new Error(
+        "--approval must be <approval-id>:<exact-phrase>",
+      );
+    }
+    approvals.push(
+      ApprovalResponseSchema.parse({
+        approvalId: value.slice(0, separator),
+        phrase: value.slice(separator + 1),
+      }),
+    );
+    index += 1;
+  }
+  return approvals;
+}
+
+async function workflowCommand(
+  args: string[],
+  env: CliEnvironment,
+): Promise<number> {
+  const [action, ...actionArgs] = args;
+  const melra = await runtime(env);
+  try {
+    switch (action) {
+      case "plan": {
+        const run = melra.workflows.plan(
+          await readWorkflowDefinition(actionArgs),
+        );
+        output(run);
+        return workflowExitCode(run.status);
+      }
+      case "advance": {
+        const workflowId = actionArgs[0];
+        if (workflowId === undefined) {
+          throw new Error("workflow advance requires a workflow ID");
+        }
+        const result = await melra.workflows.advance(
+          workflowId,
+          workflowApprovals(actionArgs.slice(1)),
+        );
+        output(result);
+        return workflowExitCode(result.run.status);
+      }
+      case "inspect": {
+        const workflowId = actionArgs[0];
+        if (workflowId === undefined) {
+          throw new Error("workflow inspect requires a workflow ID");
+        }
+        output(melra.workflows.status(workflowId));
+        return 0;
+      }
+      case "cancel": {
+        const workflowId = actionArgs[0];
+        if (workflowId === undefined) {
+          throw new Error("workflow cancel requires a workflow ID");
+        }
+        const run = melra.workflows.cancel(workflowId);
+        output(run);
+        return workflowExitCode(run.status);
+      }
+      default:
+        throw new Error(
+          "workflow supports plan, advance, inspect, and cancel",
+        );
+    }
+  } finally {
+    await melra.close();
+  }
+}
+
+async function durableCoreDemo(env: CliEnvironment): Promise<number> {
+  const examplePath = resolve(
+    import.meta.dirname,
+    "../../../examples/workflows/restart-safe.json",
+  );
+  const melra = await runtime(env);
+  try {
+    const definition = WorkflowDefinitionSchema.parse(
+      JSON.parse(await readFile(examplePath, "utf8")),
+    );
+    const planned = melra.workflows.plan(definition);
+    const advanced = await melra.workflows.advance(planned.id);
+    output({
+      examplePath,
+      workflow: advanced.run,
+      next:
+        advanced.run.status === "verified_complete"
+          ? "complete"
+          : `melra workflow advance ${planned.id}`,
+    });
+    return workflowExitCode(advanced.run.status);
+  } finally {
+    await melra.close();
+  }
 }
 
 async function doctor(env: CliEnvironment): Promise<number> {
@@ -272,6 +407,11 @@ Usage:
   melra serve
   melra run --request <task.json>
   melra inspect <task-id>
+  melra workflow plan --definition <workflow.json>
+  melra workflow advance <workflow-id> [--approval <id>:<exact-phrase>]
+  melra workflow inspect <workflow-id>
+  melra workflow cancel <workflow-id>
+  melra demo durable-core
   melra policy test --request <task.json>
   melra version
 
@@ -313,6 +453,15 @@ async function main(): Promise<void> {
     case "inspect":
     case "export":
       await inspectTask(args, env);
+      return;
+    case "workflow":
+      process.exitCode = await workflowCommand(args, env);
+      return;
+    case "demo":
+      if (args[0] !== "durable-core") {
+        throw new Error("demo supports only 'durable-core'");
+      }
+      process.exitCode = await durableCoreDemo(env);
       return;
     case "policy":
       if (args[0] !== "test") throw new Error("policy supports only 'test'");

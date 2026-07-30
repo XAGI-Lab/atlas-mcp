@@ -45,7 +45,18 @@ describe("public protocol schemas", () => {
   });
 
   it("keeps the compact tool and receipt lookup contracts strict", () => {
-    expect(TOOL_NAMES).toHaveLength(6);
+    expect(TOOL_NAMES).toEqual([
+      "melra_capabilities",
+      "melra_plan",
+      "melra_execute",
+      "melra_task_status",
+      "melra_task_cancel",
+      "melra_receipt",
+      "melra_workflow_plan",
+      "melra_workflow_advance",
+      "melra_workflow_status",
+      "melra_workflow_cancel",
+    ]);
     expect(() => MelraReceiptInputSchema.parse({})).toThrow();
     expect(
       MelraReceiptInputSchema.parse({

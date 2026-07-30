@@ -37,6 +37,10 @@ async def test_python_sdk_uses_the_real_stdio_server(tmp_path: Path) -> None:
             "melra_task_status",
             "melra_task_cancel",
             "melra_receipt",
+            "melra_workflow_plan",
+            "melra_workflow_advance",
+            "melra_workflow_status",
+            "melra_workflow_cancel",
         ]
         capabilities = await melra.capabilities()
         assert capabilities["product"] == "MELRA"

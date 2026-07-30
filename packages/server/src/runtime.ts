@@ -24,6 +24,7 @@ import {
 import {
   PayloadCipher,
   TaskController,
+  WorkflowController,
   type OperationExecutor,
 } from "@melra/runtime-core";
 import { SqliteStore } from "@melra/storage-sqlite";
@@ -101,6 +102,7 @@ export class RuntimeRouter implements OperationExecutor {
 
 export interface MelraRuntime {
   controller: TaskController;
+  workflows: WorkflowController;
   policy: LocalPolicy;
   store: SqliteStore;
   router: RuntimeRouter;
@@ -162,9 +164,12 @@ export async function createMelraRuntime(
     await Verifier.create(policy.workspaceRoot),
     cipher,
   );
+  const workflows = new WorkflowController(store, controller, cipher);
   await controller.recoverInterrupted();
+  await workflows.recoverInterrupted();
   return {
     controller,
+    workflows,
     policy,
     store,
     router,

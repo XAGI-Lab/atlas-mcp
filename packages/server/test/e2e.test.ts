@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createServer, type Server } from "node:http";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { detectBrowserExecutable } from "@melra/browser-runtime";
+import { createMelraRuntime } from "../src/runtime.js";
 
 const detectedBrowserExecutable = await detectBrowserExecutable();
 
@@ -113,7 +114,7 @@ describe("MELRA over real stdio transport", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it("advertises exactly the compact six-tool product surface", async () => {
+  it("advertises exactly the compact ten-tool product surface", async () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
       "melra_capabilities",
@@ -122,6 +123,10 @@ describe("MELRA over real stdio transport", () => {
       "melra_receipt",
       "melra_task_cancel",
       "melra_task_status",
+      "melra_workflow_advance",
+      "melra_workflow_cancel",
+      "melra_workflow_plan",
+      "melra_workflow_status",
     ]);
     const capabilities = parsed(
       await client.callTool({ name: "melra_capabilities", arguments: {} }),
@@ -140,6 +145,57 @@ describe("MELRA over real stdio transport", () => {
     ]);
   });
 
+  it("plans and advances a verified workflow over MCP", async () => {
+    const planned = parsed(
+      await client.callTool({
+        name: "melra_workflow_plan",
+        arguments: {
+          definition: {
+            schemaVersion: "1.0.0",
+            id: "11111111-1111-4111-8111-111111111111",
+            version: 1,
+            name: "MCP workflow",
+            nodes: [
+              {
+                id: "inspect",
+                type: "operation",
+                request: {
+                  goal: "Inspect through a workflow",
+                  operation: { kind: "system", action: "info" },
+                },
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(planned.status).toBe("planned");
+
+    const advanced = parsed(
+      await client.callTool({
+        name: "melra_workflow_advance",
+        arguments: { workflowId: planned.id },
+      }),
+    ) as { run: Record<string, unknown> };
+    expect(advanced.run.status).toBe("verified_complete");
+    expect(
+      parsed(
+        await client.callTool({
+          name: "melra_workflow_status",
+          arguments: { workflowId: planned.id },
+        }),
+      ).status,
+    ).toBe("verified_complete");
+    expect(
+      parsed(
+        await client.callTool({
+          name: "melra_workflow_cancel",
+          arguments: { workflowId: planned.id },
+        }),
+      ).status,
+    ).toBe("verified_complete");
+  });
+
   it("rejects the retired tool prefix", async () => {
     const retiredPrefix = ["at", "las"].join("");
     const result = (await client.callTool({
@@ -150,6 +206,48 @@ describe("MELRA over real stdio transport", () => {
     expect(result.content.map((item) => item.text ?? "").join("\n")).toMatch(
       /not found/i,
     );
+  });
+
+  it("recreates the runtime with a stable key and executable task payload", async () => {
+    const restartRoot = await mkdtemp(join(tmpdir(), "melra-restart-"));
+    const restartHome = join(restartRoot, ".melra");
+    const first = await createMelraRuntime({
+      workspaceRoot: restartRoot,
+      dataDirectory: restartHome,
+      environment: {},
+    });
+    const task = first.controller.plan({
+      goal: "Execute after runtime restart",
+      operation: { kind: "system", action: "info" },
+      constraints: [],
+      forbiddenEffects: [],
+      requiredEvidence: [],
+      budget: {
+        maxDurationMs: 120_000,
+        maxRetries: 2,
+        maxSteps: 10,
+      },
+    });
+    const firstKey = await readFile(join(restartHome, "payload.key"), "utf8");
+    await first.close();
+
+    const second = await createMelraRuntime({
+      workspaceRoot: restartRoot,
+      dataDirectory: restartHome,
+      environment: {},
+    });
+    try {
+      expect(second.workflows).toBeDefined();
+      expect((await second.controller.execute(task.id)).task.status).toBe(
+        "verified_success",
+      );
+      expect(await readFile(join(restartHome, "payload.key"), "utf8")).toBe(
+        firstKey,
+      );
+    } finally {
+      await second.close();
+      await rm(restartRoot, { recursive: true, force: true });
+    }
   });
 
   it("inspects computer-use support through the governed task path", async () => {

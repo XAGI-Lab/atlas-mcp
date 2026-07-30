@@ -577,4 +577,8 @@ export const TOOL_NAMES = [
   "melra_task_status",
   "melra_task_cancel",
   "melra_receipt",
+  "melra_workflow_plan",
+  "melra_workflow_advance",
+  "melra_workflow_status",
+  "melra_workflow_cancel",
 ] as const;
