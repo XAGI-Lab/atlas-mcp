@@ -5,7 +5,7 @@
 ```mermaid
 flowchart TB
     Client["MCP client"] --> Schema["Strict protocol schemas"]
-    Schema --> Plan["Durable task plan"]
+    Schema --> Plan["Persisted task record"]
     Plan --> Policy["Policy and scoped approval"]
     Policy --> Controller["Task controller"]
     Controller --> Runtime["Bounded capability runtime"]
@@ -16,7 +16,9 @@ flowchart TB
 ```
 
 Planning never executes. Execution re-evaluates policy so a plan cannot bypass
-a policy change made after it was created.
+a policy change made after it was created. In the current alpha, the task
+record is persisted but its executable payload remains process-local; execution
+after a restart is not yet supported.
 
 ## Public contracts
 
@@ -75,7 +77,11 @@ abort error.
 - Filesystem and terminal working directories are independently confined.
 - Browser navigation is checked before launch and again for every request.
 - Computer input is typed, platform-adapted, and classified as high-risk.
-- The verifier observes results but cannot execute arbitrary commands.
+- Filesystem predicates independently re-read state. Result, terminal, URL, and
+  page predicates currently evaluate adapter-returned observations.
+- Evidence expectations are currently caller-authored. Connector-owned
+  predicates and operation-to-subject binding remain required before evidence
+  can be treated as independent outcome proof.
 - Raw output is returned only to the live caller. Storage persists redacted
   task inputs and output; it is not a secret vault.
 - Stdio is the only supported transport in `0.1`.

@@ -10,12 +10,14 @@ promise of stable API compatibility.
 
 - [x] Six-tool MCP contract with strict versioned schemas.
 - [x] Local stdio transport.
-- [x] Durable task state, budgets, cancellation, and bounded read retries.
+- [x] Persisted task state, budgets, cancellation, and bounded read retries.
 - [x] Local allow/deny/confirm policy re-evaluated at execution.
 - [x] Exact, expiring, task-scoped approvals.
 - [x] Redacted action receipts and SHA-256 execution certificates.
 - [x] Deterministic result, file, terminal, URL, and page verification.
 - [x] Local SQLite task, receipt, certificate, and memory storage.
+- [ ] Executable plan payload persistence — `melra_execute` after a restart
+      currently fails with `task_payload_unavailable_after_restart`.
 - [ ] Crash-safe resume rules for interrupted non-idempotent work.
 - [ ] Circuit breakers shared across related tasks.
 

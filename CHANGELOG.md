@@ -95,8 +95,9 @@ All notable changes are documented here. The format follows
 ### Added
 
 - Compact six-tool MCP stdio server.
-- Durable task lifecycle with policy, scoped approvals, budgets, cancellation,
-  verification, receipts, and execution certificates.
+- Task lifecycle with policy, scoped approvals, budgets, cancellation,
+  verification, receipts, and execution certificates. Task records are
+  persisted; executable task payloads do not survive a restart.
 - Root-confined file runtime.
 - Shell-free foreground and background terminal runtime.
 - Isolated Playwright browser runtime with network safety checks.

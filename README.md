@@ -10,7 +10,7 @@
 
 An open-source execution system for durable, policy-governed autonomous
 workflows across files, terminal, browser, memory, and computer use—with MCP,
-CLI, and SDK interfaces plus independently verified outcomes.
+CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 <br />
 
@@ -24,7 +24,7 @@ CLI, and SDK interfaces plus independently verified outcomes.
 <img src="https://img.shields.io/badge/evals-22%2F22_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="22 of 22 deterministic evaluations passing" />
 <img src="https://img.shields.io/badge/tests-77_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="77 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/e2e-8_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="8 end-to-end cases passing" />
-<img src="https://img.shields.io/badge/vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known vulnerabilities" />
+<img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 
 <br />
 
@@ -297,6 +297,13 @@ planned → awaiting_approval → running → verifying
 
 Policy is evaluated **twice** — once when the plan is persisted and again at
 execution — so a stale plan can never ride a since-tightened policy.
+
+> [!IMPORTANT]
+> **Current alpha boundary:** task records survive restart, but executable task
+> payloads do not yet. A task planned before restart cannot be executed
+> afterward. Evidence predicates are caller-authored: filesystem predicates
+> independently re-read state, while result, terminal, URL, and page predicates
+> currently evaluate observations returned by their adapters.
 
 ---
 
