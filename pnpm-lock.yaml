@@ -56,6 +56,9 @@ importers:
       '@melra/protocol':
         specifier: workspace:*
         version: link:../packages/protocol
+      '@melra/receipt-schema':
+        specifier: workspace:*
+        version: link:../packages/receipt-schema
       '@melra/server':
         specifier: workspace:*
         version: link:../packages/server

@@ -9,11 +9,14 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist results",
     "evaluate": "tsx src/runner.ts",
+    "evaluate:durable-core": "node dist/durable-core.js run",
+    "summarize:durable-core": "node dist/durable-core.js summarize",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@melra/protocol": "workspace:*",
+    "@melra/receipt-schema": "workspace:*",
     "@melra/server": "workspace:*"
   }
 }

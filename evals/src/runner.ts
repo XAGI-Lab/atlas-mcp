@@ -9,6 +9,11 @@ import { createMelraRuntime } from "@melra/server";
 import { TaskRequestSchema } from "@melra/protocol";
 import { scenarios, type EvaluationScenario } from "./scenarios.js";
 
+export {
+  runDurableCoreEvaluation,
+  summarizeDurableCoreRuns,
+} from "./durable-core.js";
+
 export interface EvaluationResult {
   id: string;
   category: EvaluationScenario["category"];
