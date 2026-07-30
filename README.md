@@ -67,6 +67,15 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 > end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
 > and command allowlists narrow, and review every consequential approval.
 
+### Durable Core Alpha — `0.3.0-alpha.0`
+
+| Shipped in this source release | Evidence |
+|---|---|
+| Restart-safe bounded workflows across seven node kinds | Real MCP process is stopped, replaced, and resumed in E2E |
+| Encrypted exact task, workflow, and result payloads | AES-256-GCM storage plus plaintext-leak checks across SQLite/WAL and public projections |
+| Ten MCP tools for tasks and workflows | Container and stdio discovery checks require the exact tool set |
+| Recovery without silent mutation replay | 8/8 deterministic recovery scenarios, zero duplicates, zero false success |
+
 ---
 
 ## Contents
@@ -249,6 +258,11 @@ Mutations pause for an exact, expiring, task-scoped approval phrase. See
 [installation and client setup](docs/INSTALLATION.md) for Claude Desktop,
 Cursor, VS Code, generic clients, Python, and Docker.
 
+MELRA creates `<MELRA_HOME>/payload.key` with private permissions on first
+start. Back it up together with the SQLite files: losing or changing the key
+makes persisted executable payloads unreadable. Never commit the key or place
+it directly in a shared client configuration.
+
 > [!CAUTION]
 > The npm package `melra` and the PyPI package `melra` are **unrelated
 > third-party projects**. Install only from this repository or from official
@@ -429,10 +443,15 @@ pnpm evals
 pnpm e2e
 pnpm pack:check
 pnpm security:audit
-pnpm --filter @melra/evals evaluate:durable-core
+pnpm --filter @melra/evals evaluate:durable-core -- --publishable
 
 # local memory, browser, terminal, and computer microbenchmarks
 pnpm benchmark:core
+
+# hardened local container and real MCP smoke
+docker build -t melra:local .
+docker run --rm melra:local doctor
+pnpm docker:smoke
 ```
 
 <details>
