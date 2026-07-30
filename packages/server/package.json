@@ -1,7 +1,7 @@
 {
   "name": "@melra/server",
-  "version": "0.2.0-alpha.1",
-  "description": "Official six-tool Model Context Protocol server for MELRA.",
+  "version": "0.3.0-alpha.0",
+  "description": "Official local Model Context Protocol server and workflow runtime for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

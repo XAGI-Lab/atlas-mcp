@@ -39,6 +39,11 @@ MELRA uses these environment variables:
 | `MELRA_HOME` | SQLite database and browser artifacts | `~/.melra` |
 | `MELRA_POLICY` | Optional local policy JSON | safe built-in policy |
 | `MELRA_BROWSER` | Chrome, Chromium, or Edge executable | auto-detected |
+| `MELRA_PAYLOAD_KEY` | Optional canonical base64url 256-bit payload key | private `<MELRA_HOME>/payload.key` |
+
+Back up `payload.key` with the SQLite files. Changing or losing it makes
+persisted task and workflow payloads unreadable. Never place it in a client
+configuration committed to source control.
 
 These three variables exist for benchmark and diagnostic harnesses. Leave them
 unset for normal use, which keeps the default isolated browser behavior:
@@ -130,13 +135,13 @@ uv sync --project sdk-py
 uv run --project sdk-py pytest sdk-py
 ```
 
-The SDK launches or connects to the same stdio server and does not implement a
-separate execution engine.
+Both SDKs expose task and durable workflow methods. They launch or connect to
+the same stdio server and do not implement a separate execution engine.
 
 ## Uninstall and local-data deletion
 
 Stop all clients using the server, remove the installed package or container,
 then delete the directory configured by `MELRA_HOME`. That directory is the
-complete local persistence boundary for tasks, receipts, certificates, memory,
-and browser artifacts. Workspace files changed by approved tasks are not
-deleted automatically.
+complete local persistence boundary for tasks, workflows, events, encrypted
+payloads, receipts, certificates, memory, keys, and browser artifacts.
+Workspace files changed by approved tasks are not deleted automatically.

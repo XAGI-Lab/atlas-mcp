@@ -68,6 +68,10 @@ try {
     "melra_receipt",
     "melra_task_cancel",
     "melra_task_status",
+    "melra_workflow_advance",
+    "melra_workflow_cancel",
+    "melra_workflow_plan",
+    "melra_workflow_status",
   ];
   if (JSON.stringify(tools) !== JSON.stringify(expected)) {
     throw new Error(`container_smoke_tool_mismatch:${JSON.stringify(tools)}`);

@@ -1,6 +1,6 @@
 # MELRA Python SDK
 
-Async Python client for the six-tool MELRA task interface.
+Async Python client for MELRA task, evidence, and durable workflow interfaces.
 
 ```python
 from melra import MelraClient

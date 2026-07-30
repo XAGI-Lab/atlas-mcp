@@ -21,9 +21,9 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 <a href="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml/badge.svg" alt="Container build status" /></a>
 
 <!-- Evidence -->
-<img src="https://img.shields.io/badge/evals-22%2F22_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="22 of 22 deterministic evaluations passing" />
-<img src="https://img.shields.io/badge/tests-77_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="77 JavaScript tests passing" />
-<img src="https://img.shields.io/badge/e2e-8_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="8 end-to-end cases passing" />
+<img src="https://img.shields.io/badge/evals-30_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="30 deterministic evaluation scenarios passing" />
+<img src="https://img.shields.io/badge/tests-165_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="165 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/MCP_E2E-12_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="12 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 
 <br />
@@ -169,6 +169,7 @@ MELRA works with any MCP client that can launch a local stdio server.
 | 💻 | **Terminal automation** | Run a shell-free build or supervise a background process | Exit code and bounded stdout |
 | 🖥️ | **Computer use** | Discover local support, capture a screenshot, approve pointer or keyboard input | Adapter result plus declared evidence |
 | 🧠 | **Project memory** | Store a test command, architectural decision, or operating procedure | Scoped record with provenance and redaction |
+| 🔁 | **Durable workflows** | Inspect, write an approved artifact, restart between nodes, then checkpoint | Ordered events, independent file evidence, receipt, and certificate |
 
 <details>
 <summary><b>Show a governed terminal operation</b></summary>
@@ -228,8 +229,10 @@ cd melra
 corepack enable
 pnpm install --frozen-lockfile
 pnpm build
-pnpm melra doctor
+node apps/cli/dist/index.js doctor
 pnpm melra init --client generic
+node apps/cli/dist/index.js workflow plan \
+  --definition examples/workflows/restart-safe.json
 ```
 
 <table>
@@ -238,6 +241,7 @@ pnpm melra init --client generic
 <tr><td>Run a read-only system task</td><td><code>pnpm melra run --request examples/01-system-info/task.json</code></td></tr>
 <tr><td>Run a verified mutation</td><td><code>pnpm melra run --request examples/02-verified-file-write/task.json</code></td></tr>
 <tr><td>Inspect a stored receipt</td><td><code>pnpm melra inspect &lt;task-id&gt;</code></td></tr>
+<tr><td>Advance a durable workflow</td><td><code>pnpm melra workflow advance &lt;workflow-id&gt;</code></td></tr>
 <tr><td>Test a policy file</td><td><code>pnpm melra policy test</code></td></tr>
 </table>
 
@@ -252,9 +256,46 @@ Cursor, VS Code, generic clients, Python, and Docker.
 
 ---
 
+## Restart-safe first workflow 🔁
+
+The committed example performs a read, pauses for an approved file write, and
+finishes at a durable checkpoint. Each CLI invocation is a new process, so this
+sequence exercises restart persistence without keeping a daemon alive:
+
+```bash
+node apps/cli/dist/index.js workflow plan \
+  --definition examples/workflows/restart-safe.json
+# save the returned workflow id
+
+node apps/cli/dist/index.js workflow advance <workflow-id>
+node apps/cli/dist/index.js workflow advance <workflow-id>
+# the second command exits 3 and returns the write approval challenge
+
+node apps/cli/dist/index.js workflow advance <workflow-id> \
+  --approval '<approval-id>:<exact phrase>'
+node apps/cli/dist/index.js workflow advance <workflow-id>
+```
+
+Shortened output captured from the `0.3.0-alpha.0` release candidate:
+
+```text
+planned            stateVersion=2
+running            stateVersion=4   inspect=verified_complete
+awaiting_approval  stateVersion=7   phrase="APPROVE <digest prefix>"
+running            stateVersion=10  write=verified_complete
+verified_complete  stateVersion=14  checkpoint=verified_complete
+```
+
+The final file is read independently in the real-process E2E test. Closing the
+process after any displayed boundary and running the next command against the
+same `MELRA_HOME` resumes the persisted workflow.
+
+---
+
 ## A deliberately small MCP surface ✨
 
-Six tools, in front of five capability runtimes:
+Ten tools in front of five capability runtimes and one durable workflow
+controller:
 
 | MCP tool | Purpose |
 |---|---|
@@ -264,9 +305,14 @@ Six tools, in front of five capability runtimes:
 | `melra_task_status` | Read durable task state |
 | `melra_task_cancel` | Cooperatively cancel pending or running work |
 | `melra_receipt` | Retrieve redacted evidence and the execution certificate |
+| `melra_workflow_plan` | Validate, preflight, encrypt, and persist a bounded workflow |
+| `melra_workflow_advance` | Execute one ready scheduling wave |
+| `melra_workflow_status` | Read the durable workflow projection |
+| `melra_workflow_cancel` | Cooperatively cancel nonterminal workflow work |
 
-High-level tools keep schemas compact while the operation contract carries the
-specific file, terminal, browser, memory, computer, or system action.
+Workflow definitions compose operation, approval, condition, parallel,
+bounded-loop, checkpoint, and compensation nodes while every effect still
+travels through the task policy and evidence pipeline.
 
 ---
 
@@ -274,7 +320,7 @@ specific file, terminal, browser, memory, computer, or system action.
 
 ```mermaid
 flowchart LR
-    Client["MCP client"] --> Plan["Persist bounded plan"]
+    Client["MCP · CLI · SDK"] --> Plan["Persist task or workflow"]
     Plan --> Policy{"Policy at plan time"}
     Policy -->|deny| Stop["Policy blocked"]
     Policy -->|allow or exact approval| Recheck{"Policy at execution time"}
@@ -283,7 +329,8 @@ flowchart LR
     Observe --> Verify{"Evidence predicates pass?"}
     Verify -->|yes| Success["Verified success"]
     Verify -->|no| Partial["Partial or failed"]
-    Success --> Receipt["Redacted receipt + SHA-256 certificate"]
+    Success --> Event["Ordered event + projection"]
+    Event --> Receipt["Redacted receipt + SHA-256 certificate"]
     Partial --> Receipt
 ```
 
@@ -299,11 +346,12 @@ Policy is evaluated **twice** — once when the plan is persisted and again at
 execution — so a stale plan can never ride a since-tightened policy.
 
 > [!IMPORTANT]
-> **Current alpha boundary:** task records survive restart, but executable task
-> payloads do not yet. A task planned before restart cannot be executed
-> afterward. Evidence predicates are caller-authored: filesystem predicates
-> independently re-read state, while result, terminal, URL, and page predicates
-> currently evaluate observations returned by their adapters.
+> **Current alpha boundary:** exact task and workflow payloads survive restart
+> in AES-256-GCM envelopes. Interrupted reads may retry; interrupted mutations
+> are never silently repeated and require independent filesystem
+> reconciliation or enter `recovery_required`. Evidence predicates remain
+> caller-authored: filesystem predicates independently re-read state, while
+> result, terminal, URL, and page predicates evaluate adapter observations.
 
 ---
 
@@ -322,6 +370,7 @@ MCP is universally "the best" or that unlike benchmarks are comparable.
 | 💻 | Terminal | **30/30** verified executions | Shell-free process launch; 48.1 ms p50 on the measured machine |
 | 🖥️ | Computer control plane | **30/30** capability probes | 0.032 ms p50 adapter discovery; this is *not* a desktop task-success score |
 | ✅ | Safety/execution evals | **22/22** passing | Deterministic policy, traversal, terminal, memory, computer, cancellation, and verification scenarios |
+| 🔁 | Durable Core eval | **8/8** valid scenarios | 100% expected recovery, 0 duplicate execution, 0 false success, 100% event consistency |
 
 Read the [research index](docs/research/README.md), the
 [benchmark methodology](docs/research/METHODOLOGY.md), and the raw
@@ -380,6 +429,7 @@ pnpm evals
 pnpm e2e
 pnpm pack:check
 pnpm security:audit
+pnpm --filter @melra/evals evaluate:durable-core
 
 # local memory, browser, terminal, and computer microbenchmarks
 pnpm benchmark:core
@@ -457,22 +507,22 @@ platform integration without fragmenting the public contracts.
 
 ```text
 apps/cli/                   CLI and stdio entrypoint
-packages/protocol/          strict task and operation schemas
-packages/runtime-core/      lifecycle, budgets, retries, cancellation
+packages/protocol/          strict task, workflow, event, and operation schemas
+packages/runtime-core/      task/workflow lifecycle, events, recovery
 packages/policy-core/       local policy and scoped approvals
-packages/server/            six-tool MCP server and runtime router
+packages/server/            ten-tool MCP server and runtime router
 packages/file-runtime/      confined filesystem operations
 packages/terminal-runtime/  shell-free process supervision
 packages/browser-runtime/   isolated browser automation and stable-DOM wait
 packages/computer-runtime/  governed local computer-use adapters
 packages/memory/            scoped hybrid retrieval and lifecycle controls
-packages/storage-sqlite/    durable local state
+packages/storage-sqlite/    transactional tasks, workflows, events, evidence
 packages/verifier-core/     deterministic evidence predicates
 packages/receipt-schema/    receipts and execution certificates
 packages/sdk-ts/            TypeScript client SDK
 sdk-py/                     Python client SDK
 benchmarks/browser-agent/   pre-registered browser-agent evaluation harness
-evals/                      deterministic evaluation harness
+evals/                      safety and durable crash-recovery evaluations
 scripts/                    benchmark and release checks
 docs/research/              methods, findings, and raw results
 examples/                   runnable task examples

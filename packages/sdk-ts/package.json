@@ -1,7 +1,7 @@
 {
   "name": "@melra/sdk",
-  "version": "0.2.0-alpha.1",
-  "description": "TypeScript client SDK for MELRA.",
+  "version": "0.3.0-alpha.0",
+  "description": "TypeScript task and workflow client SDK for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

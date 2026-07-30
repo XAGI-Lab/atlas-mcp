@@ -1,7 +1,7 @@
 {
   "name": "@melra/storage-sqlite",
-  "version": "0.2.0-alpha.1",
-  "description": "Local SQLite task and evidence storage for MELRA.",
+  "version": "0.3.0-alpha.0",
+  "description": "Transactional SQLite task, workflow, event, payload, and evidence storage for MELRA.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

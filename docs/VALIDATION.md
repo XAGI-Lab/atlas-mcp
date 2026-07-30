@@ -1,47 +1,60 @@
 # Validation
 
-## Current branch evidence
+## MELRA Durable Core Alpha release candidate
 
-Date: 2026-07-28
+Date: 2026-07-30
 
-Version: `0.2.0-alpha.1`
+Version: `0.3.0-alpha.0`
 
-Host exercised locally: macOS arm64, Node.js 24.10, Python 3.11
+Durable implementation and evaluation commit: `e3ec704`
 
-| Gate | Result |
+Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
+
+| Gate | Observed result |
 |---|---|
-| Package-version consistency | passed |
+| Package-version consistency | all 16 workspace manifests, protocol constant, and Python distribution match |
 | TypeScript build and strict typecheck | passed across 15 packages/apps |
-| TypeScript/Vitest cases | 72 passed |
-| Deterministic evaluation scenarios | 22 of 22 passed |
-| Python lint | passed |
-| Python SDK interoperability test | 1 passed |
-| Node production dependency audit | no known vulnerabilities |
-| Python locked dependency audit | no known vulnerabilities |
-| Official TypeScript SDK over real stdio | 7 end-to-end cases passed |
-| Installed Chrome browser fixture | navigation and page verification passed |
-| Docker image build | passed |
-| Local hardened Docker MCP smoke | discovery, execution, receipt passed |
-| Released Linux AMD64 image | passed through hardened MCP stdio smoke |
-| Released Linux ARM64 image | passed through hardened MCP stdio smoke |
-| Container doctor | Node, workspace, data, SQLite, browser, policy passed |
-| Official SDK through hardened Docker stdio | discovery, execution, receipt passed |
+| JavaScript/Vitest cases | 165 passed |
+| Python lint and SDK tests | ruff passed; 2 tests passed |
+| Safety/execution evaluation | 22 of 22 passed |
+| Durable Core evaluation | 8 valid, 0 invalid |
+| Durable recovery rate | `1.0` |
+| Duplicate-execution rate | `0.0` |
+| False-success rate | `0.0` |
+| Event-consistency rate | `1.0` |
+| Real MCP stdio E2E | 12 cases passed |
+| CLI package dry run | `melra-cli-0.3.0-alpha.0.tgz` produced |
+| Hardened container MCP smoke | all 10 tools discovered; verified certificate produced |
+| Shipped Node and Python dependency audit | no known vulnerabilities |
+| Core component microbenchmark | passed; no cross-product score claimed |
+| Browser harness lint and tests | ruff clean; 28 passed, 2 optional suites skipped |
+| Registered browser selection | 30 tasks and 30 unique templates reproduced from pinned upstream data |
+| Durable manifest digest | `b2f8e2a6819be1c18ffe799df9ce80a44301b1bc79835ea2f7c6facdf8275c38` |
+| DCO branch audit | every non-bot commit signed off |
 
-The end-to-end suite verifies:
+The real-process workflow test:
 
-- discovery of exactly six MCP tools;
-- durable planning and system execution;
-- exact task-scoped approval for a file mutation;
-- shell-free terminal execution with exit-code and stdout predicates;
-- scoped memory persistence and retrieval;
-- hybrid memory ranking, episode context, speaker matching, expiry, and
-  supersession behavior;
-- in-place migration from the previous SQLite memory schema;
-- real installed-browser navigation with URL and page-text evidence;
-- read-only computer adapter capability discovery;
-- receipt retrieval and a 64-character SHA-256 certificate digest.
+- discovers exactly ten MCP tools;
+- plans the committed restart-safe workflow;
+- executes one verified node and records its event sequence;
+- closes the MCP client and child process;
+- starts a different child PID against the same SQLite and key;
+- rejects a tampered approval without creating the file;
+- accepts the exact scoped approval;
+- independently reads the final file from `node:fs`;
+- retrieves the mutation receipt and `VERIFIED_SUCCESS` certificate;
+- confirms unique monotonic event sequences; and
+- confirms a known secret is absent from SQLite/WAL, workflow status, workflow
+  events, and child stderr.
 
-Public benchmark artifacts were also regenerated:
+The immutable Durable Core manifest covers planned-task restart, workflow-node
+restart, post-approval restart, post-adapter/pre-receipt failure,
+post-receipt/pre-projection failure, interrupted-read retry,
+interrupted-mutation reconciliation, and a duplicate-advance race. Raw JSONL
+is written before the summary and records the implementation commit, runtime,
+platform, receipts, and certificates.
+
+Public component benchmark artifacts remain:
 
 - LoCoMo objective evidence retrieval: 1,982 questions, coverage@20
   `0.759652`, complete evidence recall@20 `0.716448`, p50 `21.060 ms`,
@@ -49,12 +62,8 @@ Public benchmark artifacts were also regenerated:
 - planted-fact memory regression: 100/100 Recall@1;
 - browser stable-DOM fixture: static p50 `183.703 ms` and slow-render
   correctness 10/10;
-- terminal: 30/30 verified shell-free process executions;
+- terminal: 30/30 verified shell-free process executions; and
 - computer: 30/30 read-only capability probes.
-
-The container smoke test uses a read-only root filesystem, drops all Linux
-capabilities, sets `no-new-privileges`, and permits writes only to an explicit
-workspace, data directory, and bounded temporary filesystem.
 
 ## Browser-agent benchmark harness evidence
 
@@ -121,9 +130,11 @@ corepack enable
 pnpm install --frozen-lockfile
 pnpm check
 pnpm evals
+pnpm --filter @melra/evals evaluate:durable-core -- --publishable
 pnpm e2e
 pnpm pack:check
 pnpm security:audit
+pnpm benchmark:core
 pnpm benchmark:browser:check
 pnpm benchmark:browser:verify-upstream
 docker build -t melra:local .
@@ -141,17 +152,31 @@ be attached to the immutable release or workflow run.
 - disallowed commands and shell interpreters are rejected;
 - terminal working directories remain inside the workspace;
 - output and memory secret patterns are redacted;
-- raw operation input and output are not retained in durable task evidence;
+- exact executable payloads are encrypted and identity-bound while public
+  projections and evidence remain redacted;
 - private and metadata network targets are rejected;
 - mutations without required evidence are policy-blocked;
 - wrong or missing approval phrases are rejected;
+- tampered action digests and approval IDs fail before adapter execution;
 - read retries are bounded and mutations are not retried;
+- independently observed file mutations reconcile after interruption while
+  uncertain mutations enter `recovery_required`;
+- duplicate concurrent advances do not duplicate adapter effects;
+- workflow event sequences are transactional, monotonic, and replay-validated;
 - wall-clock budget exhaustion is distinguished from user cancellation;
 - failed verification cannot become `verified_success`;
-- memory reads and deletion remain scope-aware.
+- memory reads and deletion remain scope-aware;
 - computer input is classified high-risk and requires scoped approval.
 
 ## CI evidence
+
+The `0.3.0-alpha.0` remote workflow run is pending creation of the release
+candidate pull request. Local success is not treated as a substitute; the
+release remains unreleased until the PR build, typecheck, Python, real MCP,
+durable recovery, package, container, audit, dependency-review, CodeQL, and DCO
+checks pass.
+
+Historical public evidence:
 
 Pull request [#3](https://github.com/XAGI-Lab/melra/pull/3) exercised
 source commit `ede8281` through:
@@ -204,8 +229,14 @@ findings.
 ## Known alpha limitations
 
 - Stdio is the only transport.
-- One task contains one typed operation.
-- Interrupted mutation tasks are durable but not automatically resumed.
+- One task contains one typed operation; workflows are the bounded composition
+  layer.
+- Only filesystem predicates can currently reconcile an interrupted mutation
+  independently. Other mutations require operator reconciliation.
+- Multiple server processes must not share one `MELRA_HOME`; cross-process
+  leases are not implemented.
+- Human-input, delegation, pause, and resume workflow commands are not
+  implemented.
 - Browser sessions are isolated and non-persistent.
 - Computer screenshot and input adapters are alpha; OCR/visual targeting,
   accessibility targeting, Windows input, focus verification, interactive

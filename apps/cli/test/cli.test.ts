@@ -86,7 +86,7 @@ describe("melra CLI", () => {
 
   it("prints the product version", async () => {
     const result = await execute(process.execPath, [entry, "version"]);
-    expect(result.stdout.trim()).toBe("0.2.0-alpha.1");
+    expect(result.stdout.trim()).toBe("0.3.0-alpha.0");
   });
 
   it("reports local readiness through doctor", async () => {

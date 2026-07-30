@@ -1,7 +1,7 @@
 {
   "name": "@melra/evals",
-  "version": "0.2.0-alpha.1",
-  "description": "Deterministic safety and execution evaluations for MELRA.",
+  "version": "0.3.0-alpha.0",
+  "description": "Deterministic safety, execution, crash-recovery, and concurrency evaluations for MELRA.",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",

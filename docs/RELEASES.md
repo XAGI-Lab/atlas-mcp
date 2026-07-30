@@ -11,10 +11,11 @@
 
 1. Confirm the version is identical in the protocol, Node packages, and Python
    package.
-2. Run `pnpm check`, `pnpm evals`, `pnpm e2e`, `pnpm pack:check`, and
-   `pnpm security:audit`.
-3. Build the Docker image and run `melra doctor` plus an actual stdio MCP
-   session inside it.
+2. Run `pnpm check`, `pnpm evals`,
+   `pnpm --filter @melra/evals evaluate:durable-core -- --publishable`,
+   `pnpm e2e`, `pnpm pack:check`, and `pnpm security:audit`.
+3. Build the image, run `melra doctor`, then run `pnpm docker:smoke` to
+   exercise an actual stdio MCP session inside the hardened container.
 4. Run dependency, secret, license, and public-content scans.
 5. Record the supported OS and named-client results in `VALIDATION.md`.
 6. Review `SECURITY.md`, the threat model, compatibility notes, and changelog.

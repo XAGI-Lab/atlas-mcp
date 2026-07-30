@@ -8,7 +8,7 @@ promise of stable API compatibility.
 
 ### Runtime and protocol
 
-- [x] Six-tool MCP contract with strict versioned schemas.
+- [x] Strict versioned task contracts, now exposed through a ten-tool MCP surface.
 - [x] Local stdio transport.
 - [x] Persisted task state, budgets, cancellation, and bounded read retries.
 - [x] Local allow/deny/confirm policy re-evaluated at execution.
@@ -16,9 +16,8 @@ promise of stable API compatibility.
 - [x] Redacted action receipts and SHA-256 execution certificates.
 - [x] Deterministic result, file, terminal, URL, and page verification.
 - [x] Local SQLite task, receipt, certificate, and memory storage.
-- [ ] Executable plan payload persistence — `melra_execute` after a restart
-      currently fails with `task_payload_unavailable_after_restart`.
-- [ ] Crash-safe resume rules for interrupted non-idempotent work.
+- [x] AES-256-GCM executable task payload persistence across restart.
+- [x] Conservative recovery rules for interrupted reads and mutations.
 - [ ] Circuit breakers shared across related tasks.
 
 ### File, terminal, and browser
@@ -57,7 +56,8 @@ promise of stable API compatibility.
 - [x] CLI doctor, init, serve, run, inspect, export, and policy test.
 - [x] TypeScript and Python client SDKs.
 - [x] Docker image and hardened Compose configuration.
-- [x] Twenty-two deterministic evaluation scenarios.
+- [x] Twenty-two deterministic safety/execution scenarios plus eight durable
+      crash, recovery, and concurrency scenarios.
 - [x] Real MCP stdio, browser, container, and Python interoperability tests.
 - [x] Linux, macOS, and Windows CI definitions.
 - [x] CodeQL, dependency review, Dependabot, DCO, and secret protections.
@@ -70,7 +70,7 @@ promise of stable API compatibility.
 
 ### Computer use
 
-- [x] Computer-use capability contract inside the six-tool task surface.
+- [x] Computer-use capability contract inside the governed task surface.
 - [x] Read-only platform and adapter capability discovery.
 - [x] Governed screenshot, pointer, text, named-key, and scroll operations.
 - [x] macOS native adapter with permission-aware capability reporting.
@@ -103,7 +103,36 @@ promise of stable API compatibility.
 - [ ] Multi-client session isolation.
 - [ ] Optional desktop control surface.
 
-## v0.3 and later
+## v0.3 — Durable Core Alpha
+
+### Workflow runtime
+
+- [x] Immutable versioned workflow definitions and bounded DAG validation.
+- [x] Operation, approval, condition, parallel, bounded-loop, checkpoint, and
+      compensation nodes.
+- [x] Transactional workflow events, projections, snapshots, and monotonic
+      aggregate sequences.
+- [x] Encrypted exact workflow definitions with separately redacted status.
+- [x] Restart-safe task and workflow continuation.
+- [x] Read retry, independent file-mutation reconciliation, and explicit
+      `recovery_required` uncertainty.
+- [x] Workflow/node/request-bound idempotency keys and committed-attempt
+      constraints.
+- [x] In-process serialization of competing advances for one workflow.
+- [x] Four workflow MCP tools and matching CLI, TypeScript, and Python methods.
+- [x] Real child-process restart E2E with approval tamper and plaintext scans.
+- [x] Immutable eight-scenario Durable Core evaluation manifest and raw JSONL
+      evidence tooling.
+
+### Remaining workflow work
+
+- [ ] Cross-process leases for multiple servers sharing one data directory.
+- [ ] Human-input and delegation nodes.
+- [ ] Operator commands for pause, resume, and suspension.
+- [ ] PostgreSQL event and projection provider.
+- [ ] HTTP API, event stream, and Community console.
+
+## v0.4 and later
 
 - [ ] Extension SDK and compatibility testkit.
 - [ ] Sandboxed WASM or process-isolated third-party adapters.
