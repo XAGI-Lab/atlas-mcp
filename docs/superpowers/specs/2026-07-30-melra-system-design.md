@@ -1,4 +1,4 @@
-# ATLAS Core System Design
+# MELRA System Design
 
 **Status:** Approved design
 
@@ -10,7 +10,9 @@
 
 ## 1. Purpose
 
-ATLAS Core is an open-source agent operating system for consequential work.
+MELRA stands for **Modular Execution Layer for Reliable Autonomy**.
+
+MELRA is an open-source agent operating system for consequential work.
 It plans, executes, recovers, and independently verifies multi-step outcomes.
 MCP remains a supported agent interface alongside the CLI, TypeScript SDK,
 Python SDK, HTTP API, and Community console.
@@ -20,7 +22,29 @@ run an approval-gated workflow, restart the runtime during execution, recover
 the workflow, independently verify the outcome, and inspect its evidence
 without using hosted infrastructure.
 
-## 2. Product principles
+## 2. Product identity
+
+MELRA is the single public identity for the repository, MCP server, Core
+runtime, Community product, CLI, SDKs, packages, containers, schemas,
+benchmarks, documentation, research, and releases.
+
+The technical naming contract is:
+
+- repository: `XAGI-Lab/melra`;
+- Node package scope: `@melra/*`;
+- executable and container: `melra`;
+- MCP tool prefix: `melra_`;
+- environment prefix: `MELRA_`;
+- Python distribution and import package: `melra`;
+- local data directory: `~/.melra`;
+- runtime types: `MelraRuntime`, `MelraClient`, and `createMelraRuntime`.
+
+The project is pre-stable, so this rename is intentionally clean and breaking.
+Public compatibility aliases using the previous identity are not retained.
+Historical release evidence may remain accessible through repository history,
+but current tracked product surfaces use MELRA.
+
+## 3. Product principles
 
 1. Policy is evaluated before every consequential effect.
 2. Tool completion is not outcome completion.
@@ -33,7 +57,7 @@ without using hosted infrastructure.
 9. Every tracked artifact is suitable for open publication.
 10. Product and research claims cannot exceed released evidence.
 
-## 3. Chosen approach
+## 4. Chosen approach
 
 The repository evolves in place.
 
@@ -43,7 +67,7 @@ worker, model-routing, HTTP, Community, and research capabilities build around
 those packages. A clean rewrite would duplicate security-sensitive code; a
 service wrapper would preserve the current restart and verification defects.
 
-## 4. Repository boundary
+## 5. Repository boundary
 
 The public repository contains the complete Core and Community product:
 
@@ -61,9 +85,9 @@ for open publication. The product has no runtime dependency on an unreleased
 hosted service. Released public packages may be consumed by other systems
 through their documented contracts.
 
-## 5. Architecture
+## 6. Architecture
 
-### 5.1 Layers
+### 6.1 Layers
 
 1. **Contracts:** immutable versioned schemas and compatibility rules.
 2. **Kernel:** agents, decisions, workflows, tasks, budgets, and recovery.
@@ -78,7 +102,7 @@ through their documented contracts.
 Interfaces call the same application services. No transport or UI receives a
 policy, approval, budget, or verification bypass.
 
-### 5.2 Core components
+### 6.2 Core components
 
 | Component | Responsibility | Must not own |
 | --- | --- | --- |
@@ -95,7 +119,7 @@ policy, approval, budget, or verification bypass.
 | Connector SDK | Portable manifests, adapters, verifiers, conformance | Product-specific hidden dependencies |
 | Application services | Shared use cases for every interface | Transport-specific state |
 
-## 6. Public contracts
+## 7. Public contracts
 
 Every public record includes:
 
@@ -126,9 +150,9 @@ Published schemas use semantic versioning. Additive compatible changes remain
 within a major version. Removing or changing meaning requires a new major
 version and an explicit migration path.
 
-## 7. Durable state model
+## 8. Durable state model
 
-### 7.1 Commands, events, and snapshots
+### 8.1 Commands, events, and snapshots
 
 A command requests a state change. Validation, policy, and concurrency checks
 either reject it or append one or more accepted events. Events are immutable
@@ -138,7 +162,7 @@ Event append and current-state projection updates occur in one database
 transaction. Snapshots accelerate reconstruction but never replace events.
 State can always be rebuilt from a valid snapshot plus subsequent events.
 
-### 7.2 Executable payloads
+### 8.2 Executable payloads
 
 The runtime persists the exact canonical task request, workflow definition, and
 execution result required for later execution and deterministic continuation.
@@ -154,7 +178,7 @@ resolved only during authorized execution.
 Changing a payload, target, policy, capability, verifier, or expected outcome
 changes its action digest and invalidates prior approval.
 
-### 7.3 Workflow definition
+### 8.3 Workflow definition
 
 A workflow is an immutable, validated DAG. Supported node types are:
 
@@ -171,7 +195,7 @@ A workflow is an immutable, validated DAG. Supported node types are:
 Execution revisions create a new definition version with lineage and rationale.
 Running definitions are never edited in place.
 
-### 7.4 Lifecycle
+### 8.4 Lifecycle
 
 Workflow states are:
 
@@ -195,7 +219,7 @@ manifest declares them idempotent. Interrupted mutations become `uncertain` or
 `recovery_required` until an authoritative verifier establishes their state.
 They are never silently repeated.
 
-### 7.5 Idempotency and concurrency
+### 8.5 Idempotency and concurrency
 
 Every executable task has an idempotency key, declared effect, expected
 outcome, verifier requirement, retry classification, budget, timeout, and
@@ -205,7 +229,7 @@ Database constraints prevent duplicate committed attempts. Compare-and-swap
 state versions reject stale transitions. Leases are time-limited and must be
 reconciled after expiry before reassignment.
 
-## 8. Agent, decision, and model system
+## 9. Agent, decision, and model system
 
 An agent has durable identity, owner, role, objective, capabilities, connector
 access, memory scopes, policy reference, model policy, budgets, parent, and
@@ -225,7 +249,7 @@ Provider selection, fallback, token use, cost, latency, prompt digest, response
 digest, and errors are recorded. Restricted data cannot route to a prohibited
 provider.
 
-## 9. Worker system
+## 10. Worker system
 
 Workers register through authenticated replay-resistant challenges and
 advertise platform, capabilities, resource limits, privacy properties, and
@@ -247,9 +271,9 @@ Workers cannot approve their tasks, weaken policy, author easier predicates
 after execution, or declare workflow success. Embedded local execution uses the
 same contract in process.
 
-## 10. Policy, connectors, memory, and verification
+## 11. Policy, connectors, memory, and verification
 
-### 10.1 Policy
+### 11.1 Policy
 
 Policy is evaluated at discovery, planning, approval, scheduling, execution,
 resume, memory read, memory write, verification, and output delivery.
@@ -259,7 +283,7 @@ budget, time constraints, and policy version. Missing context, unknown
 capabilities, expired approval, unavailable verifiers, and incompatible schemas
 fail closed.
 
-### 10.2 Connectors
+### 11.2 Connectors
 
 Connector manifests declare operations, effects, targets, permissions, risks,
 data classes, rate limits, cancellation, expected outcomes, idempotency, and
@@ -269,14 +293,14 @@ Manifest versions are immutable. Conformance tests cover schemas, policy,
 cancellation, redaction, idempotency, receipts, errors, and verifier
 compatibility.
 
-### 10.3 Memory
+### 11.3 Memory
 
 Memory records include scope, provenance, confidence, sensitivity, permission,
 validity, retention, and supersession. Retrieval and writes receive independent
 policy decisions. Deletion removes records and indexes. Export preserves
 provenance and redaction metadata.
 
-### 10.4 Verification
+### 11.4 Verification
 
 Evidence levels are:
 
@@ -306,7 +330,7 @@ Useful authoritative-observation mechanisms from the experimental verifier
 branch are reused selectively inside `verifier-core` instead of introducing a
 second product.
 
-## 11. Product and Community experience
+## 12. Product and Community experience
 
 A new user must reach a verified outcome within ten minutes without a hosted
 account.
@@ -343,7 +367,7 @@ receipts, and certificates.
 Telemetry remains disabled by default and never includes task content,
 credentials, memory values, or evidence payloads by default.
 
-## 12. Research and evaluation
+## 13. Research and evaluation
 
 Major claims become falsifiable hypotheses. Evaluation covers:
 
@@ -385,7 +409,7 @@ The versioned research report includes methodology, architecture, hypotheses,
 negative results, threats to validity, raw artifacts, and replication commands.
 Superiority claims require direct released evidence.
 
-## 13. Security and quality
+## 14. Security and quality
 
 Required validation includes:
 
@@ -410,7 +434,7 @@ and reproduction commands. Stable status requires an independent security
 review and resolution or explicit acceptance of every high or critical
 finding.
 
-## 14. Delivery sequence
+## 15. Delivery sequence
 
 ### Slice 0: Repository correction
 
@@ -464,31 +488,34 @@ reproducible research publications.
 Each slice receives its own implementation plan, focused branch, tests, review,
 evidence, pull request, and merge. Main remains releasable between slices.
 
-## 15. First-slice acceptance criteria
+## 16. First-slice acceptance criteria
 
 Repository Correction and Durable Core Alpha are accepted only when all of the
 following are demonstrated:
 
-1. Every tracked document describes this product on its own merits and is
+1. Every current tracked product surface follows the MELRA naming contract,
+   the previous identity has no public compatibility alias, and the GitHub
+   repository is `XAGI-Lab/melra`.
+2. Every tracked document describes this product on its own merits and is
    suitable for open publication.
-2. A workflow definition supports operation, approval, condition, parallel,
+3. A workflow definition supports operation, approval, condition, parallel,
    bounded-loop, checkpoint, and compensation nodes.
-3. Invalid graphs, unbounded loops, impossible dependencies, missing
+4. Invalid graphs, unbounded loops, impossible dependencies, missing
    capabilities, and policy-invalid plans fail before execution.
-4. Exact executable payloads survive process restart without exposing secrets
+5. Exact executable payloads survive process restart without exposing secrets
    through status, logs, receipts, or events.
-5. Events append transactionally with monotonic aggregate sequences.
-6. Projections rebuild from events and supported snapshots.
-7. Idempotency constraints prevent duplicate committed attempts.
-8. Interrupted mutations enter uncertainty until independently reconciled.
-9. Approval binds the exact action digest and expires correctly.
-10. Required verification failure prevents `verified_complete`.
-11. The guided workflow passes through CLI and real MCP stdio transport.
-12. A forced restart between workflow nodes preserves progress and resumes.
-13. Migration tests cover the currently released SQLite schema.
-14. Existing file, terminal, browser, computer, memory, policy, SDK, package,
+6. Events append transactionally with monotonic aggregate sequences.
+7. Projections rebuild from events and supported snapshots.
+8. Idempotency constraints prevent duplicate committed attempts.
+9. Interrupted mutations enter uncertainty until independently reconciled.
+10. Approval binds the exact action digest and expires correctly.
+11. Required verification failure prevents `verified_complete`.
+12. The guided workflow passes through CLI and real MCP stdio transport.
+13. A forced restart between workflow nodes preserves progress and resumes.
+14. Migration tests cover the currently released SQLite schema.
+15. Existing file, terminal, browser, computer, memory, policy, SDK, package,
     evaluation, and transport checks remain green.
-15. New compatibility, crash, recovery, redaction, and end-to-end checks pass in
+16. New compatibility, crash, recovery, redaction, and end-to-end checks pass in
     CI with reproducible commands.
 
 Passing narrower unit tests does not satisfy these criteria.

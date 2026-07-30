@@ -1,16 +1,22 @@
-# Durable Core Alpha Implementation Plan
+# MELRA Durable Core Alpha Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a crash-safe, approval-gated, multi-step workflow runtime that persists exact encrypted execution payloads, reconstructs state from append-only events, independently verifies outcomes, and works through CLI and real MCP stdio transport.
+**Goal:** Establish MELRA—Modular Execution Layer for Reliable Autonomy—as the single repository-wide identity, then build a crash-safe, approval-gated, multi-step workflow runtime that persists exact encrypted execution payloads, reconstructs state from append-only events, independently verifies outcomes, and works through CLI and real MCP stdio transport.
 
-**Architecture:** Extend the current repository in place. Public workflow contracts live in `@atlas-mcp/protocol`, SQLite remains the local authority, `runtime-core` owns deterministic workflow state, and existing policy, adapters, verifier, receipt, CLI, MCP, and SDK packages remain the execution foundation. Each transition writes events and the current projection in one transaction; exact task payloads are encrypted separately from redacted status records.
+**Architecture:** Extend the current repository in place. Public workflow contracts live in `@melra/protocol`, SQLite remains the local authority, `runtime-core` owns deterministic workflow state, and existing policy, adapters, verifier, receipt, CLI, MCP, and SDK packages remain the execution foundation. Each transition writes events and the current projection in one transaction; exact task payloads are encrypted separately from redacted status records.
 
 **Tech Stack:** Node.js 22+, TypeScript 5.8, pnpm 9.5, Zod 3.25, `node:sqlite`, `node:crypto`, Vitest 3.2, MCP SDK 1.30, Python 3.11+, pytest, Docker for packaging checks.
 
 ## Global Constraints
 
 - Keep Apache-2.0 licensing and existing copyright headers.
+- Use MELRA as the only current product identity.
+- Use `@melra/*`, `melra`, `melra_`, `MELRA_`, `~/.melra`,
+  `MelraRuntime`, `MelraClient`, and `createMelraRuntime` exactly as defined in
+  the approved naming contract.
+- Do not retain public compatibility aliases from the pre-stable previous
+  identity.
 - Use only public, product-focused language suitable for open publication.
 - Public packages must work without a hosted service.
 - Use existing dependencies or Node.js standard-library features; add no dependency for encryption, graph traversal, migrations, or event storage.
@@ -22,11 +28,22 @@
 - SQLite uses WAL mode and transactional state transitions.
 - Telemetry remains disabled by default.
 - Local execution must support macOS, Linux, and Windows on x64 and ARM64 where Node.js 22 is available.
-- The first-slice acceptance criteria in `docs/superpowers/specs/2026-07-30-atlas-core-system-design.md` are release gates, not optional follow-up work.
+- The first-slice acceptance criteria in `docs/superpowers/specs/2026-07-30-melra-system-design.md` are release gates, not optional follow-up work.
 
 ---
 
 ## File map
+
+### Product identity
+
+- Modify all tracked text, configuration, source, test, example, benchmark,
+  package, container, and automation files containing the previous identity.
+- Move the Python SDK import package to `sdk-py/src/melra`.
+- Move the browser benchmark package to
+  `benchmarks/browser-agent/src/melra_browser_bench`.
+- Replace the existing logo and hero assets with MELRA assets at
+  `docs/assets/melra-logo.png` and `docs/assets/melra-hero.png`.
+- Update repository metadata and the remote URL to `XAGI-Lab/melra`.
 
 ### Public contracts
 
@@ -68,7 +85,7 @@
 - Modify `apps/cli/test/cli.test.ts`: CLI workflow and restart coverage.
 - Modify `packages/sdk-ts/src/index.ts`: typed workflow methods.
 - Modify `packages/sdk-ts/src/index.test.ts`: workflow tool-call coverage.
-- Modify `sdk-py/src/atlas_mcp/client.py`: workflow methods.
+- Modify `sdk-py/src/melra/client.py`: workflow methods.
 - Modify `sdk-py/tests/test_client.py`: Python workflow tool-call coverage.
 
 ### Evidence, documentation, and release
@@ -83,7 +100,216 @@
 
 ---
 
-### Task 1: Correct the repository narrative and establish the baseline
+### Task 1: Rename every public product surface to MELRA
+
+**Files:**
+- Modify: every tracked text file found by the legacy-identity inventory.
+- Move: `sdk-py/src/<legacy-import>` to `sdk-py/src/melra`.
+- Move: `benchmarks/browser-agent/src/<legacy-benchmark-package>` to
+  `benchmarks/browser-agent/src/melra_browser_bench`.
+- Replace: the two tracked logo and hero assets with
+  `docs/assets/melra-logo.png` and `docs/assets/melra-hero.png`.
+- Modify externally: GitHub repository name, description, topics, and local
+  `origin` URL.
+
+**Interfaces:**
+- Consumes: the current pre-stable package, CLI, MCP, SDK, benchmark, container,
+  and repository names.
+- Produces: repository `XAGI-Lab/melra`, package scope `@melra/*`, executable
+  `melra`, MCP prefix `melra_`, environment prefix `MELRA_`, Python package
+  `melra`, and MELRA-only visual/product identity.
+
+- [ ] **Step 1: Capture the complete failing identity inventory**
+
+Build the previous lowercase identity without writing it into current product
+documentation:
+
+```bash
+legacy="$(printf '\141\164\154\141\163')"
+git grep -Il -i "$legacy" | sort
+git ls-files | rg -i "$legacy"
+```
+
+Expected before migration: approximately 120 tracked text files and 17 tracked
+paths. Save the exact command output with the task evidence; do not use the
+approximate counts as a release assertion.
+
+- [ ] **Step 2: Move identity-bearing source and asset paths**
+
+```bash
+legacy="$(printf '\141\164\154\141\163')"
+git mv "sdk-py/src/${legacy}_mcp" sdk-py/src/melra
+git mv \
+  "benchmarks/browser-agent/src/${legacy}_browser_bench" \
+  benchmarks/browser-agent/src/melra_browser_bench
+git mv \
+  "docs/assets/${legacy}-mcp-logo.png" \
+  docs/assets/melra-logo.png
+git mv \
+  "docs/assets/${legacy}-mcp-hero.png" \
+  docs/assets/melra-hero.png
+```
+
+- [ ] **Step 3: Rewrite code, package, protocol, configuration, and prose**
+
+Apply these exact case-aware mappings to every tracked text file returned by
+Step 1:
+
+```text
+legacy uppercase plus "_MCP" -> MELRA
+legacy uppercase plus " MCP" -> MELRA
+legacy lowercase plus "-mcp" -> melra
+legacy lowercase plus "_mcp" -> melra
+legacy title case plus "Mcp" -> Melra
+"@" plus legacy lowercase plus "-mcp" -> @melra
+legacy lowercase plus "_browser_bench" -> melra_browser_bench
+legacy lowercase plus "-browser-bench" -> melra-browser-bench
+remaining legacy title case -> Melra
+remaining legacy uppercase -> MELRA
+remaining legacy lowercase -> melra
+```
+
+This includes:
+
+- Node package names and imports;
+- Python distribution, imports, classes, and entry points;
+- `melra` executable and root script;
+- `melra_*` MCP tools;
+- `MELRA_*` environment variables;
+- `~/.melra`, `melra.sqlite`, caches, volumes, images, and artifact names;
+- `MelraRuntime`, `MelraClient`, and `createMelraRuntime`;
+- MCP client configuration key `melra`;
+- GitHub links, badges, issue templates, release workflows, attestations, and
+  source metadata;
+- benchmark package, driver, seeds, result identities, and commands;
+- README, brand guide, security, contribution, installation, release, and
+  research documentation.
+
+Regenerate lockfiles:
+
+```bash
+pnpm install --lockfile-only
+uv lock --project sdk-py
+uv lock --project benchmarks/browser-agent
+```
+
+- [ ] **Step 4: Replace the visual identity**
+
+Required sub-skill: use `brandkit`.
+
+Create:
+
+- a transparent square MELRA symbol at `docs/assets/melra-logo.png`;
+- a wide dark/light-safe hero at `docs/assets/melra-hero.png`;
+- updated `BRAND.md` with the wordmark, full form, color values, spacing,
+  minimum-size, accessibility, and prohibited-use rules.
+
+Creative brief:
+
+```text
+MELRA — Modular Execution Layer for Reliable Autonomy.
+Express interlocking execution modules, durable state transitions, and a
+verified path through a modular system. Distinctive geometric mark, precise
+engineering character, no robot head, no brain, no globe, no shield, no
+gradient-heavy AI cliché, and no resemblance to the previous symbol.
+```
+
+Render and visually inspect both assets at their original resolution. Confirm
+legibility at README size and on light and dark backgrounds.
+
+- [ ] **Step 5: Update tests for the breaking alpha rename**
+
+Rename test descriptions, expected tool names, command names, environment
+variables, imports, temporary directories, benchmark fixtures, and snapshots.
+The exact MCP tool list after this task remains six tools:
+
+```text
+melra_capabilities
+melra_plan
+melra_execute
+melra_task_status
+melra_task_cancel
+melra_receipt
+```
+
+Do not add previous-name aliases. Add one test that rejects calling the former
+tool prefix as an unknown MCP tool.
+
+- [ ] **Step 6: Prove the tracked repository contains only MELRA**
+
+```bash
+legacy="$(printf '\141\164\154\141\163')"
+test -z "$(git grep -Il -i "$legacy")"
+test -z "$(git ls-files | rg -i "$legacy" || true)"
+git grep -n "MELRA — Modular Execution Layer for Reliable Autonomy" \
+  README.md BRAND.md
+```
+
+Expected: both legacy checks are empty and the full form appears in README and
+the brand guide.
+
+- [ ] **Step 7: Run repository-wide rename verification**
+
+```bash
+pnpm install --frozen-lockfile
+pnpm check
+pnpm e2e
+pnpm benchmark:browser:check
+pnpm pack:check
+pnpm docker:smoke
+git diff --check
+```
+
+Expected: every command exits `0`; package tarballs, MCP tools, CLI output,
+Python imports, benchmark entry point, Docker image, and documentation use
+MELRA.
+
+- [ ] **Step 8: Commit the complete local rename**
+
+```bash
+git add -A
+git commit -m "feat!: rename the product to MELRA"
+```
+
+The commit body records:
+
+```text
+BREAKING CHANGE: package scope, executable, MCP tools, environment variables,
+SDK imports, local data paths, and containers now use the MELRA identity.
+```
+
+- [ ] **Step 9: Rename and describe the GitHub repository**
+
+The target was verified available on 2026-07-30. Execute:
+
+```bash
+legacy="$(printf '\141\164\154\141\163')"
+gh api --method PATCH "repos/XAGI-Lab/${legacy}-mcp" \
+  -f name=melra \
+  -f description='MELRA — Modular Execution Layer for Reliable Autonomy. Durable, policy-governed execution with independently verified outcomes.'
+gh repo edit XAGI-Lab/melra \
+  --enable-issues \
+  --enable-discussions \
+  --add-topic autonomous-agents \
+  --add-topic mcp \
+  --add-topic workflow-engine \
+  --add-topic verification \
+  --add-topic local-first
+git remote set-url origin https://github.com/XAGI-Lab/melra.git
+```
+
+Verify:
+
+```bash
+gh repo view XAGI-Lab/melra \
+  --json name,url,description,visibility,defaultBranchRef
+git remote -v
+```
+
+Expected: public repository `XAGI-Lab/melra`, default branch `main`, exact
+description above, and both fetch/push URLs use the new repository.
+
+### Task 2: Correct the repository narrative and establish the baseline
 
 **Files:**
 - Modify: `README.md`
@@ -141,7 +367,7 @@ git add README.md ROADMAP.md CHANGELOG.md docs/ARCHITECTURE.md \
 git commit -m "docs: align the product narrative with runtime evidence"
 ```
 
-### Task 2: Add strict workflow, event, and recovery contracts
+### Task 3: Add strict workflow, event, and recovery contracts
 
 **Files:**
 - Create: `packages/protocol/src/workflow.test.ts`
@@ -193,7 +419,7 @@ Add tests that reject:
 Run:
 
 ```bash
-pnpm --filter @atlas-mcp/protocol test -- workflow.test.ts
+pnpm --filter @melra/protocol test -- workflow.test.ts
 ```
 
 Expected: FAIL because the workflow schemas are not exported from `index.ts`.
@@ -355,8 +581,8 @@ Export every inferred workflow type beside its schema in
 Run:
 
 ```bash
-pnpm --filter @atlas-mcp/protocol test
-pnpm --filter @atlas-mcp/protocol typecheck
+pnpm --filter @melra/protocol test
+pnpm --filter @melra/protocol typecheck
 ```
 
 Expected: PASS.
@@ -368,7 +594,7 @@ git add packages/protocol/src/workflow.test.ts packages/protocol/src/index.ts
 git commit -m "feat(protocol): add durable workflow contracts"
 ```
 
-### Task 3: Seal exact executable payloads
+### Task 4: Seal exact executable payloads
 
 **Files:**
 - Create: `packages/runtime-core/src/payload-cipher.ts`
@@ -377,7 +603,7 @@ git commit -m "feat(protocol): add durable workflow contracts"
 - Create: `packages/server/src/payload-key.test.ts`
 
 **Interfaces:**
-- Consumes: `EncryptedPayload` from `@atlas-mcp/protocol` and `canonicalJson` from `@atlas-mcp/receipt-schema`.
+- Consumes: `EncryptedPayload` from `@melra/protocol` and `canonicalJson` from `@melra/receipt-schema`.
 - Produces: `PayloadCipher.seal(value, context): EncryptedPayload`, `PayloadCipher.open<T>(payload, context): T`, and `loadPayloadKey(options): Promise<Buffer>`.
 
 - [ ] **Step 1: Write failing cipher tests**
@@ -417,7 +643,7 @@ it must fail authentication.
 Run:
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- payload-cipher.test.ts
+pnpm --filter @melra/runtime-core test -- payload-cipher.test.ts
 ```
 
 Expected: FAIL because `PayloadCipher` does not exist.
@@ -474,7 +700,7 @@ if (process.platform !== "win32") {
 }
 ```
 
-Also assert that invalid `ATLAS_MCP_PAYLOAD_KEY` and a symlinked key path throw
+Also assert that invalid `MELRA_PAYLOAD_KEY` and a symlinked key path throw
 stable errors.
 
 - [ ] **Step 5: Implement local key loading**
@@ -488,19 +714,19 @@ export interface PayloadKeyOptions {
 }
 ```
 
-If `ATLAS_MCP_PAYLOAD_KEY` exists, decode base64url and require exactly 32
+If `MELRA_PAYLOAD_KEY` exists, decode base64url and require exactly 32
 bytes. Otherwise create `payload.key` with a random 32-byte base64url value
 using `open(path, "wx", 0o600)`. If creation races, reopen the regular file
 with `O_NOFOLLOW` where supported. Reject non-files and permissive POSIX modes.
 On Windows, require a regular file under the user-owned data directory and
 document that deployments needing external key custody must set
-`ATLAS_MCP_PAYLOAD_KEY`.
+`MELRA_PAYLOAD_KEY`.
 
 - [ ] **Step 6: Run focused tests**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- payload-cipher.test.ts
-pnpm --filter @atlas-mcp/server test -- payload-key.test.ts
+pnpm --filter @melra/runtime-core test -- payload-cipher.test.ts
+pnpm --filter @melra/server test -- payload-key.test.ts
 ```
 
 Expected: PASS.
@@ -514,7 +740,7 @@ git add packages/runtime-core/src/payload-cipher.ts \
 git commit -m "feat(core): encrypt durable execution payloads"
 ```
 
-### Task 4: Add transactional events, workflow projections, and payload storage
+### Task 5: Add transactional events, workflow projections, and payload storage
 
 **Files:**
 - Modify: `packages/storage-sqlite/src/index.ts`
@@ -570,7 +796,7 @@ was committed.
 - [ ] **Step 3: Run storage tests and confirm failure**
 
 ```bash
-pnpm --filter @atlas-mcp/storage-sqlite test
+pnpm --filter @melra/storage-sqlite test
 ```
 
 Expected: FAIL because the durable workflow tables and methods do not exist.
@@ -692,8 +918,8 @@ returning unchecked data.
 - [ ] **Step 7: Run storage tests**
 
 ```bash
-pnpm --filter @atlas-mcp/storage-sqlite test
-pnpm --filter @atlas-mcp/storage-sqlite typecheck
+pnpm --filter @melra/storage-sqlite test
+pnpm --filter @melra/storage-sqlite typecheck
 ```
 
 Expected: PASS.
@@ -707,7 +933,7 @@ git add packages/storage-sqlite/src/index.ts \
 git commit -m "feat(storage): persist workflow events atomically"
 ```
 
-### Task 5: Make planned tasks executable after restart
+### Task 6: Make planned tasks executable after restart
 
 **Files:**
 - Modify: `packages/runtime-core/src/task-controller.ts`
@@ -743,7 +969,7 @@ and assert absence. Reopen with another key and expect
 - [ ] **Step 3: Run the focused test and confirm failure**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- task-controller.test.ts
+pnpm --filter @melra/runtime-core test -- task-controller.test.ts
 ```
 
 Expected: FAIL with `task_payload_unavailable_after_restart`.
@@ -886,8 +1112,8 @@ does not execute them.
 - [ ] **Step 9: Run the controller suite**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test
-pnpm --filter @atlas-mcp/runtime-core typecheck
+pnpm --filter @melra/runtime-core test
+pnpm --filter @melra/runtime-core typecheck
 ```
 
 Expected: PASS and no test expects
@@ -902,7 +1128,7 @@ git add packages/runtime-core/src/task-controller.ts \
 git commit -m "feat(core): recover durable task payloads after restart"
 ```
 
-### Task 6: Validate workflow graphs deterministically
+### Task 7: Validate workflow graphs deterministically
 
 **Files:**
 - Create: `packages/runtime-core/src/workflow-graph.ts`
@@ -944,7 +1170,7 @@ workflow_node_limit_exceeded
 - [ ] **Step 2: Run and confirm graph-test failure**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- workflow-graph.test.ts
+pnpm --filter @melra/runtime-core test -- workflow-graph.test.ts
 ```
 
 Expected: FAIL because `validateWorkflow` does not exist.
@@ -990,8 +1216,8 @@ export function readyNodeIds(
 - [ ] **Step 5: Run graph tests**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- workflow-graph.test.ts
-pnpm --filter @atlas-mcp/runtime-core typecheck
+pnpm --filter @melra/runtime-core test -- workflow-graph.test.ts
+pnpm --filter @melra/runtime-core typecheck
 ```
 
 Expected: PASS.
@@ -1005,7 +1231,7 @@ git add packages/runtime-core/src/workflow-graph.ts \
 git commit -m "feat(core): validate bounded workflow graphs"
 ```
 
-### Task 7: Persist workflow planning and projections
+### Task 8: Persist workflow planning and projections
 
 **Files:**
 - Create: `packages/runtime-core/src/workflow-events.ts`
@@ -1038,7 +1264,7 @@ event, task, or payload row is written.
 - [ ] **Step 2: Run and confirm planning-test failure**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- workflow-controller.test.ts
+pnpm --filter @melra/runtime-core test -- workflow-controller.test.ts
 ```
 
 Expected: FAIL because `WorkflowController` does not exist.
@@ -1085,7 +1311,7 @@ sequence, unknown event type, invalid node ID, and mismatched prior state.
 Run:
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- workflow-events.test.ts
+pnpm --filter @melra/runtime-core test -- workflow-events.test.ts
 ```
 
 Expected: PASS after the minimal reducer implementation.
@@ -1160,8 +1386,8 @@ awaiting nodes `cancelled`, cooperatively cancels their task IDs, emits
 - [ ] **Step 9: Run planning tests**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- workflow-controller.test.ts
-pnpm --filter @atlas-mcp/runtime-core typecheck
+pnpm --filter @melra/runtime-core test -- workflow-controller.test.ts
+pnpm --filter @melra/runtime-core typecheck
 ```
 
 Expected: planning, persistence, event, conflict, and cancellation tests PASS.
@@ -1177,7 +1403,7 @@ git add packages/runtime-core/src/workflow-events.ts \
 git commit -m "feat(core): persist workflow state transitions"
 ```
 
-### Task 8: Execute every Durable Core workflow node
+### Task 9: Execute every MELRA Durable Core workflow node
 
 **Files:**
 - Modify: `packages/runtime-core/src/workflow-controller.ts`
@@ -1268,7 +1494,7 @@ certificate with `VERIFIED_SUCCESS`. A task in `partial`, `failed`,
 - [ ] **Step 7: Run node-semantics tests**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test -- workflow-controller.test.ts
+pnpm --filter @melra/runtime-core test -- workflow-controller.test.ts
 ```
 
 Expected: every node-type, budget, failure, compensation, and conservative
@@ -1282,7 +1508,7 @@ git add packages/runtime-core/src/workflow-controller.ts \
 git commit -m "feat(core): execute bounded verified workflows"
 ```
 
-### Task 9: Recover workflows after crashes without duplicating effects
+### Task 10: Recover workflows after crashes without duplicating effects
 
 **Files:**
 - Modify: `packages/runtime-core/src/task-controller.ts`
@@ -1393,8 +1619,8 @@ For each crash point, reopen the same SQLite database and assert one of:
 - [ ] **Step 6: Run recovery suites**
 
 ```bash
-pnpm --filter @atlas-mcp/runtime-core test
-pnpm --filter @atlas-mcp/storage-sqlite test
+pnpm --filter @melra/runtime-core test
+pnpm --filter @melra/storage-sqlite test
 ```
 
 Expected: PASS with no duplicated mutation in any crash case.
@@ -1410,7 +1636,7 @@ git add packages/runtime-core/src/task-controller.ts \
 git commit -m "feat(core): reconcile interrupted workflows safely"
 ```
 
-### Task 10: Wire runtime startup, MCP, and CLI workflow interfaces
+### Task 11: Wire runtime startup, MCP, and CLI workflow interfaces
 
 **Files:**
 - Modify: `packages/server/src/runtime.ts`
@@ -1432,7 +1658,7 @@ directory, and execute the task. Assert success and a stable key file.
 
 - [ ] **Step 2: Wire key, cipher, controllers, and startup recovery**
 
-`createAtlasRuntime()` must:
+`createMelraRuntime()` must:
 
 ```ts
 const key = await loadPayloadKey({
@@ -1446,7 +1672,7 @@ await controller.recoverInterrupted();
 await workflows.recoverInterrupted();
 ```
 
-Add `workflows` to `AtlasRuntime`. Recovery runs before serving any interface.
+Add `workflows` to `MelraRuntime`. Recovery runs before serving any interface.
 Add `RuntimeRouter.capabilities()` returning the routed operation-kind set:
 
 ```ts
@@ -1463,13 +1689,13 @@ this local set states which governed adapters are installed in the process.
 Register:
 
 ```text
-atlas_workflow_plan
-atlas_workflow_advance
-atlas_workflow_status
-atlas_workflow_cancel
+melra_workflow_plan
+melra_workflow_advance
+melra_workflow_status
+melra_workflow_cancel
 ```
 
-All use the strict schemas from Task 2. Update `TOOL_NAMES` and capabilities to
+All use the strict schemas from Task 3. Update `TOOL_NAMES` and capabilities to
 advertise exactly ten tools. Do not expose raw payloads or encryption material.
 
 - [ ] **Step 4: Write failing CLI tests**
@@ -1477,10 +1703,10 @@ advertise exactly ten tools. Do not expose raw payloads or encryption material.
 Test:
 
 ```bash
-atlas-mcp workflow plan --definition examples/workflows/restart-safe.json
-atlas-mcp workflow advance <workflow-id>
-atlas-mcp workflow inspect <workflow-id>
-atlas-mcp workflow cancel <workflow-id>
+melra workflow plan --definition examples/workflows/restart-safe.json
+melra workflow advance <workflow-id>
+melra workflow inspect <workflow-id>
+melra workflow cancel <workflow-id>
 ```
 
 Assert JSON output, stable nonzero exit codes for approval/recovery/failure, and
@@ -1504,16 +1730,16 @@ Use exit codes:
 
 - [ ] **Step 6: Add a guided local demo command**
 
-`atlas-mcp demo durable-core` prints the example path and runs the same
+`melra demo durable-core` prints the example path and runs the same
 application-service calls as the CLI workflow commands. It must not use
 test-only or adapter-bypass code.
 
 - [ ] **Step 7: Run interface suites**
 
 ```bash
-pnpm --filter @atlas-mcp/server test
-pnpm --filter @atlas-mcp/cli test
-pnpm --filter @atlas-mcp/protocol test
+pnpm --filter @melra/server test
+pnpm --filter @melra/cli test
+pnpm --filter @melra/protocol test
 ```
 
 Expected: PASS and the MCP tool list contains ten exact names.
@@ -1528,16 +1754,16 @@ git add packages/server/src/runtime.ts packages/server/src/mcp-server.ts \
 git commit -m "feat: expose durable workflows through MCP and CLI"
 ```
 
-### Task 11: Extend the TypeScript and Python SDKs
+### Task 12: Extend the TypeScript and Python SDKs
 
 **Files:**
 - Modify: `packages/sdk-ts/src/index.ts`
 - Modify: `packages/sdk-ts/src/index.test.ts`
-- Modify: `sdk-py/src/atlas_mcp/client.py`
+- Modify: `sdk-py/src/melra/client.py`
 - Modify: `sdk-py/tests/test_client.py`
 
 **Interfaces:**
-- Consumes: the four MCP tools from Task 10.
+- Consumes: the four MCP tools from Task 11.
 - Produces: typed SDK methods for plan, advance, status, and cancellation.
 
 - [ ] **Step 1: Write failing TypeScript SDK tests**
@@ -1545,10 +1771,10 @@ git commit -m "feat: expose durable workflows through MCP and CLI"
 Assert the mock client receives:
 
 ```ts
-await atlas.planWorkflow(definition);
-await atlas.advanceWorkflow(workflowId, [approval]);
-await atlas.workflowStatus(workflowId);
-await atlas.cancelWorkflow(workflowId);
+await melra.planWorkflow(definition);
+await melra.advanceWorkflow(workflowId, [approval]);
+await melra.workflowStatus(workflowId);
+await melra.cancelWorkflow(workflowId);
 ```
 
 with exact MCP names and arguments.
@@ -1589,8 +1815,8 @@ top-level response shapes; do not duplicate the TypeScript Zod schema by hand.
 - [ ] **Step 5: Run SDK checks**
 
 ```bash
-pnpm --filter @atlas-mcp/sdk test
-pnpm --filter @atlas-mcp/sdk typecheck
+pnpm --filter @melra/sdk test
+pnpm --filter @melra/sdk typecheck
 pnpm python:check
 ```
 
@@ -1600,11 +1826,11 @@ Expected: PASS.
 
 ```bash
 git add packages/sdk-ts/src/index.ts packages/sdk-ts/src/index.test.ts \
-  sdk-py/src/atlas_mcp/client.py sdk-py/tests/test_client.py
+  sdk-py/src/melra/client.py sdk-py/tests/test_client.py
 git commit -m "feat(sdk): add durable workflow clients"
 ```
 
-### Task 12: Prove restart-safe execution over real MCP stdio
+### Task 13: Prove restart-safe execution over real MCP stdio
 
 **Files:**
 - Create: `examples/workflows/restart-safe.json`
@@ -1613,7 +1839,7 @@ git commit -m "feat(sdk): add durable workflow clients"
 
 **Interfaces:**
 - Consumes: packaged CLI, real MCP stdio transport, SQLite, workflow tools, file runtime, policy, verifier, receipt, and certificate.
-- Produces: immutable end-to-end evidence for the Durable Core Alpha exit gate.
+- Produces: immutable end-to-end evidence for the MELRA Durable Core Alpha exit gate.
 
 - [ ] **Step 1: Add the deterministic example**
 
@@ -1666,7 +1892,7 @@ The definition contains:
 The test:
 
 1. starts the built CLI through `StdioClientTransport`;
-2. calls `atlas_workflow_plan`;
+2. calls `melra_workflow_plan`;
 3. advances the first node;
 4. records the workflow ID and event sequence;
 5. closes the MCP client and child process;
@@ -1701,8 +1927,8 @@ stderr
 
 ```bash
 pnpm build
-pnpm --filter @atlas-mcp/server test:e2e
-pnpm --filter @atlas-mcp/cli test
+pnpm --filter @melra/server test:e2e
+pnpm --filter @melra/cli test
 ```
 
 Expected: PASS with the server process actually restarted.
@@ -1715,7 +1941,7 @@ git add examples/workflows/restart-safe.json \
 git commit -m "test(e2e): prove verified workflow recovery"
 ```
 
-### Task 13: Add deterministic Durable Core research evaluation
+### Task 14: Add deterministic MELRA Durable Core research evaluation
 
 **Files:**
 - Create: `evals/manifests/durable-core-alpha-v1.json`
@@ -1809,9 +2035,9 @@ or memory benchmark semantics.
 - [ ] **Step 5: Run the deterministic suite**
 
 ```bash
-pnpm --filter @atlas-mcp/evals test
-pnpm --filter @atlas-mcp/evals build
-pnpm --filter @atlas-mcp/evals evaluate:durable-core
+pnpm --filter @melra/evals test
+pnpm --filter @melra/evals build
+pnpm --filter @melra/evals evaluate:durable-core
 ```
 
 Expected: eight valid scenarios, recovery rate `1`, duplicate-execution rate
@@ -1826,7 +2052,7 @@ git add evals/manifests/durable-core-alpha-v1.json \
 git commit -m "test(evals): add durable core recovery study"
 ```
 
-### Task 14: Document, package, and release Durable Core Alpha
+### Task 15: Document, package, and release MELRA Durable Core Alpha
 
 **Files:**
 - Modify: `README.md`
@@ -1928,10 +2154,10 @@ Expected: the secret scan has no matches and the diff check exits `0`.
 git add README.md ROADMAP.md CHANGELOG.md docs/ARCHITECTURE.md \
   docs/VALIDATION.md docs/COMPATIBILITY.md packages apps evals sdk-py \
   package.json pnpm-lock.yaml
-git commit -m "chore: prepare Durable Core Alpha"
+git commit -m "chore: prepare MELRA Durable Core Alpha"
 ```
 
-### Task 15: Review, publish, merge, and verify the branch
+### Task 16: Review, publish, merge, and verify the branch
 
 **Files:**
 - Review: every file changed since the approved design commit.
@@ -1939,11 +2165,11 @@ git commit -m "chore: prepare Durable Core Alpha"
 
 **Interfaces:**
 - Consumes: the release-candidate branch and complete local evidence.
-- Produces: a reviewed, merged, and remotely verified Durable Core Alpha.
+- Produces: a reviewed, merged, and remotely verified MELRA Durable Core Alpha.
 
-- [ ] **Step 1: Audit the branch against all 15 acceptance criteria**
+- [ ] **Step 1: Audit the branch against all 16 acceptance criteria**
 
-For each criterion in section 15 of the design, record:
+For each criterion in section 16 of the design, record:
 
 ```text
 criterion
@@ -1970,7 +2196,7 @@ worktree.
 - [ ] **Step 3: Push the focused branch**
 
 ```bash
-git push -u origin coder/atlas-core-durable-alpha
+git push -u origin coder/melra-durable-alpha
 ```
 
 If the implementation branch uses another `coder/` name created by the
