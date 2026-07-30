@@ -140,13 +140,16 @@ State can always be rebuilt from a valid snapshot plus subsequent events.
 
 ### 7.2 Executable payloads
 
-The runtime persists the exact canonical payload required for later execution.
-It separately persists a redacted display record.
+The runtime persists the exact canonical task request, workflow definition, and
+execution result required for later execution and deterministic continuation.
+It separately persists redacted display projections.
 
-Sensitive payload fields use AES-256-GCM envelopes through `node:crypto`.
-Local installation creates encryption material with restrictive permissions;
-operators may provide their own key source. Credentials are stored as scoped
-references and resolved only during authorized execution.
+Sensitive payloads use AES-256-GCM envelopes through `node:crypto`. Each
+envelope binds its task or workflow identity and payload purpose as
+authenticated additional data so records cannot be swapped. Local installation
+creates encryption material with restrictive permissions; operators may
+provide their own key source. Credentials are stored as scoped references and
+resolved only during authorized execution.
 
 Changing a payload, target, policy, capability, verifier, or expected outcome
 changes its action digest and invalidates prior approval.
