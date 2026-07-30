@@ -46,6 +46,11 @@ export interface ExecutionResult {
   certificate?: ExecutionCertificate;
 }
 
+export interface TaskPlanOptions {
+  idempotencyKey?: string;
+  attempt?: number;
+}
+
 function now(): string {
   return new Date().toISOString();
 }
@@ -82,8 +87,23 @@ export class TaskController {
     private readonly payloadCipher: PayloadCipher,
   ) {}
 
-  plan(request: TaskRequest): TaskRecord {
+  plan(
+    request: TaskRequest,
+    options: TaskPlanOptions = {},
+  ): TaskRecord {
     const parsedRequest = TaskRequestSchema.parse(request);
+    if (
+      options.idempotencyKey !== undefined &&
+      !/^[a-f0-9]{64}$/.test(options.idempotencyKey)
+    ) {
+      throw new Error("idempotency_key_invalid");
+    }
+    if (
+      options.attempt !== undefined &&
+      (!Number.isInteger(options.attempt) || options.attempt < 1)
+    ) {
+      throw new Error("idempotency_attempt_invalid");
+    }
     this.preflight(parsedRequest);
     const id = randomUUID();
     const policy = evaluatePolicy(id, parsedRequest, this.policy);
@@ -100,6 +120,10 @@ export class TaskController {
             ? "awaiting_approval"
             : "planned",
       policyDecision: policy.decision,
+      ...(options.idempotencyKey === undefined
+        ? {}
+        : { idempotencyKey: options.idempotencyKey }),
+      ...(options.attempt === undefined ? {} : { attempt: options.attempt }),
       ...(policy.challenge === undefined ? {} : { approval: policy.challenge }),
       receiptIds: [],
       createdAt: timestamp,
@@ -150,6 +174,22 @@ export class TaskController {
     }
     if (!["planned", "awaiting_approval"].includes(task.status)) {
       throw new Error(`task_not_executable:${task.status}`);
+    }
+    if (
+      task.idempotencyKey !== undefined &&
+      this.store.getIdempotencyCommit(task.idempotencyKey) !== undefined
+    ) {
+      task.status = "cancelled";
+      task.error = "duplicate_attempt_prevented";
+      task.updatedAt = now();
+      this.store.saveTask(task);
+      return this.finishWithoutReceipt(task, [
+        {
+          type: "idempotency",
+          passed: false,
+          summary: "duplicate_attempt_prevented",
+        },
+      ]);
     }
     const request = this.loadRequest(taskId);
 
@@ -230,6 +270,19 @@ export class TaskController {
       const verified =
         actionSucceeded &&
         (request.requiredEvidence.length === 0 || verification.verified);
+      if (
+        verified &&
+        task.idempotencyKey !== undefined &&
+        !this.store.commitIdempotency(
+          task.idempotencyKey,
+          task.id,
+          task.attempt ?? 1,
+          now(),
+        )
+      ) {
+        task.status = "cancelled";
+        task.error = "duplicate_attempt_prevented";
+      }
       const receipt = this.createReceipt(
         task,
         request,
@@ -244,7 +297,13 @@ export class TaskController {
       );
       this.store.saveReceipt(receipt);
       task.receiptIds.push(receipt.receiptId);
-      task.status = verified ? "verified_success" : actionSucceeded ? "partial" : "failed";
+      if (task.status !== "cancelled") {
+        task.status = verified
+          ? "verified_success"
+          : actionSucceeded
+            ? "partial"
+            : "failed";
+      }
       task.updatedAt = now();
       this.store.saveTask(task);
       const certificate = this.createAndSaveCertificate(task, evidence);
@@ -325,7 +384,62 @@ export class TaskController {
     const recovered: TaskRecord[] = [];
     for (const task of this.store.listInterruptedTasks()) {
       const request = this.loadRequest(task.id);
-      const effect = classifyOperation(request.operation).effect;
+      const classified = classifyOperation(request.operation);
+      if (
+        task.status === "verifying" &&
+        classified.effect !== "read" &&
+        request.requiredEvidence.length > 0 &&
+        request.requiredEvidence.every((predicate) =>
+          ["file_exists", "file_absent", "file_hash"].includes(
+            predicate.type,
+          ),
+        )
+      ) {
+        const verification = await this.verifier.verify(
+          request.requiredEvidence,
+          {},
+        );
+        if (verification.verified) {
+          if (
+            task.idempotencyKey !== undefined &&
+            this.store.getIdempotencyCommit(task.idempotencyKey) ===
+              undefined
+          ) {
+            this.store.commitIdempotency(
+              task.idempotencyKey,
+              task.id,
+              task.attempt ?? 1,
+              now(),
+            );
+          }
+          const receipt = this.createReceipt(
+            task,
+            request,
+            classified.capability,
+            classified.target,
+            classified.effect,
+            task.updatedAt,
+            true,
+            { recovery: "independent_reobservation" },
+            verification.evidence,
+            task.approval === undefined
+              ? undefined
+              : {
+                  approvalId: task.approval.approvalId,
+                  phrase: "recovered",
+                },
+          );
+          this.store.saveReceipt(receipt);
+          task.receiptIds.push(receipt.receiptId);
+          task.status = "verified_success";
+          delete task.error;
+          task.updatedAt = now();
+          this.createAndSaveCertificate(task, verification.evidence);
+          recovered.push(task);
+          continue;
+        }
+      }
+      const effect = classified.effect;
       task.status = effect === "read" ? "planned" : "recovery_required";
       task.error =
         effect === "read"

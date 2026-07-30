@@ -14,6 +14,7 @@ import {
   type WorkflowDefinition,
 } from "@melra/protocol";
 import { createDefaultPolicy } from "@melra/policy-core";
+import { sha256 } from "@melra/receipt-schema";
 import { SqliteStore } from "@melra/storage-sqlite";
 import { Verifier } from "@melra/verifier-core";
 import { PayloadCipher } from "./payload-cipher.js";
@@ -346,6 +347,14 @@ describe("WorkflowController execution", () => {
       completed.run,
     );
     expect(store.listTasks()).toHaveLength(2);
+    expect(
+      store
+        .listTasks()
+        .every(
+          (task) =>
+            task.idempotencyKey?.length === 64 && task.attempt === 1,
+        ),
+    ).toBe(true);
   });
 
   it("executes only the condition branch selected from persisted evidence", async () => {
@@ -398,7 +407,7 @@ describe("WorkflowController execution", () => {
   it("executes independent parallel branches concurrently", async () => {
     let active = 0;
     let maxConcurrent = 0;
-    const { controller } = await setup(async () => {
+    const { controller, store } = await setup(async () => {
       active += 1;
       maxConcurrent = Math.max(maxConcurrent, active);
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -429,6 +438,9 @@ describe("WorkflowController execution", () => {
     expect(maxConcurrent).toBe(2);
     expect(result.run.nodes.parallel?.taskIds).toHaveLength(2);
     expect(result.run.status).toBe("verified_complete");
+    expect(
+      new Set(store.listTasks().map((task) => task.idempotencyKey)).size,
+    ).toBe(2);
   });
 
   it("runs a bounded loop sequentially to its hard limit", async () => {
@@ -632,5 +644,135 @@ describe("WorkflowController execution", () => {
     expect(compensated.run.status).toBe("failed");
     expect(compensated.run.nodes["undo-first"]?.status).toBe("compensated");
     expect(memoryCalls).toBe(1);
+  });
+});
+
+describe("WorkflowController recovery", () => {
+  it("retries an interrupted read through its original governed task", async () => {
+    const execute = vi.fn(async () => ({ success: true }));
+    const { controller, store, tasks, cipher } = await setup(execute);
+    const exact = definition("Retry read");
+    const planned = controller.plan(exact);
+    const operationNode = exact.nodes[0]!;
+    if (operationNode.type !== "operation") {
+      throw new Error("expected_operation_node");
+    }
+    const task = tasks.plan(operationNode.request, {
+      idempotencyKey: sha256({
+        workflowId: planned.id,
+        nodeId: operationNode.id,
+        iteration: 0,
+        branch: "operation",
+        request: operationNode.request,
+      }),
+      attempt: 1,
+    });
+    const interrupted = store.getTask(task.id)!;
+    interrupted.status = "running";
+    store.saveTask(interrupted);
+
+    const restarted = new WorkflowController(store, tasks, cipher);
+    const [recovered] = await restarted.recoverInterrupted();
+    expect(recovered?.nodes.inspect).toMatchObject({
+      status: "pending",
+      taskIds: [task.id],
+    });
+
+    const completed = await restarted.advance(planned.id);
+    expect(completed.run.status).toBe("verified_complete");
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("repairs a projection after a verified task committed first", async () => {
+    const execute = vi.fn(async () => ({ success: true }));
+    const { controller, store, tasks, cipher } = await setup(execute);
+    const planned = controller.plan(definition("Recover projection"));
+    const crash = vi
+      .spyOn(store, "transitionWorkflow")
+      .mockImplementationOnce(() => {
+        throw new Error("simulated_projection_crash");
+      });
+
+    await expect(controller.advance(planned.id)).rejects.toThrow(
+      "simulated_projection_crash",
+    );
+    crash.mockRestore();
+    expect(store.listTasks()[0]?.status).toBe("verified_success");
+    expect(store.getWorkflowRun(planned.id)?.nodes.inspect?.status).toBe(
+      "pending",
+    );
+
+    const restarted = new WorkflowController(store, tasks, cipher);
+    const [recovered] = await restarted.recoverInterrupted();
+
+    expect(recovered?.nodes.inspect?.status).toBe("verified_complete");
+    expect(recovered?.status).toBe("verified_complete");
+    expect(
+      store.listWorkflowEvents(planned.id).at(-1)?.type,
+    ).toBe("workflow.recovered");
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("raises an unresolved interrupted mutation to workflow recovery", async () => {
+    const execute = vi.fn(async () => ({ success: true, stored: true }));
+    const { controller, store, tasks, cipher } = await setup(execute);
+    const planned = controller.plan(
+      WorkflowDefinitionSchema.parse({
+        schemaVersion: "1.0.0",
+        id: definitionId,
+        version: 1,
+        name: "Interrupted mutation",
+        nodes: [
+          {
+            id: "write",
+            type: "operation",
+            request: mutationRequest("Write"),
+          },
+        ],
+      }),
+    );
+    const waiting = await controller.advance(planned.id);
+    const taskId = waiting.run.nodes.write!.taskIds[0]!;
+    const task = store.getTask(taskId)!;
+    task.status = "running";
+    store.saveTask(task);
+
+    const restarted = new WorkflowController(store, tasks, cipher);
+    const [recovered] = await restarted.recoverInterrupted();
+
+    expect(recovered?.nodes.write?.status).toBe("recovery_required");
+    expect(recovered?.status).toBe("recovery_required");
+    expect(
+      store.listWorkflowEvents(planned.id).at(-1)?.type,
+    ).toBe("workflow.recovery_required");
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("ignores a corrupt snapshot only when full event replay succeeds", async () => {
+    const { controller, store } = await setup();
+    const planned = controller.plan(definition("Snapshot fallback"));
+    store.database
+      .prepare(`
+        INSERT INTO workflow_snapshots(workflow_id, sequence, data, created_at)
+        VALUES (?, 999, '{}', ?)
+      `)
+      .run(planned.id, planned.updatedAt);
+
+    await expect(controller.recoverInterrupted()).resolves.toHaveLength(1);
+    expect(store.getWorkflowRun(planned.id)?.status).toBe("running");
+  });
+
+  it("fails closed when workflow event history is corrupt", async () => {
+    const { controller, store } = await setup();
+    const planned = controller.plan(definition("Corrupt history"));
+    store.database
+      .prepare(
+        "UPDATE workflow_events SET data = '{}' WHERE aggregate_id = ?",
+      )
+      .run(planned.id);
+
+    await expect(controller.recoverInterrupted()).rejects.toThrow(
+      "workflow_event_history_invalid",
+    );
   });
 });

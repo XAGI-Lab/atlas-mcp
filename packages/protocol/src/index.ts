@@ -533,6 +533,8 @@ export interface TaskRecord {
   request: TaskRequest;
   status: TaskStatus;
   policyDecision: PolicyDecision;
+  idempotencyKey?: string;
+  attempt?: number;
   approval?: ApprovalChallenge;
   result?: Record<string, unknown>;
   error?: string;

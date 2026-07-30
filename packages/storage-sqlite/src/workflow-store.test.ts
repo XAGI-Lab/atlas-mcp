@@ -168,6 +168,11 @@ describe("durable workflow storage", () => {
     expect(store.listInterruptedTasks()).toEqual([task()]);
     expect(store.commitIdempotency("stable-key", taskId, 1, now)).toBe(true);
     expect(store.commitIdempotency("stable-key", taskId, 2, now)).toBe(false);
+    expect(store.getIdempotencyCommit("stable-key")).toEqual({
+      taskId,
+      attempt: 1,
+      committedAt: now,
+    });
     store.deleteTaskPayload(taskId);
     expect(store.getTaskPayload(taskId)).toBeUndefined();
     expect(store.getTaskResult(taskId)).toBeUndefined();

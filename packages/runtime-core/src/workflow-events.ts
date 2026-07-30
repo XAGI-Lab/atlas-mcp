@@ -52,12 +52,16 @@ export function applyWorkflowEvent(
 
   switch (parsed.type) {
     case "workflow.status_changed":
-    case "workflow.cancelled": {
+    case "workflow.cancelled":
+    case "workflow.recovered":
+    case "workflow.recovery_required": {
       const from = status(data.from, parsed.type);
       const to = status(data.to, parsed.type);
       if (
         current.status !== from ||
-        (parsed.type === "workflow.cancelled" && to !== "cancelled")
+        (parsed.type === "workflow.cancelled" && to !== "cancelled") ||
+        (parsed.type === "workflow.recovery_required" &&
+          to !== "recovery_required")
       ) {
         throw new Error("workflow_event_state_mismatch");
       }

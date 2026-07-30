@@ -1,7 +1,7 @@
 // Copyright 2026 XAGI Labs Private Limited
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -280,6 +280,82 @@ describe("TaskController", () => {
       error: "interrupted_mutation_requires_reconciliation",
     });
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("reconciles a verifying file mutation from independent evidence", async () => {
+    const execute = vi.fn(async () => ({ success: true }));
+    const { controller, store } = await setup({ execute });
+    const root = roots.at(-1)!;
+    const planned = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Recover an already completed file write",
+        operation: {
+          kind: "file",
+          action: "write",
+          path: "recovered.txt",
+          content: "complete",
+        },
+        requiredEvidence: [
+          { type: "file_exists", path: "recovered.txt" },
+        ],
+      }),
+      {
+        idempotencyKey: "b".repeat(64),
+        attempt: 1,
+      },
+    );
+    await writeFile(join(root, "recovered.txt"), "complete");
+    const interrupted = store.getTask(planned.id)!;
+    interrupted.status = "verifying";
+    store.saveTask(interrupted);
+
+    const [recovered] = await controller.recoverInterrupted();
+
+    expect(recovered).toMatchObject({
+      id: planned.id,
+      status: "verified_success",
+    });
+    expect(controller.receipts({ taskId: planned.id }).certificate?.result).toBe(
+      "VERIFIED_SUCCESS",
+    );
+    expect(store.getIdempotencyCommit("b".repeat(64))).toMatchObject({
+      taskId: planned.id,
+      attempt: 1,
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("prevents an already committed idempotency key from executing again", async () => {
+    const execute = vi.fn(async () => ({ success: true }));
+    const { controller } = await setup({ execute });
+    const request = TaskRequestSchema.parse({
+      goal: "Run one logical attempt",
+      operation: { kind: "system", action: "info" },
+    });
+    const idempotencyKey = "a".repeat(64);
+    const first = controller.plan(request, {
+      idempotencyKey,
+      attempt: 1,
+    });
+    const firstResult = await controller.execute(first.id);
+    const duplicate = controller.plan(request, {
+      idempotencyKey,
+      attempt: 2,
+    });
+    const duplicateResult = await controller.execute(duplicate.id);
+
+    expect(firstResult.task).toMatchObject({
+      status: "verified_success",
+      idempotencyKey,
+      attempt: 1,
+    });
+    expect(duplicateResult.task).toMatchObject({
+      status: "cancelled",
+      error: "duplicate_attempt_prevented",
+      idempotencyKey,
+      attempt: 2,
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it("plans, executes, verifies, and persists a read task", async () => {

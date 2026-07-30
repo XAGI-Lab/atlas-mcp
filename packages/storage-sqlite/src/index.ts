@@ -53,6 +53,12 @@ interface StateVersionRow {
   data: string;
 }
 
+interface IdempotencyCommitRow {
+  taskId: string;
+  attempt: number;
+  committedAt: string;
+}
+
 interface MemoryRow {
   id: string;
   scope: MemoryScope;
@@ -506,6 +512,32 @@ export class SqliteStore {
         );
   }
 
+  listWorkflowRuns(
+    statuses: WorkflowRun["status"][] = [],
+  ): WorkflowRun[] {
+    const rows =
+      statuses.length === 0
+        ? (this.database
+            .prepare("SELECT data FROM workflow_runs ORDER BY updated_at")
+            .all() as unknown as JsonRow[])
+        : (this.database
+            .prepare(`
+              SELECT data FROM workflow_runs
+              WHERE json_extract(data, '$.status') IN (
+                ${statuses.map(() => "?").join(", ")}
+              )
+              ORDER BY updated_at
+            `)
+            .all(...statuses) as unknown as JsonRow[]);
+    return rows.map((row) =>
+      parseStored(
+        row.data,
+        WorkflowRunSchema,
+        "stored_workflow_run_invalid",
+      ),
+    );
+  }
+
   listWorkflowEvents(
     id: string,
     afterSequence = 0,
@@ -636,6 +668,18 @@ export class SqliteStore {
       `)
       .run(key, taskId, attempt, at);
     return Number(result.changes) === 1;
+  }
+
+  getIdempotencyCommit(
+    key: string,
+  ): IdempotencyCommitRow | undefined {
+    return this.database
+      .prepare(`
+        SELECT task_id AS taskId, attempt, committed_at AS committedAt
+        FROM idempotency_commits
+        WHERE idempotency_key = ?
+      `)
+      .get(key) as IdempotencyCommitRow | undefined;
   }
 
   private assertWorkflowEvents(

@@ -19,11 +19,15 @@ import {
 import {
   canonicalJson,
   redactStructuredValue,
+  sha256,
 } from "@melra/receipt-schema";
 import { SqliteStore } from "@melra/storage-sqlite";
 import { PayloadCipher } from "./payload-cipher.js";
 import { TaskController } from "./task-controller.js";
-import { applyWorkflowEvent } from "./workflow-events.js";
+import {
+  applyWorkflowEvent,
+  rebuildWorkflow,
+} from "./workflow-events.js";
 import { readyNodeIds, validateWorkflow } from "./workflow-graph.js";
 
 type EmitEvent = (
@@ -41,6 +45,13 @@ interface NodeAdvance {
   state: WorkflowNodeState;
   tasks: TaskRecord[];
   checkpoint?: boolean;
+}
+
+interface TaskIdentity {
+  workflowId: string;
+  nodeId: string;
+  iteration: number;
+  branch: string;
 }
 
 export class WorkflowController {
@@ -196,6 +207,13 @@ export class WorkflowController {
           node.request,
           current.nodes[node.id]?.taskIds[0],
           approvals,
+          true,
+          {
+            workflowId: current.id,
+            nodeId: node.id,
+            iteration: 0,
+            branch: "compensation",
+          },
         );
         results.push({
           nodeId: node.id,
@@ -262,6 +280,80 @@ export class WorkflowController {
       tasks: results.flatMap(({ result }) => result.tasks),
       events: this.events(workflowId, current.stateVersion),
     };
+  }
+
+  async recoverInterrupted(): Promise<WorkflowRun[]> {
+    await this.tasks.recoverInterrupted();
+    const recovered: WorkflowRun[] = [];
+    const allTasks = this.store.listTasks(100_000);
+    for (const stored of this.store.listWorkflowRuns([
+      "planned",
+      "running",
+      "awaiting_approval",
+      "recovery_required",
+    ])) {
+      const replayed = this.replay(stored);
+      if (replayed.stateVersion !== stored.stateVersion) {
+        throw new Error("workflow_event_history_invalid");
+      }
+      const definition = this.loadDefinition(stored);
+      let run = this.transition(stored, (draft, emit) => {
+        for (const node of definition.nodes) {
+          const state = recoveredNodeState(
+            node,
+            expectedTaskKeys(stored.id, node, definition)
+              .map((key) => preferredTask(allTasks, key))
+              .filter((task): task is TaskRecord => task !== undefined),
+            replayed.nodes[node.id]!,
+          );
+          if (canonicalJson(draft.nodes[node.id]) === canonicalJson(state)) {
+            continue;
+          }
+          const from = draft.nodes[node.id]!.status;
+          draft.nodes[node.id] = state;
+          emit("workflow.node_changed", {
+            nodeId: node.id,
+            from,
+            state,
+          });
+        }
+        let status = this.deriveStatus(draft, definition);
+        if (status === "verified_complete") {
+          for (const node of definition.nodes) {
+            const state = draft.nodes[node.id]!;
+            if (node.type !== "compensation" || state.status !== "pending") {
+              continue;
+            }
+            state.status = "skipped";
+            emit("workflow.node_changed", {
+              nodeId: node.id,
+              from: "pending",
+              state,
+            });
+          }
+          status = this.deriveStatus(draft, definition);
+        }
+        const from = draft.status;
+        draft.status = status;
+        if (status === "recovery_required") {
+          draft.error = "workflow_contains_unreconciled_mutation";
+        } else {
+          delete draft.error;
+        }
+        emit(
+          status === "recovery_required"
+            ? "workflow.recovery_required"
+            : "workflow.recovered",
+          {
+            from,
+            to: status,
+            ...(draft.error === undefined ? {} : { error: draft.error }),
+          },
+        );
+      });
+      recovered.push(run);
+    }
+    return recovered;
   }
 
   cancel(workflowId: string): WorkflowRun {
@@ -344,6 +436,25 @@ export class WorkflowController {
     );
   }
 
+  private replay(run: WorkflowRun): WorkflowRun {
+    try {
+      const snapshot = this.store.getLatestWorkflowSnapshot(run.id);
+      return rebuildWorkflow(
+        snapshot,
+        this.store.listWorkflowEvents(run.id, snapshot?.sequence ?? 0),
+      );
+    } catch {
+      try {
+        return rebuildWorkflow(
+          undefined,
+          this.store.listWorkflowEvents(run.id),
+        );
+      } catch {
+        throw new Error("workflow_event_history_invalid");
+      }
+    }
+  }
+
   private async advanceNode(
     node: WorkflowNode,
     definition: WorkflowDefinition,
@@ -366,6 +477,13 @@ export class WorkflowController {
           node.request,
           approvedTaskId ?? state.taskIds[0],
           approvals,
+          true,
+          {
+            workflowId: run.id,
+            nodeId: node.id,
+            iteration: 0,
+            branch: "operation",
+          },
         );
       }
       case "approval": {
@@ -380,6 +498,12 @@ export class WorkflowController {
           state.taskIds[0],
           approvals,
           false,
+          {
+            workflowId: run.id,
+            nodeId: target.id,
+            iteration: 0,
+            branch: "operation",
+          },
         );
       }
       case "condition": {
@@ -394,21 +518,36 @@ export class WorkflowController {
           condition.verified ? node.whenTrue : node.whenFalse,
           state,
           approvals,
+          {
+            workflowId: run.id,
+            nodeId: node.id,
+            iteration: 0,
+            branch: condition.verified ? "true" : "false",
+          },
         );
       }
       case "parallel":
         return await this.runParallel(
-          node.branches.flat(),
+          node.branches,
           state,
           approvals,
+          run.id,
+          node.id,
         );
       case "bounded_loop":
-        return await this.runLoop(node, state, approvals);
+        return await this.runLoop(node, state, approvals, run.id);
       case "compensation": {
         const result = await this.runTask(
           node.request,
           state.taskIds[0],
           approvals,
+          true,
+          {
+            workflowId: run.id,
+            nodeId: node.id,
+            iteration: 0,
+            branch: "compensation",
+          },
         );
         return {
           ...result,
@@ -434,10 +573,14 @@ export class WorkflowController {
     existingTaskId: string | undefined,
     approvals: ApprovalResponse[],
     executePlanned = true,
+    identity: TaskIdentity,
   ): Promise<NodeAdvance> {
     let task =
       existingTaskId === undefined
-        ? this.tasks.plan(request)
+        ? this.tasks.plan(request, {
+            idempotencyKey: taskIdempotencyKey(identity, request),
+            attempt: 1,
+          })
         : this.tasks.status(existingTaskId);
     if (task.status === "awaiting_approval") {
       const approval = approvals.find(
@@ -469,6 +612,7 @@ export class WorkflowController {
     requests: TaskRequest[],
     state: WorkflowNodeState,
     approvals: ApprovalResponse[],
+    identity: TaskIdentity,
   ): Promise<NodeAdvance> {
     const taskIds = [...state.taskIds];
     const tasks: TaskRecord[] = [];
@@ -477,6 +621,8 @@ export class WorkflowController {
         request,
         taskIds[index],
         approvals,
+        true,
+        { ...identity, branch: `${identity.branch}:${index}` },
       );
       tasks.push(...result.tasks);
       taskIds[index] = result.state.taskIds[0]!;
@@ -494,13 +640,32 @@ export class WorkflowController {
   }
 
   private async runParallel(
-    requests: TaskRequest[],
+    branches: TaskRequest[][],
     state: WorkflowNodeState,
     approvals: ApprovalResponse[],
+    workflowId: string,
+    nodeId: string,
   ): Promise<NodeAdvance> {
+    const requests = branches.flatMap((branch, branchIndex) =>
+      branch.map((request, requestIndex) => ({
+        request,
+        branch: `${branchIndex}:${requestIndex}`,
+      })),
+    );
     const results = await Promise.all(
-      requests.map((request, index) =>
-        this.runTask(request, state.taskIds[index], approvals),
+      requests.map((item, index) =>
+        this.runTask(
+          item.request,
+          state.taskIds[index],
+          approvals,
+          true,
+          {
+            workflowId,
+            nodeId,
+            iteration: 0,
+            branch: item.branch,
+          },
+        ),
       ),
     );
     return {
@@ -513,6 +678,7 @@ export class WorkflowController {
     node: Extract<WorkflowNode, { type: "bounded_loop" }>,
     state: WorkflowNodeState,
     approvals: ApprovalResponse[],
+    workflowId: string,
   ): Promise<NodeAdvance> {
     const taskIds = [...state.taskIds];
     const tasks: TaskRecord[] = [];
@@ -524,6 +690,13 @@ export class WorkflowController {
           request,
           taskIds[offset + index],
           approvals,
+          true,
+          {
+            workflowId,
+            nodeId: node.id,
+            iteration: iterations,
+            branch: `loop:${index}`,
+          },
         );
         tasks.push(...result.tasks);
         taskIds[offset + index] = result.state.taskIds[0]!;
@@ -687,4 +860,147 @@ function aggregateNodeState(
     if (state !== undefined) return { ...state, taskIds };
   }
   return { status: "verified_complete", taskIds };
+}
+
+function taskIdempotencyKey(
+  identity: TaskIdentity,
+  request: TaskRequest,
+): string {
+  return sha256({ ...identity, request });
+}
+
+function expectedTaskKeys(
+  workflowId: string,
+  node: WorkflowNode,
+  definition: WorkflowDefinition,
+): string[] {
+  const key = (
+    request: TaskRequest,
+    iteration: number,
+    branch: string,
+    nodeId = node.id,
+  ) =>
+    taskIdempotencyKey(
+      { workflowId, nodeId, iteration, branch },
+      request,
+    );
+  switch (node.type) {
+    case "operation":
+      return [key(node.request, 0, "operation")];
+    case "approval": {
+      const target = definition.nodes.find(
+        (candidate) => candidate.id === node.forNodeId,
+      );
+      return target?.type === "operation"
+        ? [key(target.request, 0, "operation", target.id)]
+        : [];
+    }
+    case "condition":
+      return [
+        ...node.whenTrue.map((request, index) =>
+          key(request, 0, `true:${index}`),
+        ),
+        ...node.whenFalse.map((request, index) =>
+          key(request, 0, `false:${index}`),
+        ),
+      ];
+    case "parallel":
+      return node.branches.flatMap((branch, branchIndex) =>
+        branch.map((request, requestIndex) =>
+          key(request, 0, `${branchIndex}:${requestIndex}`),
+        ),
+      );
+    case "bounded_loop":
+      return Array.from({ length: node.maxIterations }, (_, iteration) =>
+        node.body.map((request, index) =>
+          key(request, iteration, `loop:${index}`),
+        ),
+      ).flat();
+    case "compensation":
+      return [key(node.request, 0, "compensation")];
+    case "checkpoint":
+      return [];
+  }
+}
+
+function preferredTask(
+  tasks: TaskRecord[],
+  idempotencyKey: string,
+): TaskRecord | undefined {
+  return tasks
+    .filter((task) => task.idempotencyKey === idempotencyKey)
+    .sort(
+      (left, right) =>
+        Number(right.status === "verified_success") -
+          Number(left.status === "verified_success") ||
+        (right.attempt ?? 1) - (left.attempt ?? 1) ||
+        right.updatedAt.localeCompare(left.updatedAt),
+    )[0];
+}
+
+function recoveredNodeState(
+  node: WorkflowNode,
+  tasks: TaskRecord[],
+  previous: WorkflowNodeState,
+): WorkflowNodeState {
+  if (tasks.length === 0) return previous;
+  const taskIds = tasks.map((task) => task.id);
+  const withStatus = (status: TaskRecord["status"]) =>
+    tasks.find((task) => task.status === status);
+  const recovery = withStatus("recovery_required");
+  if (recovery !== undefined) {
+    return {
+      status: "recovery_required",
+      taskIds,
+      ...(recovery.error === undefined ? {} : { error: recovery.error }),
+    };
+  }
+  const awaiting = withStatus("awaiting_approval");
+  if (awaiting !== undefined) {
+    return {
+      status: "awaiting_approval",
+      taskIds,
+      ...(awaiting.approval === undefined
+        ? {}
+        : { approval: awaiting.approval }),
+    };
+  }
+  const failed = tasks.find((task) =>
+    [
+      "failed",
+      "partial",
+      "budget_exhausted",
+      "policy_blocked",
+    ].includes(task.status),
+  );
+  if (failed !== undefined) {
+    return {
+      status: "failed",
+      taskIds,
+      ...(failed.error === undefined ? {} : { error: failed.error }),
+    };
+  }
+  if (tasks.some((task) => task.status === "planned")) {
+    return {
+      status: "pending",
+      taskIds,
+      ...(tasks.find((task) => task.error !== undefined)?.error === undefined
+        ? {}
+        : { error: tasks.find((task) => task.error !== undefined)!.error }),
+    };
+  }
+  if (tasks.every((task) => task.status === "verified_success")) {
+    return {
+      status: node.type === "compensation" ? "compensated" : "verified_complete",
+      taskIds,
+      ...(node.type === "bounded_loop"
+        ? {
+            iterations: Math.ceil(
+              tasks.length / node.body.length,
+            ),
+          }
+        : {}),
+    };
+  }
+  return { status: "cancelled", taskIds };
 }
