@@ -4,10 +4,13 @@
 import { randomUUID } from "node:crypto";
 import type {
   ApprovalResponse,
+  EvidencePredicate,
   Operation,
+  PolicyDecision,
   TaskRecord,
   TaskRequest,
 } from "@melra/protocol";
+import { TaskRequestSchema } from "@melra/protocol";
 import {
   classifyOperation,
   evaluatePolicy,
@@ -26,8 +29,10 @@ import {
 } from "@melra/receipt-schema";
 import { SqliteStore } from "@melra/storage-sqlite";
 import { Verifier } from "@melra/verifier-core";
+import { PayloadCipher } from "./payload-cipher.js";
 
 export interface OperationExecutor {
+  capabilities?(): ReadonlySet<Operation["kind"]>;
   execute(
     operation: Operation,
     signal?: AbortSignal,
@@ -68,20 +73,23 @@ function certificateResult(task: TaskRecord): CertificateResult {
 
 export class TaskController {
   private readonly active = new Map<string, AbortController>();
-  private readonly pendingRequests = new Map<string, TaskRequest>();
 
   constructor(
     private readonly store: SqliteStore,
     private readonly policy: LocalPolicy,
     private readonly executor: OperationExecutor,
     private readonly verifier: Verifier,
+    private readonly payloadCipher: PayloadCipher,
   ) {}
 
   plan(request: TaskRequest): TaskRecord {
+    const parsedRequest = TaskRequestSchema.parse(request);
+    this.preflight(parsedRequest);
     const id = randomUUID();
-    const policy = evaluatePolicy(id, request, this.policy);
+    const policy = evaluatePolicy(id, parsedRequest, this.policy);
     const timestamp = now();
-    const sanitizedRequest = redactStructuredValue(request).value as TaskRequest;
+    const sanitizedRequest = redactStructuredValue(parsedRequest)
+      .value as TaskRequest;
     const task: TaskRecord = {
       id,
       request: sanitizedRequest,
@@ -99,9 +107,31 @@ export class TaskController {
     };
     this.store.saveTask(task);
     if (task.status !== "policy_blocked") {
-      this.pendingRequests.set(id, request);
+      this.store.saveTaskPayload(
+        id,
+        this.payloadCipher.seal(parsedRequest, `task:${id}:request`),
+        timestamp,
+      );
     }
-    return { ...task, request };
+    return { ...task, request: parsedRequest };
+  }
+
+  preflight(request: TaskRequest): PolicyDecision {
+    const parsed = TaskRequestSchema.parse(request);
+    const capabilities = this.executor.capabilities?.();
+    if (
+      capabilities !== undefined &&
+      !capabilities.has(parsed.operation.kind)
+    ) {
+      throw new Error(
+        `operation_capability_unavailable:${parsed.operation.kind}`,
+      );
+    }
+    return evaluatePolicy(
+      "00000000-0000-4000-8000-000000000000",
+      parsed,
+      this.policy,
+    ).decision;
   }
 
   status(taskId: string): TaskRecord {
@@ -115,16 +145,13 @@ export class TaskController {
     approval?: ApprovalResponse,
   ): Promise<ExecutionResult> {
     const task = this.status(taskId);
-    const request = this.pendingRequests.get(taskId);
     if (task.status === "policy_blocked") {
       return { task };
     }
     if (!["planned", "awaiting_approval"].includes(task.status)) {
       throw new Error(`task_not_executable:${task.status}`);
     }
-    if (request === undefined) {
-      throw new Error("task_payload_unavailable_after_restart");
-    }
+    const request = this.loadRequest(taskId);
 
     const rechecked = evaluatePolicy(task.id, request, this.policy);
     if (rechecked.decision.outcome === "deny") {
@@ -132,16 +159,22 @@ export class TaskController {
       task.policyDecision = rechecked.decision;
       task.updatedAt = now();
       this.store.saveTask(task);
-      this.pendingRequests.delete(task.id);
       return this.finishWithoutReceipt(task, []);
     }
 
-    if (task.policyDecision.outcome === "confirm") {
+    if (rechecked.decision.outcome === "confirm") {
+      if (
+        rechecked.challenge === undefined ||
+        task.approval?.actionDigest !== rechecked.challenge.actionDigest
+      ) {
+        throw new Error("approval_action_digest_mismatch");
+      }
       const approvalResult = validateApproval(task.approval, approval);
       if (!approvalResult.ok) {
         throw new Error(approvalResult.reason);
       }
     }
+    task.policyDecision = rechecked.decision;
 
     const controller = new AbortController();
     this.active.set(task.id, controller);
@@ -171,7 +204,10 @@ export class TaskController {
       task.status = "verifying";
       task.result = sanitizedResult.value as Record<string, unknown>;
       task.updatedAt = now();
-      this.store.saveTask(task);
+      this.store.saveTaskExecutionResult(
+        task,
+        this.payloadCipher.seal(result, `task:${task.id}:result`),
+      );
 
       const verification = await this.verifier.verify(
         request.requiredEvidence,
@@ -252,7 +288,6 @@ export class TaskController {
     } finally {
       if (timeout !== undefined) clearTimeout(timeout);
       this.active.delete(task.id);
-      this.pendingRequests.delete(task.id);
     }
   }
 
@@ -267,9 +302,40 @@ export class TaskController {
       task.status = "cancelled";
       task.updatedAt = now();
       this.store.saveTask(task);
-      this.pendingRequests.delete(task.id);
     }
     return task;
+  }
+
+  async verifyPersisted(
+    taskId: string,
+    predicates: EvidencePredicate[],
+  ): Promise<{ verified: boolean; evidence: EvidenceItem[] }> {
+    const sealed = this.store.getTaskResult(taskId);
+    const result =
+      sealed === undefined
+        ? {}
+        : this.payloadCipher.open<Record<string, unknown>>(
+            sealed,
+            `task:${taskId}:result`,
+          );
+    return await this.verifier.verify(predicates, result);
+  }
+
+  async recoverInterrupted(): Promise<TaskRecord[]> {
+    const recovered: TaskRecord[] = [];
+    for (const task of this.store.listInterruptedTasks()) {
+      const request = this.loadRequest(task.id);
+      const effect = classifyOperation(request.operation).effect;
+      task.status = effect === "read" ? "planned" : "recovery_required";
+      task.error =
+        effect === "read"
+          ? "interrupted_read_ready_for_retry"
+          : "interrupted_mutation_requires_reconciliation";
+      task.updatedAt = now();
+      this.store.saveTask(task);
+      recovered.push(task);
+    }
+    return recovered;
   }
 
   receipts(input: {
@@ -338,6 +404,14 @@ export class TaskController {
       redactions,
       ...(error === undefined ? {} : { error }),
     };
+  }
+
+  private loadRequest(taskId: string): TaskRequest {
+    const sealed = this.store.getTaskPayload(taskId);
+    if (sealed === undefined) throw new Error("task_payload_not_found");
+    return TaskRequestSchema.parse(
+      this.payloadCipher.open(sealed, `task:${taskId}:request`),
+    );
   }
 
   private async executeWithRetries(

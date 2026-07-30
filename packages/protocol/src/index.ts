@@ -523,6 +523,7 @@ export const TaskStatusSchema = z.enum([
   "waiting_user",
   "policy_blocked",
   "budget_exhausted",
+  "recovery_required",
 ]);
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;

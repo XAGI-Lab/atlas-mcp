@@ -22,12 +22,14 @@ import {
   type LocalPolicy,
 } from "@melra/policy-core";
 import {
+  PayloadCipher,
   TaskController,
   type OperationExecutor,
 } from "@melra/runtime-core";
 import { SqliteStore } from "@melra/storage-sqlite";
 import { TerminalRuntime } from "@melra/terminal-runtime";
 import { Verifier } from "@melra/verifier-core";
+import { loadPayloadKey } from "./payload-key.js";
 
 export interface MelraRuntimeOptions {
   workspaceRoot: string;
@@ -38,6 +40,7 @@ export interface MelraRuntimeOptions {
   browserCdpEndpoint?: string;
   browserCdpContextIndex?: number;
   browserHarPath?: string;
+  environment?: NodeJS.ProcessEnv;
 }
 
 export class RuntimeRouter implements OperationExecutor {
@@ -79,6 +82,17 @@ export class RuntimeRouter implements OperationExecutor {
     }
   }
 
+  capabilities(): ReadonlySet<Operation["kind"]> {
+    return new Set<Operation["kind"]>([
+      "file",
+      "terminal",
+      "browser",
+      "memory",
+      "computer",
+      "system",
+    ]);
+  }
+
   async close(): Promise<void> {
     this.terminal.close();
     await this.browser.close();
@@ -104,6 +118,11 @@ export async function createMelraRuntime(
     options.policyPath === undefined
       ? createDefaultPolicy(workspaceRoot)
       : await loadPolicy(options.policyPath, workspaceRoot);
+  const key = await loadPayloadKey({
+    dataDirectory,
+    environment: options.environment ?? process.env,
+  });
+  const cipher = new PayloadCipher(key);
   const store = new SqliteStore(join(dataDirectory, "melra.sqlite"));
   const files = await FileRuntime.create({
     root: policy.workspaceRoot,
@@ -141,7 +160,9 @@ export async function createMelraRuntime(
     policy,
     router,
     await Verifier.create(policy.workspaceRoot),
+    cipher,
   );
+  await controller.recoverInterrupted();
   return {
     controller,
     policy,

@@ -24,11 +24,12 @@ describe("PayloadCipher", () => {
     const cipher = new PayloadCipher(Buffer.alloc(32, 9));
     const context = "task:22222222-2222-4222-8222-222222222222:request";
     const sealed = cipher.seal({ value: "protected" }, context);
-    const replacement = sealed.tag.endsWith("A") ? "B" : "A";
+    const tag = Buffer.from(sealed.tag, "base64url");
+    tag[0] = tag[0]! ^ 1;
 
     expect(() =>
       cipher.open(
-        { ...sealed, tag: sealed.tag.replace(/.$/, replacement) },
+        { ...sealed, tag: tag.toString("base64url") },
         context,
       ),
     ).toThrow("task_payload_authentication_failed");
