@@ -22,6 +22,58 @@ afterEach(() => {
 });
 
 describe("SqliteStore", () => {
+  it("migrates an existing alpha database exactly once", () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "melra-storage-migration-"));
+    const databasePath = join(tempDirectory, "melra.sqlite");
+    const legacy = new DatabaseSync(databasePath);
+    legacy.exec(`
+      CREATE TABLE tasks (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE receipts (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE certificates (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL UNIQUE,
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE memories (
+        id TEXT PRIMARY KEY,
+        scope TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        source TEXT NOT NULL,
+        confidence REAL NOT NULL,
+        tags TEXT NOT NULL DEFAULT '[]',
+        speaker TEXT,
+        episode_id TEXT,
+        sequence INTEGER,
+        expires_at TEXT,
+        supersedes_id TEXT,
+        superseded_by TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    legacy.close();
+
+    store = new SqliteStore(databasePath);
+
+    expect(
+      store.database
+        .prepare("SELECT version FROM schema_migrations ORDER BY version")
+        .all(),
+    ).toEqual([{ version: 1 }]);
+  });
+
   it("persists tasks and scoped memories", () => {
     store = new SqliteStore(":memory:");
     const now = new Date().toISOString();
