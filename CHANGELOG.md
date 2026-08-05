@@ -6,6 +6,14 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- Pin transitive `hono` to `^4.12.34` and `fast-uri` to `^3.1.5` through pnpm
+  overrides, clearing the CORS ReDoS (moderate) and host-confusion (high)
+  advisories that `pnpm audit --prod` reported through
+  `@modelcontextprotocol/sdk`. The SDK's own ranges already allow the patched
+  releases; only the lockfile was pinning the vulnerable ones.
+
 ## [0.3.0-alpha.0] - 2026-07-30
 
 ### Added
