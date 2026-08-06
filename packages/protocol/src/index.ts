@@ -58,6 +58,9 @@ export const BrowserOperationSchema = z
     kind: z.literal("browser"),
     action: z.enum([
       "navigate",
+      "back",
+      "forward",
+      "reload",
       "inspect",
       "click",
       "type",
@@ -68,6 +71,8 @@ export const BrowserOperationSchema = z
       "upload",
       "download",
       "tabs",
+      "tab_new",
+      "tab_switch",
       "close",
     ]),
     url: z.string().url().max(8_192).optional(),

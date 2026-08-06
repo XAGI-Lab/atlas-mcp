@@ -530,4 +530,55 @@ export const scenarios: EvaluationScenario[] = [
     cancel: true,
     expectedFinal: "cancelled",
   },
+  {
+    // `back`/`forward`/`reload` move where we are looking; they do not act on a
+    // document. Forbidding `read` is what proves the classification: if any of
+    // them were classified as a mutation this would plan instead of blocking,
+    // and every history step would cost the caller a typed approval.
+    id: "browser-history-is-read-not-mutation",
+    category: "browser",
+    request: {
+      goal: "Step back through browser history",
+      operation: { kind: "browser", action: "back" },
+      constraints: [],
+      forbiddenEffects: ["read"],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "policy_blocked",
+  },
+  {
+    id: "browser-tab-switch-is-read-not-mutation",
+    category: "browser",
+    request: {
+      goal: "Switch to another open tab",
+      operation: { kind: "browser", action: "tab_switch", tabIndex: 0 },
+      constraints: [],
+      forbiddenEffects: ["read"],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "policy_blocked",
+  },
+  {
+    // The other half of the guard: widening the read set must not have swept up
+    // an action that drives the page. A click still reaches approval.
+    id: "browser-click-still-requires-approval",
+    category: "browser",
+    request: {
+      goal: "Click a button on the active page",
+      operation: {
+        kind: "browser",
+        action: "click",
+        target: { selector: "#submit" },
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "awaiting_approval",
+    cancel: true,
+    expectedFinal: "cancelled",
+  },
 ];

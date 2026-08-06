@@ -21,7 +21,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 <a href="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml/badge.svg" alt="Container build status" /></a>
 
 <!-- Evidence -->
-<img src="https://img.shields.io/badge/evals-30_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="30 deterministic evaluation scenarios passing" />
+<img src="https://img.shields.io/badge/evals-26_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="26 deterministic evaluation scenarios passing" />
 <img src="https://img.shields.io/badge/tests-166_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="166 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-12_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="12 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
@@ -383,7 +383,7 @@ MCP is universally "the best" or that unlike benchmarks are comparable.
 | 🌐 | Slow-render settle | **10/10** vs 0/10 correct | Condition-based waiting observes the final DOM; fixed 300 ms reads too early |
 | 💻 | Terminal | **30/30** verified executions | Shell-free process launch; 48.1 ms p50 on the measured machine |
 | 🖥️ | Computer control plane | **30/30** capability probes | 0.032 ms p50 adapter discovery; this is *not* a desktop task-success score |
-| ✅ | Safety/execution evals | **22/22** passing | Deterministic policy, traversal, terminal, memory, computer, cancellation, and verification scenarios |
+| ✅ | Safety/execution evals | **26/26** passing | Deterministic policy, traversal, terminal, memory, computer, cancellation, and verification scenarios |
 | 🔁 | Durable Core eval | **8/8** valid scenarios | 100% expected recovery, 0 duplicate execution, 0 false success, 100% event consistency |
 
 Read the [research index](docs/research/README.md), the

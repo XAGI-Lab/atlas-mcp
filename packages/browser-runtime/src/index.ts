@@ -131,6 +131,26 @@ export class BrowserRuntime {
   }
 
   /**
+   * The tab list, with the index each entry can be addressed by.
+   *
+   * Returned by every tab action rather than only by `tabs`, because opening,
+   * switching, and closing all renumber the list — a caller that had to issue a
+   * separate `tabs` call after each one would be acting on a stale index.
+   */
+  private async describeTabs(
+    context: BrowserContext,
+  ): Promise<Record<string, unknown>[]> {
+    return await Promise.all(
+      context.pages().map(async (item, index) => ({
+        index,
+        url: item.url(),
+        title: await item.title(),
+        active: item === this.activePage,
+      })),
+    );
+  }
+
+  /**
    * Resolve a target to a locator that actually matches something.
    *
    * Text matching used to be `exact: true` only, which fails on the whitespace,
@@ -329,6 +349,45 @@ export class BrowserRuntime {
           ...(await this.settledSnapshot(page, operation)),
         };
       }
+      case "back":
+      case "forward": {
+        const before = page.url();
+        const moved =
+          operation.action === "back"
+            ? await page.goBack({
+                waitUntil: "domcontentloaded",
+                timeout: operation.timeoutMs,
+              })
+            : await page.goForward({
+                waitUntil: "domcontentloaded",
+                timeout: operation.timeoutMs,
+              });
+        return {
+          // Playwright returns null both when there is nowhere to go *and* when
+          // the entry it landed on produced no HTTP response — `about:blank`, a
+          // hash change, a `data:` URL. Only the URL tells those apart, and the
+          // difference matters: a caller probing "go back unless we are at the
+          // start" would otherwise be told it had not moved when it had.
+          moved: moved !== null || page.url() !== before,
+          status: moved?.status() ?? null,
+          ...(await this.settledSnapshot(page, operation)),
+        };
+      }
+      case "reload": {
+        // `page.reload()` re-issues the request that produced the current page,
+        // which for a POST result means re-submitting it. That is the documented
+        // meaning of reload and matches `navigate`, whose target URL may have any
+        // server-side effect; the domain allowlist, not the read/mutate split, is
+        // what bounds what a navigation may reach.
+        const response = await page.reload({
+          waitUntil: "domcontentloaded",
+          timeout: operation.timeoutMs,
+        });
+        return {
+          status: response?.status() ?? null,
+          ...(await this.settledSnapshot(page, operation)),
+        };
+      }
       case "inspect":
         return operation.target === undefined
           ? await this.snapshot(page, operation.maxChars)
@@ -451,15 +510,43 @@ export class BrowserRuntime {
       }
       case "tabs": {
         const context = await this.ensureContext();
-        const tabs = await Promise.all(
-          context.pages().map(async (item, index) => ({
-            index,
-            url: item.url(),
-            title: await item.title(),
-            active: item === this.activePage,
-          })),
-        );
-        return { tabs };
+        return { tabs: await this.describeTabs(context) };
+      }
+      case "tab_new": {
+        const context = await this.ensureContext();
+        const opened = await context.newPage();
+        this.activePage = opened;
+        if (operation.url !== undefined) {
+          await assertSafeUrl(operation.url, this.options);
+          await opened.goto(operation.url, {
+            waitUntil: "domcontentloaded",
+            timeout: operation.timeoutMs,
+          });
+        }
+        return {
+          opened: true,
+          index: context.pages().indexOf(opened),
+          tabs: await this.describeTabs(context),
+        };
+      }
+      case "tab_switch": {
+        const context = await this.ensureContext();
+        if (operation.tabIndex === undefined) {
+          throw new Error("browser_tab_switch_requires_tab_index");
+        }
+        const target = context.pages()[operation.tabIndex];
+        if (target === undefined) throw new Error("browser_tab_not_found");
+        // Bring the tab to the front so a screenshot of it is what the user
+        // would actually see; a background page still renders, but modal and
+        // focus behaviour differ.
+        await target.bringToFront();
+        this.activePage = target;
+        return {
+          switched: true,
+          index: operation.tabIndex,
+          url: target.url(),
+          tabs: await this.describeTabs(context),
+        };
       }
       case "close": {
         const context = await this.ensureContext();
@@ -472,7 +559,7 @@ export class BrowserRuntime {
         const url = target.url();
         await target.close();
         this.activePage = context.pages().at(-1);
-        return { closed: true, url };
+        return { closed: true, url, tabs: await this.describeTabs(context) };
       }
     }
   }
