@@ -27,6 +27,16 @@ test = [
 [project.scripts]
 melra-browser-bench = "melra_browser_bench.cli:main"
 
+# `browsergym-core` pins `lxml<6.0.0`, but the XXE fix for CVE-2026-41066
+# (GHSA-vfmq-68hx-4jfw — `iterparse()` and `ETCompatXMLParser()` resolve local
+# file entities by default) only landed in 6.1.0. The upper bound is browsergym
+# being cautious rather than a known incompatibility, so it is overridden rather
+# than left vulnerable. `benchmark:browser:check` passes on 6.1.1; the MiniWoB
+# and WebArena extras are not installed by that check, so if a future browsergym
+# release does break on lxml 6 it will surface in a benchmark run, not in CI.
+[tool.uv]
+override-dependencies = ["lxml>=6.1.0"]
+
 [tool.uv.sources]
 melra = { path = "../../sdk-py" }
 
