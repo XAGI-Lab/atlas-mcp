@@ -44,7 +44,6 @@ const READ_ONLY_GIT_ACTIONS = new Set([
 const ALWAYS_DENIED_COMMANDS = new Set([
   "bash",
   "cmd",
-  "cmd.exe",
   "fish",
   "osascript",
   "powershell",
@@ -70,13 +69,37 @@ const ALWAYS_DENIED_COMMANDS = new Set([
  * `browser_domain_not_allowed` out of the box, which is why browser use was
  * reported as unusable. Operators who want an allowlist set one explicitly.
  */
+/**
+ * Reduce a command to the name the allowlist is written in.
+ *
+ * On Windows an executable is spelled with an extension (`npm.cmd`, `node.exe`,
+ * `git.exe`), while allowlists are written bare. Comparing the raw basename made
+ * every extension-qualified spelling fail, so Windows users had no working
+ * spelling at all: bare `npm` passed policy but is a `.cmd` shim that does not
+ * spawn, and `npm.cmd` spawns but was denied. Only the executable suffixes in
+ * PATHEXT are stripped, so a command that merely contains a dot (`python3.11`)
+ * is left intact.
+ */
+const EXECUTABLE_SUFFIXES = [".exe", ".cmd", ".bat", ".com", ".ps1"];
+
+export function normalizeCommandName(command: string): string {
+  const name = basename(command.replaceAll("\\", "/")).toLowerCase();
+  const suffix = EXECUTABLE_SUFFIXES.find((item) => name.endsWith(item));
+  return suffix === undefined ? name : name.slice(0, -suffix.length);
+}
+
 export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
   return {
     version: "1",
     workspaceRoot: resolve(workspaceRoot),
+    // One list for every platform. An entry naming a program the host does not
+    // have is inert — it fails at spawn with `terminal_command_not_found`, not
+    // at policy — so the Windows and POSIX read tools can both sit here rather
+    // than making the same policy mean different things on different machines.
     allowedCommands: [
       "cat",
       "echo",
+      "findstr",
       "git",
       "head",
       "ls",
@@ -87,7 +110,9 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
       "pwd",
       "rg",
       "tail",
+      "tasklist",
       "wc",
+      "where",
     ],
     allowedDomains: ["*"],
     allowLocalhost: true,
@@ -139,13 +164,24 @@ export function classifyOperation(operation: Operation): {
           target: `job:${operation.jobId ?? "unknown"}`,
         };
       }
-      const command = basename(operation.command ?? "");
+      const command = normalizeCommandName(operation.command ?? "");
       const gitRead =
         operation.action === "run" &&
         command === "git" &&
         operation.args.length > 0 &&
         READ_ONLY_GIT_ACTIONS.has(operation.args[0] ?? "");
-      const readCommands = new Set(["cat", "head", "ls", "pwd", "rg", "tail", "wc"]);
+      const readCommands = new Set([
+        "cat",
+        "findstr",
+        "head",
+        "ls",
+        "pwd",
+        "rg",
+        "tail",
+        "tasklist",
+        "wc",
+        "where",
+      ]);
       const read = readCommands.has(command) || gitRead;
       const packageMutation = new Set(["npm", "npx", "pnpm"]).has(command);
       return {
@@ -290,9 +326,13 @@ function isCommandAllowed(operation: Operation, policy: LocalPolicy): boolean {
   }
   if (operation.action === "stop") return operation.jobId !== undefined;
   if (operation.command === undefined) return false;
-  const command = basename(operation.command).toLowerCase();
+  const command = normalizeCommandName(operation.command);
+  // Normalized on both sides so `powershell.exe` cannot slip past a deny entry
+  // written as `powershell`, and an operator's allowlist matches either spelling.
   if (ALWAYS_DENIED_COMMANDS.has(command)) return false;
-  return policy.allowedCommands.includes(command);
+  return policy.allowedCommands.some(
+    (allowed) => normalizeCommandName(allowed) === command,
+  );
 }
 
 function domainAllowed(operation: Operation, policy: LocalPolicy): boolean {

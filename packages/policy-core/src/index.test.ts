@@ -288,3 +288,53 @@ describe("default evidence", () => {
     ).toEqual([]);
   });
 });
+
+describe("Windows command spellings", () => {
+  const plan = (command: string, args: string[] = []) =>
+    evaluatePolicy(
+      "00000000-0000-4000-8000-000000000000",
+      TaskRequestSchema.parse({
+        goal: "Run an allowlisted program",
+        operation: { kind: "terminal", action: "run", command, args },
+        requiredEvidence: [{ type: "exit_code", value: 0 }],
+      }),
+      createDefaultPolicy(root),
+    ).decision;
+
+  it("accepts the extension-qualified spelling Windows actually runs", () => {
+    // The deadlock this closes: `npm` passed policy but is a `.cmd` shim that
+    // cannot be spawned, while `npm.cmd` could be spawned but was denied — so on
+    // Windows no spelling of an allowlisted command worked at all.
+    expect(plan("npm").reason).not.toBe("command_not_allowlisted");
+    expect(plan("npm.cmd").reason).not.toBe("command_not_allowlisted");
+    expect(plan("C:\\Program Files\\nodejs\\npm.cmd").reason).not.toBe(
+      "command_not_allowlisted",
+    );
+  });
+
+  it("still denies a shell however it is spelled", () => {
+    // Normalisation must apply to the deny list too, or stripping the extension
+    // would have turned it into a bypass.
+    for (const command of [
+      "powershell",
+      "powershell.exe",
+      "PowerShell.EXE",
+      "C:\\Windows\\System32\\cmd.exe",
+      "pwsh.exe",
+      "/bin/bash",
+    ]) {
+      expect(plan(command).reason).toBe("command_not_allowlisted");
+    }
+  });
+
+  it("does not strip a suffix that is merely part of the name", () => {
+    // `python3.11` ends in a dot-segment but not an executable suffix.
+    expect(plan("python3.11").reason).toBe("command_not_allowlisted");
+  });
+
+  it("classifies a Windows-spelled read command without demanding approval", () => {
+    expect(plan("git.exe", ["status"]).effect).toBe("read");
+    expect(plan("git.exe", ["push"]).effect).toBe("mutate");
+    expect(plan("npm.cmd", ["install"]).risk).toBe("high");
+  });
+});

@@ -8,6 +8,33 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- Terminal commands run on Windows. Three defects compounded into a deadlock
+  where **no spelling of an allowlisted command worked**: the policy allowlist
+  compared a raw basename against extension-less entries, so `npm.cmd` was
+  denied; `spawn` runs without a shell and does not apply `PATHEXT`, so bare
+  `npm` never resolved; and a `.cmd` shim cannot be executed by `CreateProcess`
+  at all. Policy now normalises executable suffixes on both the allowlist *and*
+  the unconditional deny list, so `powershell.exe` is still refused, and a
+  Windows command is resolved across `PATH` x `PATHEXT` before spawning, with
+  batch shims dispatched through `cmd.exe /d /s /c` under explicit per-argument
+  quoting. Arguments containing `%` or `!` are refused rather than quoted
+  unsafely, because `cmd.exe` expands those inside quotes and the allowlist
+  would otherwise be bypassable through an argument. The working directory is
+  deliberately not searched for a bare command, so a `git.cmd` dropped in the
+  workspace cannot shadow the allowlisted `git`.
+- `terminal start` no longer reports success for a process that failed to
+  start. `spawn` signals a failed start asynchronously, so the call returned
+  `started: true` with a job id for a process that never existed; it now waits
+  for whichever of `spawn`/`error` settles first.
+- A missing or non-executable program is reported as
+  `terminal_command_not_found:<command>` / `terminal_command_not_executable:<command>`
+  instead of a bare `ENOENT` naming only the syscall.
+- Default `allowedCommands` includes the Windows read tools (`findstr`,
+  `where`, `tasklist`) alongside the POSIX ones, and they classify as `read`
+  so they do not require approval. The list stays platform-independent: an
+  entry naming a program the host lacks is inert, failing at spawn rather than
+  at policy.
+
 - Browsing works on a fresh install. `createDefaultPolicy` previously shipped
   `allowedDomains: []` and `allowLocalhost: false`, and `melra init` wrote that
   file to disk, so **every** browser navigation failed with

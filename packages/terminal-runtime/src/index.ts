@@ -6,6 +6,10 @@ import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { TerminalOperation } from "@melra/protocol";
+import { resolveCommand } from "./resolve-command.js";
+
+export { quoteForCmd, resolveCommand } from "./resolve-command.js";
+export type { ResolvedCommand } from "./resolve-command.js";
 
 export interface TerminalRuntimeOptions {
   root: string;
@@ -33,12 +37,29 @@ export function redactTerminalOutput(value: string): string {
 }
 
 interface PreparedCommand {
+  /** The command as the caller spelled it — what receipts and evidence quote. */
   command: string;
   args: string[];
+  /** What `spawn` is actually given; on Windows this may be `cmd.exe`. */
+  file: string;
+  spawnArgs: string[];
+  windowsVerbatimArguments: boolean;
+  executable: string;
   cwd: string;
   environment: NodeJS.ProcessEnv;
   timeoutMs: number;
   maxOutputChars: number;
+}
+
+/**
+ * `spawn` reports a missing program as a bare `ENOENT` naming only the syscall,
+ * which reads as an internal fault rather than "that program is not installed".
+ */
+function describeSpawnError(error: unknown, command: string): Error {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  if (code === "ENOENT") return new Error(`terminal_command_not_found:${command}`);
+  if (code === "EACCES") return new Error(`terminal_command_not_executable:${command}`);
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 interface BackgroundJob {
@@ -96,7 +117,7 @@ export class TerminalRuntime {
     }
     const cwd = await this.resolveCwd(operation.cwd);
     const environment: NodeJS.ProcessEnv = {};
-    for (const name of ["PATH", "PATHEXT", "SYSTEMROOT", "WINDIR"]) {
+    for (const name of ["PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC"]) {
       if (this.baseEnvironment[name] !== undefined) {
         environment[name] = this.baseEnvironment[name];
       }
@@ -112,9 +133,19 @@ export class TerminalRuntime {
       }
       environment[name] = value;
     }
+    const resolved = await resolveCommand(operation.command, operation.args, {
+      cwd,
+      path: environment["PATH"] ?? environment["Path"],
+      pathExt: environment["PATHEXT"],
+      comspec: this.baseEnvironment["COMSPEC"],
+    });
     return {
       command: operation.command,
       args: operation.args,
+      file: resolved.file,
+      spawnArgs: resolved.args,
+      windowsVerbatimArguments: resolved.windowsVerbatimArguments,
+      executable: resolved.executable,
       cwd,
       environment,
       timeoutMs: operation.timeoutMs,
@@ -127,11 +158,12 @@ export class TerminalRuntime {
     signal?: AbortSignal,
   ): Promise<Record<string, unknown>> {
     return await new Promise<Record<string, unknown>>((resolvePromise, reject) => {
-      const child = spawn(prepared.command, prepared.args, {
+      const child = spawn(prepared.file, prepared.spawnArgs, {
         cwd: prepared.cwd,
         env: prepared.environment,
         shell: false,
         windowsHide: true,
+        windowsVerbatimArguments: prepared.windowsVerbatimArguments,
         stdio: ["ignore", "pipe", "pipe"],
         signal,
       });
@@ -164,7 +196,7 @@ export class TerminalRuntime {
 
       child.once("error", (error) => {
         clearTimeout(timer);
-        reject(error);
+        reject(describeSpawnError(error, prepared.command));
       });
       child.once("close", (code, terminationSignal) => {
         clearTimeout(timer);
@@ -188,11 +220,12 @@ export class TerminalRuntime {
     prepared: PreparedCommand,
   ): Promise<Record<string, unknown>> {
     const id = randomUUID();
-    const child = spawn(prepared.command, prepared.args, {
+    const child = spawn(prepared.file, prepared.spawnArgs, {
       cwd: prepared.cwd,
       env: prepared.environment,
       shell: false,
       windowsHide: true,
+      windowsVerbatimArguments: prepared.windowsVerbatimArguments,
       stdio: ["ignore", "pipe", "pipe"],
     });
     const timer = setTimeout(() => {
@@ -237,6 +270,19 @@ export class TerminalRuntime {
       job.endedAt = new Date().toISOString();
       clearTimeout(timer);
     });
+    // `spawn` only reports a failed start asynchronously, so returning as soon
+    // as the call came back reported `started: true` for a command that never
+    // ran — the caller got a job id for a process that did not exist. Waiting
+    // for whichever of `spawn`/`error` fires first makes the reported start real.
+    try {
+      await new Promise<void>((settled, failed) => {
+        child.once("spawn", settled);
+        child.once("error", failed);
+      });
+    } catch (error) {
+      clearTimeout(timer);
+      throw describeSpawnError(error, prepared.command);
+    }
     this.jobs.set(id, job);
     return {
       success: true,
@@ -244,6 +290,7 @@ export class TerminalRuntime {
       jobId: id,
       pid: child.pid ?? null,
       command: prepared.command,
+      executable: prepared.executable,
       cwd: relative(this.root, prepared.cwd) || ".",
     };
   }
