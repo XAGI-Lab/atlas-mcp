@@ -29,6 +29,40 @@ All notable changes are documented here. The format follows
   switching tabs therefore costs no typed approval. Actions that drive the page
   are unchanged, and an eval scenario pins both halves — that `back` and
   `tab_switch` are reads, and that `click` still reaches approval.
+- Browser `wait`, a real wait primitive with one of three conditions: a `target`
+  reaching a `state` (`visible`, `hidden`, `attached`, `detached`), a
+  `urlContains` substring, or a `value` substring of the page text. Without it
+  the only way to handle a slow login redirect or a late-rendering modal was to
+  retry the next action and hope, which is why `settleTimeoutMs` kept being
+  raised as a substitute. It classifies as `read` — blocking until the page
+  reaches a state is not acting on it — so waiting costs no approval.
+- Browser `fill_form`, which fills a list of `fields` and, when the operation
+  carries a `target`, clicks it to submit. Each field was previously its own
+  mutation, so a six-field checkout form cost six typed approval phrases and six
+  DOM settles; the approval now covers the whole form, because the whole form is
+  what the caller planned. An eval pins that batching cuts the count, not the
+  gate: `fill_form` still reaches approval.
+
+### Fixed
+
+- Browser typing dispatches real key events again. `type` used Playwright's
+  `.fill()`, which assigns the value and fires a single `input` event, so
+  anything listening for keystrokes never saw the text — React inputs with key
+  handlers, autocomplete dropdowns, comboboxes that filter as you type, and
+  fields that enable their submit button on `keyup`. It now presses the keys, as
+  the previous server did, with `delayMs` for widgets that debounce and
+  `clearFirst` (default true) controlling whether the field is emptied first.
+- Every browser mutation planned without explicit `requiredEvidence` verified as
+  `partial`, however well it went. Policy derives `result_equals success true`
+  for browser mutations, but `BrowserRuntime` reported per-action flags
+  (`clicked`, `typed`, ...) and never a `success` field, so the derived
+  predicate read a key nobody wrote and failed silently. Results now carry
+  `success`, and a policy test pins the predicate to the field the runtime
+  actually emits.
+- `scroll` distance is configurable via `pixels` instead of a hardcoded ±600,
+  which was too small for a long article and too large for a short scroll
+  container, and it returns the resulting `scrollY` so a caller paging through a
+  document can tell when it has reached the bottom.
 
 ### Changed
 

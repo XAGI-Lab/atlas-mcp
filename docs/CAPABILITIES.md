@@ -61,18 +61,19 @@ Interactive pseudo-terminal sessions are not implemented in `0.3`.
 
 ### Browser
 
-Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `click`, `type`,
-`select`, `press`, `scroll`, `screenshot`, `upload`, `download`, `tabs`,
-`tab_new`, `tab_switch`, `close`.
+Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `wait`, `click`,
+`type`, `fill_form`, `select`, `press`, `scroll`, `screenshot`, `upload`,
+`download`, `tabs`, `tab_new`, `tab_switch`, `close`.
 
 - Uses an isolated headless browser context.
 - Prefers semantic targets (`role`, `name`, `text`) with optional selectors.
   `inspect` reports a `selector` for every element it lists, so a caller can act
   on what it just read; passing a `target` to `inspect` scopes it to that
   element's `text` and `html` instead of the whole page.
-- History and tab actions are classified `read`: they move where the session is
-  looking rather than acting on a document, so stepping back or switching tabs
-  does not cost an approval. Actions that drive the page (`click`, `type`,
+- History, tab, and `wait` actions are classified `read`: they move where the
+  session is looking, or block until the page reaches a state, rather than
+  acting on a document — so stepping back, switching tabs, or waiting does not
+  cost an approval. Actions that drive the page (`click`, `type`, `fill_form`,
   `select`, `press`, `upload`, `download`) still do.
 - `back` and `forward` report `moved`, which is false only at the end of the
   history stack. A move to an entry with no HTTP response (`about:blank`, a hash
@@ -80,6 +81,19 @@ Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `click`, `type`,
 - `tab_new` accepts an optional `url` and runs the same destination checks
   `navigate` does. Every tab action returns the renumbered tab list, because
   opening, switching, and closing all shift the indices.
+- `wait` takes exactly one condition: a `target` reaching a `state`
+  (`visible`, `hidden`, `attached`, `detached`), a `urlContains` substring, or a
+  `value` substring of the page text. It is the supported way to handle a slow
+  redirect or a late-rendering panel — raising `settleTimeoutMs` is not.
+- `type` presses keys rather than assigning the value, so widgets that listen
+  for keystrokes (autocomplete, comboboxes, inputs that enable a submit on
+  `keyup`) receive the typing. `delayMs` slows it for anything that debounces;
+  `clearFirst` (default true) empties the field first, and `false` appends.
+- `fill_form` fills a list of `fields` and, when the operation carries a
+  `target`, clicks it to submit — one plan, one approval, one settle for a whole
+  form instead of one per field.
+- `scroll` takes `pixels` for `up`/`down` and returns the resulting `scrollY`,
+  so a caller paging through a document can tell when it has reached the bottom.
 - Resolves and checks the destination and every intercepted request.
 - Blocks private, link-local, multicast, unspecified, and cloud-metadata
   addresses. Localhost is opt-in.
