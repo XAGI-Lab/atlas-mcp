@@ -198,13 +198,16 @@ export function classifyOperation(operation: Operation): {
       // Navigation and observation read the world; only actions that drive the
       // page (click, type, upload, ...) change anything. `tab_new` and
       // `tab_switch` are classified with `navigate` for the same reason it is:
-      // they move where we are looking, they do not act on a document.
+      // they move where we are looking, they do not act on a document. `wait`
+      // joins them — it blocks until the page reaches a state, and blocking is
+      // not acting.
       const read = new Set([
         "navigate",
         "back",
         "forward",
         "reload",
         "inspect",
+        "wait",
         "screenshot",
         "tabs",
         "tab_new",

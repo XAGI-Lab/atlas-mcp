@@ -11,7 +11,7 @@ import type {
   Page,
   Route,
 } from "playwright-core";
-import type { BrowserOperation } from "@melra/protocol";
+import type { BrowserOperation, BrowserTarget } from "@melra/protocol";
 import {
   connectBrowser,
   type BrowserConnection,
@@ -151,6 +151,33 @@ export class BrowserRuntime {
   }
 
   /**
+   * Every way the caller gave us to find the element, in the order we trust
+   * them. Split out from `locator` because waiting and acting need the same
+   * list but disagree about what to do when nothing matches yet.
+   */
+  private candidates(page: Page, target: BrowserTarget): Locator[] {
+    const found: Locator[] = [];
+    if (target.role !== undefined) {
+      found.push(
+        page.getByRole(target.role as Parameters<Page["getByRole"]>[0], {
+          ...(target.name === undefined ? {} : { name: target.name }),
+        }),
+      );
+    }
+    if (target.selector !== undefined) found.push(page.locator(target.selector));
+    if (target.text !== undefined) {
+      found.push(
+        page.getByText(target.text, { exact: true }),
+        page.getByText(target.text, { exact: false }),
+      );
+    }
+    if (found.length === 0) {
+      throw new Error("browser_target_requires_role_selector_or_text");
+    }
+    return found;
+  }
+
+  /**
    * Resolve a target to a locator that actually matches something.
    *
    * Text matching used to be `exact: true` only, which fails on the whitespace,
@@ -162,33 +189,51 @@ export class BrowserRuntime {
    * A target that matches nothing is reported as such instead of being handed to
    * Playwright to fail as an opaque action timeout thirty seconds later.
    */
-  private async locator(page: Page, operation: BrowserOperation): Promise<Locator> {
-    const target = operation.target;
+  private async locator(
+    page: Page,
+    target: BrowserTarget | undefined,
+  ): Promise<Locator> {
     if (target === undefined) throw new Error("browser_action_requires_target");
-    const candidates: Locator[] = [];
-    if (target.role !== undefined) {
-      candidates.push(
-        page.getByRole(target.role as Parameters<Page["getByRole"]>[0], {
-          ...(target.name === undefined ? {} : { name: target.name }),
-        }),
-      );
-    }
-    if (target.selector !== undefined) candidates.push(page.locator(target.selector));
-    if (target.text !== undefined) {
-      candidates.push(
-        page.getByText(target.text, { exact: true }),
-        page.getByText(target.text, { exact: false }),
-      );
-    }
-    if (candidates.length === 0) {
-      throw new Error("browser_target_requires_role_selector_or_text");
-    }
-    for (const candidate of candidates) {
+    for (const candidate of this.candidates(page, target)) {
       if ((await candidate.count()) > 0) return candidate;
     }
     throw new Error(
       `browser_target_not_found:${JSON.stringify(target)}`,
     );
+  }
+
+  /**
+   * The same target, but matching nothing *yet* is the normal case rather than
+   * an error — that is the entire point of waiting for it.
+   */
+  private pendingLocator(page: Page, target: BrowserTarget): Locator {
+    return this.candidates(page, target).reduce((left, right) => left.or(right));
+  }
+
+  /**
+   * Type by pressing keys rather than by assigning the value.
+   *
+   * `.fill()` sets the field and fires a single `input` event. Anything that
+   * listens for keystrokes never sees the text: React inputs with key handlers,
+   * autocomplete dropdowns, comboboxes that filter as you type, and fields that
+   * enable a submit button only after a `keyup`. The old server used
+   * `page.type`, and losing that is most of why typing "stopped working".
+   * `.fill("")` is still how the field gets cleared, because it empties one
+   * reliably no matter what is in it.
+   */
+  private async typeInto(
+    locator: Locator,
+    value: string,
+    operation: BrowserOperation,
+  ): Promise<void> {
+    const field = locator.first();
+    if (operation.clearFirst) {
+      await field.fill("", { timeout: operation.timeoutMs });
+    }
+    await field.pressSequentially(value, {
+      delay: operation.delayMs,
+      timeout: operation.timeoutMs,
+    });
   }
 
   private async snapshot(page: Page, maxChars: number): Promise<Record<string, unknown>> {
@@ -303,7 +348,7 @@ export class BrowserRuntime {
     page: Page,
     operation: BrowserOperation,
   ): Promise<Record<string, unknown>> {
-    const locator = (await this.locator(page, operation)).first();
+    const locator = (await this.locator(page, operation.target)).first();
     const [text, html] = await Promise.all([
       locator.innerText({ timeout: operation.timeoutMs }),
       locator.innerHTML({ timeout: operation.timeoutMs }),
@@ -335,6 +380,15 @@ export class BrowserRuntime {
   }
 
   async execute(operation: BrowserOperation): Promise<Record<string, unknown>> {
+    // Every branch reports `success: true` on the way out, because a caller who
+    // declared no evidence is held to exactly that field: policy derives
+    // `result_equals success true` for browser mutations, and a result without
+    // it verified as `partial` no matter how well the action went. Failures
+    // throw, so reaching a return is what success means here.
+    return { success: true, ...(await this.run(operation)) };
+  }
+
+  private async run(operation: BrowserOperation): Promise<Record<string, unknown>> {
     const page = await this.page();
     switch (operation.action) {
       case "navigate": {
@@ -392,8 +446,43 @@ export class BrowserRuntime {
         return operation.target === undefined
           ? await this.snapshot(page, operation.maxChars)
           : await this.extract(page, operation);
+      /**
+       * Block until the page reaches a state, instead of guessing a sleep.
+       *
+       * Without this the only way to handle a slow login redirect or a modal
+       * that animates in was to retry the next action and hope, which is why
+       * `settleTimeoutMs` kept getting raised as a substitute. Waiting for the
+       * thing you are actually waiting for is both faster and honest about what
+       * failed when it times out.
+       */
+      case "wait": {
+        const deadline = operation.timeoutMs;
+        if (operation.urlContains !== undefined) {
+          const needle = operation.urlContains;
+          await page.waitForURL((url) => url.href.includes(needle), {
+            timeout: deadline,
+          });
+        } else if (operation.target !== undefined) {
+          await this.pendingLocator(page, operation.target)
+            .first()
+            .waitFor({ state: operation.state ?? "visible", timeout: deadline });
+        } else if (operation.value !== undefined) {
+          const needle = operation.value;
+          await page.waitForFunction(
+            (text) => document.body?.innerText.includes(text) === true,
+            needle,
+            { timeout: deadline },
+          );
+        } else {
+          throw new Error("browser_wait_requires_target_url_contains_or_value");
+        }
+        return {
+          waited: true,
+          ...(await this.settledSnapshot(page, operation)),
+        };
+      }
       case "click": {
-        await (await this.locator(page, operation)).first().click({
+        await (await this.locator(page, operation.target)).first().click({
           timeout: operation.timeoutMs,
         });
         return {
@@ -403,17 +492,51 @@ export class BrowserRuntime {
       }
       case "type": {
         if (operation.value === undefined) throw new Error("browser_type_requires_value");
-        await (await this.locator(page, operation)).first().fill(operation.value, {
-          timeout: operation.timeoutMs,
-        });
+        await this.typeInto(
+          await this.locator(page, operation.target),
+          operation.value,
+          operation,
+        );
         return {
           typed: true,
           ...(await this.settledSnapshot(page, operation)),
         };
       }
+      /**
+       * Fill several fields and optionally submit, as one governed action.
+       *
+       * Each field is its own mutation under the per-action model, so a
+       * six-field checkout form cost six typed approval phrases and six DOM
+       * settles. The approval covers the whole form because the whole form is
+       * what the caller planned, and it is digested into the challenge like any
+       * other operation.
+       */
+      case "fill_form": {
+        if (operation.fields === undefined) {
+          throw new Error("browser_fill_form_requires_fields");
+        }
+        for (const field of operation.fields) {
+          await this.typeInto(
+            await this.locator(page, field.target),
+            field.value,
+            operation,
+          );
+        }
+        const submitted = operation.target !== undefined;
+        if (submitted) {
+          await (await this.locator(page, operation.target)).first().click({
+            timeout: operation.timeoutMs,
+          });
+        }
+        return {
+          filled: operation.fields.length,
+          submitted,
+          ...(await this.settledSnapshot(page, operation)),
+        };
+      }
       case "select": {
         if (operation.values === undefined) throw new Error("browser_select_requires_values");
-        const selected = await (await this.locator(page, operation))
+        const selected = await (await this.locator(page, operation.target))
           .first()
           .selectOption(operation.values, { timeout: operation.timeoutMs });
         return {
@@ -426,7 +549,7 @@ export class BrowserRuntime {
         const locator =
           operation.target === undefined
             ? page.locator("body")
-            : await this.locator(page, operation);
+            : await this.locator(page, operation.target);
         await locator.first().press(operation.key, { timeout: operation.timeoutMs });
         return {
           pressed: operation.key,
@@ -436,18 +559,26 @@ export class BrowserRuntime {
       case "scroll": {
         const direction = operation.direction ?? "down";
         if (direction === "into_view") {
-          await (await this.locator(page, operation)).first().scrollIntoViewIfNeeded({
+          await (await this.locator(page, operation.target)).first().scrollIntoViewIfNeeded({
             timeout: operation.timeoutMs,
           });
         } else {
-          await page.evaluate((value) => {
-            if (value === "top") window.scrollTo(0, 0);
-            else if (value === "bottom") window.scrollTo(0, document.body.scrollHeight);
-            else window.scrollBy(0, value === "up" ? -600 : 600);
-          }, direction);
+          // A fixed ±600 was too small for a long article and too large for a
+          // short scroll container, and nothing could change it.
+          await page.evaluate(
+            ({ value, pixels }) => {
+              if (value === "top") window.scrollTo(0, 0);
+              else if (value === "bottom") window.scrollTo(0, document.body.scrollHeight);
+              else window.scrollBy(0, value === "up" ? -pixels : pixels);
+            },
+            { value: direction, pixels: operation.pixels },
+          );
         }
         return {
           scrolled: direction,
+          // Where we ended up, so a caller paging through a document can tell
+          // it has hit the bottom rather than scrolling forever.
+          scrollY: await page.evaluate(() => window.scrollY),
           ...(await this.settledSnapshot(page, operation)),
         };
       }
@@ -472,7 +603,7 @@ export class BrowserRuntime {
           throw new Error("browser_upload_requires_file_paths");
         }
         const files = await this.uploadPaths(operation.filePaths);
-        await (await this.locator(page, operation)).first().setInputFiles(files, {
+        await (await this.locator(page, operation.target)).first().setInputFiles(files, {
           timeout: operation.timeoutMs,
         });
         return {
@@ -484,7 +615,7 @@ export class BrowserRuntime {
         const downloadPromise = page.waitForEvent("download", {
           timeout: operation.timeoutMs,
         });
-        await (await this.locator(page, operation)).first().click({
+        await (await this.locator(page, operation.target)).first().click({
           timeout: operation.timeoutMs,
         });
         const download = await downloadPromise;

@@ -62,8 +62,10 @@ export const BrowserOperationSchema = z
       "forward",
       "reload",
       "inspect",
+      "wait",
       "click",
       "type",
+      "fill_form",
       "select",
       "press",
       "scroll",
@@ -79,10 +81,34 @@ export const BrowserOperationSchema = z
     target: BrowserTargetSchema.optional(),
     value: z.string().max(100_000).optional(),
     values: z.array(z.string().max(2_000)).max(50).optional(),
+    // One task, one approval: a login form is two fields and a submit, not
+    // three separate governed mutations.
+    fields: z
+      .array(
+        z
+          .object({
+            target: BrowserTargetSchema,
+            value: z.string().max(100_000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(50)
+      .optional(),
     filePaths: z.array(boundedPath).min(1).max(20).optional(),
     key: z.string().max(100).optional(),
     direction: z.enum(["up", "down", "top", "bottom", "into_view"]).optional(),
+    // `wait` conditions. A URL is matched by substring rather than by equality
+    // because the interesting part of a post-login redirect is the path, not
+    // the session token stapled to it.
+    state: z.enum(["visible", "hidden", "attached", "detached"]).optional(),
+    urlContains: z.string().min(1).max(2_000).optional(),
     tabIndex: z.number().int().min(0).max(100).optional(),
+    // Per-keystroke delay. Some widgets debounce, and some deliberately ignore
+    // input that arrives faster than a human could produce it.
+    delayMs: z.number().int().min(0).max(500).default(0),
+    clearFirst: z.boolean().default(true),
+    pixels: z.number().int().min(1).max(100_000).default(600),
     fullPage: z.boolean().default(false),
     timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
     settleQuietMs: z.number().int().min(25).max(2_000).default(180),
@@ -180,6 +206,7 @@ export const OperationSchema = z.discriminatedUnion("kind", [
 
 export type FileOperation = z.infer<typeof FileOperationSchema>;
 export type TerminalOperation = z.infer<typeof TerminalOperationSchema>;
+export type BrowserTarget = z.infer<typeof BrowserTargetSchema>;
 export type BrowserOperation = z.infer<typeof BrowserOperationSchema>;
 export type MemoryOperation = z.infer<typeof MemoryOperationSchema>;
 export type ComputerOperation = z.infer<typeof ComputerOperationSchema>;

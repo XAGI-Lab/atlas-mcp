@@ -287,6 +287,28 @@ describe("default evidence", () => {
       }),
     ).toEqual([]);
   });
+
+  it("holds a browser mutation to the flag the runtime actually reports", () => {
+    // This predicate is only honest because `BrowserRuntime.execute` stamps
+    // `success: true` on every result. It did not, so a click with no declared
+    // evidence executed, mutated the page, and then verified as `partial`
+    // because the derived predicate read a key nobody wrote.
+    expect(
+      defaultEvidenceFor({
+        kind: "browser",
+        action: "click",
+        target: { selector: "#go" },
+        fullPage: false,
+        timeoutMs: 30_000,
+        settleQuietMs: 180,
+        settleTimeoutMs: 1_500,
+        maxChars: 20_000,
+        delayMs: 0,
+        clearFirst: true,
+        pixels: 600,
+      }),
+    ).toEqual([{ type: "result_equals", path: "success", value: true }]);
+  });
 });
 
 describe("Windows command spellings", () => {

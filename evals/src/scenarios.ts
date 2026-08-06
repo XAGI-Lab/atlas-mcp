@@ -581,4 +581,50 @@ export const scenarios: EvaluationScenario[] = [
     cancel: true,
     expectedFinal: "cancelled",
   },
+  {
+    // Waiting blocks until the page reaches a state; it does not act on the
+    // page. Charging an approval for it would push callers back to polling with
+    // repeated inspects, which is what waiting exists to replace.
+    id: "browser-wait-is-read-not-mutation",
+    category: "browser",
+    request: {
+      goal: "Wait for the results panel to appear",
+      operation: {
+        kind: "browser",
+        action: "wait",
+        target: { selector: "#results" },
+        state: "visible",
+      },
+      constraints: [],
+      forbiddenEffects: ["read"],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "policy_blocked",
+  },
+  {
+    // A whole form is one approval, not one per field — but it is still an
+    // approval. Batching is there to cut the count, never the gate.
+    id: "browser-fill-form-is-one-approval",
+    category: "browser",
+    request: {
+      goal: "Fill the sign-in form and submit it",
+      operation: {
+        kind: "browser",
+        action: "fill_form",
+        fields: [
+          { target: { selector: "#email" }, value: "user@example.com" },
+          { target: { selector: "#password" }, value: "correct horse" },
+        ],
+        target: { selector: "#sign-in" },
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "awaiting_approval",
+    cancel: true,
+    expectedFinal: "cancelled",
+  },
 ];
