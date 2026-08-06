@@ -92,4 +92,38 @@ describe("TerminalRuntime", () => {
     expect(output.running).toBe(false);
     runtime.close();
   }, 30_000);
+
+  it("names a missing program instead of surfacing a bare ENOENT", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-terminal-"));
+    roots.push(root);
+    const runtime = await TerminalRuntime.create({ root });
+    await expect(
+      runtime.execute(
+        TerminalOperationSchema.parse({
+          kind: "terminal",
+          action: "run",
+          command: "melra-program-that-does-not-exist",
+        }),
+      ),
+    ).rejects.toThrow("terminal_command_not_found");
+    runtime.close();
+  });
+
+  it("does not report a background job that never started", async () => {
+    // `spawn` reports a failed start asynchronously, so this used to resolve
+    // with `started: true` and a job id for a process that never existed.
+    const root = await mkdtemp(join(tmpdir(), "melra-terminal-"));
+    roots.push(root);
+    const runtime = await TerminalRuntime.create({ root });
+    await expect(
+      runtime.execute(
+        TerminalOperationSchema.parse({
+          kind: "terminal",
+          action: "start",
+          command: "melra-program-that-does-not-exist",
+        }),
+      ),
+    ).rejects.toThrow("terminal_command_not_found");
+    runtime.close();
+  });
 });
