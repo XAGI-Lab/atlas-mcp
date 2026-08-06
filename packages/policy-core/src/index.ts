@@ -195,11 +195,20 @@ export function classifyOperation(operation: Operation): {
       };
     }
     case "browser": {
+      // Navigation and observation read the world; only actions that drive the
+      // page (click, type, upload, ...) change anything. `tab_new` and
+      // `tab_switch` are classified with `navigate` for the same reason it is:
+      // they move where we are looking, they do not act on a document.
       const read = new Set([
         "navigate",
+        "back",
+        "forward",
+        "reload",
         "inspect",
         "screenshot",
         "tabs",
+        "tab_new",
+        "tab_switch",
         "scroll",
       ]).has(operation.action);
       return {

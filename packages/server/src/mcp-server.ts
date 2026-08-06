@@ -64,6 +64,9 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
           terminal: ["run", "start", "status", "output", "stop"],
           browser: [
             "navigate",
+            "back",
+            "forward",
+            "reload",
             "inspect",
             "click",
             "type",
@@ -74,6 +77,8 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
             "upload",
             "download",
             "tabs",
+            "tab_new",
+            "tab_switch",
             "close",
           ],
           memory: ["put", "search", "list", "delete", "clear"],

@@ -61,11 +61,25 @@ Interactive pseudo-terminal sessions are not implemented in `0.3`.
 
 ### Browser
 
-Actions: `navigate`, `inspect`, `click`, `type`, `select`, `press`, `scroll`,
-`screenshot`, `upload`, `download`, `tabs`, `close`.
+Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `click`, `type`,
+`select`, `press`, `scroll`, `screenshot`, `upload`, `download`, `tabs`,
+`tab_new`, `tab_switch`, `close`.
 
 - Uses an isolated headless browser context.
 - Prefers semantic targets (`role`, `name`, `text`) with optional selectors.
+  `inspect` reports a `selector` for every element it lists, so a caller can act
+  on what it just read; passing a `target` to `inspect` scopes it to that
+  element's `text` and `html` instead of the whole page.
+- History and tab actions are classified `read`: they move where the session is
+  looking rather than acting on a document, so stepping back or switching tabs
+  does not cost an approval. Actions that drive the page (`click`, `type`,
+  `select`, `press`, `upload`, `download`) still do.
+- `back` and `forward` report `moved`, which is false only at the end of the
+  history stack. A move to an entry with no HTTP response (`about:blank`, a hash
+  change) reports `moved: true` with a null `status`.
+- `tab_new` accepts an optional `url` and runs the same destination checks
+  `navigate` does. Every tab action returns the renumbered tab list, because
+  opening, switching, and closing all shift the indices.
 - Resolves and checks the destination and every intercepted request.
 - Blocks private, link-local, multicast, unspecified, and cloud-metadata
   addresses. Localhost is opt-in.

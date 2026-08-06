@@ -6,6 +6,30 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Browser history navigation: `back`, `forward`, and `reload`. A session could
+  previously only move forward, so a wrong click was unrecoverable without
+  re-navigating from scratch. `back`/`forward` report `moved`, which is false
+  only at the end of the history stack — Playwright returns `null` both when
+  there is nowhere to go *and* when the entry it landed on produced no HTTP
+  response (`about:blank`, a hash change, a `data:` URL), so the URL is compared
+  to tell those apart rather than reporting a move that happened as a move that
+  did not.
+- Browser tab control: `tab_new` and `tab_switch`. `tabs` reported which page
+  was `active` while nothing could change it, and the `tabIndex` schema field
+  existed but was read only by `close` — so a link that opened a new tab
+  stranded the session. `tab_new` accepts an optional `url` and runs the same
+  `assertSafeUrl` destination check `navigate` does, so it is not a route around
+  the domain allowlist. Every tab action now returns the renumbered tab list,
+  since opening, switching, and closing all shift the indices and a caller would
+  otherwise be acting on a stale one.
+- History and tab actions classify as `read` rather than `mutate`: they move
+  where the session is looking, they do not act on a document. Stepping back or
+  switching tabs therefore costs no typed approval. Actions that drive the page
+  are unchanged, and an eval scenario pins both halves — that `back` and
+  `tab_switch` are reads, and that `click` still reaches approval.
+
 ### Changed
 
 - Terminal commands run on Windows. Three defects compounded into a deadlock
