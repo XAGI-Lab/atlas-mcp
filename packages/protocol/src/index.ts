@@ -38,7 +38,7 @@ export const TerminalOperationSchema = z
     args: z.array(z.string().max(4096)).max(100).default([]),
     jobId: z.string().uuid().optional(),
     cwd: boundedPath.optional(),
-    env: z.record(z.string().max(8192)).optional(),
+    env: z.record(z.string(), z.string().max(8192)).optional(),
     timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
     maxOutputChars: z.number().int().min(1_000).max(1_000_000).default(100_000),
   })
@@ -426,7 +426,7 @@ export const WorkflowEventSchema = z
     sequence: z.number().int().positive(),
     traceId: z.string().uuid(),
     type: z.string().regex(/^[a-z]+(?:\.[a-z_]+)+$/),
-    data: z.record(z.unknown()),
+    data: z.record(z.string(), z.unknown()),
     occurredAt: z.string().datetime(),
   })
   .strict();
@@ -474,7 +474,7 @@ export const WorkflowSnapshotSchema = z
 export const WorkflowAdvanceResultSchema = z
   .object({
     run: WorkflowRunSchema,
-    tasks: z.array(z.record(z.unknown())),
+    tasks: z.array(z.record(z.string(), z.unknown())),
     events: z.array(WorkflowEventSchema),
   })
   .strict();

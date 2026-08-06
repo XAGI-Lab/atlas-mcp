@@ -6,6 +6,16 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade `zod` from 3.25.76 to 4.4.3 in `@melra/protocol` and `@melra/server`.
+  The only breaking API in use was the single-argument `z.record(value)` form,
+  which zod 4 replaces with the explicit `z.record(key, value)` signature; three
+  call sites in `packages/protocol/src/index.ts` were updated. Schema semantics
+  are unchanged — every operation schema stays `.strict()` with the same bounds
+  and defaults, and all 22 policy/execution eval scenarios still pass with
+  identical plan and final states.
+
 ### Security
 
 - Pin transitive `hono` to `^4.12.34` and `fast-uri` to `^3.1.5` through pnpm

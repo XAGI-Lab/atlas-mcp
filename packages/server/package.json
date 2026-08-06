@@ -31,6 +31,6 @@
     "@melra/terminal-runtime": "workspace:*",
     "@melra/verifier-core": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
-    "zod": "3.25.76"
+    "zod": "4.4.3"
   }
 }
