@@ -20,6 +20,7 @@ import {
   assertSafeUrl,
   type NetworkPolicy,
 } from "./network-policy.js";
+import { buildSelector } from "./selector.js";
 import { waitForStableDom } from "./stable-dom.js";
 
 export interface BrowserRuntimeOptions extends NetworkPolicy {
@@ -129,22 +130,83 @@ export class BrowserRuntime {
     return this.activePage;
   }
 
-  private locator(page: Page, operation: BrowserOperation): Locator {
+  /**
+   * Resolve a target to a locator that actually matches something.
+   *
+   * Text matching used to be `exact: true` only, which fails on the whitespace,
+   * casing, and nested-markup differences that real pages are full of — a button
+   * rendered as `<button> Sign in </button>` never matched `"Sign in"`. Exact is
+   * still tried first so a precise caller keeps precise behaviour; the substring
+   * form is only consulted when exact found nothing.
+   *
+   * A target that matches nothing is reported as such instead of being handed to
+   * Playwright to fail as an opaque action timeout thirty seconds later.
+   */
+  private async locator(page: Page, operation: BrowserOperation): Promise<Locator> {
     const target = operation.target;
     if (target === undefined) throw new Error("browser_action_requires_target");
+    const candidates: Locator[] = [];
     if (target.role !== undefined) {
-      return page.getByRole(target.role as Parameters<Page["getByRole"]>[0], {
-        ...(target.name === undefined ? {} : { name: target.name }),
-      });
+      candidates.push(
+        page.getByRole(target.role as Parameters<Page["getByRole"]>[0], {
+          ...(target.name === undefined ? {} : { name: target.name }),
+        }),
+      );
     }
-    if (target.selector !== undefined) return page.locator(target.selector);
-    if (target.text !== undefined) return page.getByText(target.text, { exact: true });
-    throw new Error("browser_target_requires_role_selector_or_text");
+    if (target.selector !== undefined) candidates.push(page.locator(target.selector));
+    if (target.text !== undefined) {
+      candidates.push(
+        page.getByText(target.text, { exact: true }),
+        page.getByText(target.text, { exact: false }),
+      );
+    }
+    if (candidates.length === 0) {
+      throw new Error("browser_target_requires_role_selector_or_text");
+    }
+    for (const candidate of candidates) {
+      if ((await candidate.count()) > 0) return candidate;
+    }
+    throw new Error(
+      `browser_target_not_found:${JSON.stringify(target)}`,
+    );
   }
 
   private async snapshot(page: Page, maxChars: number): Promise<Record<string, unknown>> {
     const data = await page.evaluate((limit) => {
       const text = document.body?.innerText ?? "";
+      /**
+       * Walk up from the element recording the position of each ancestor, and
+       * stop at the first one the page has labelled. The selector string is
+       * assembled by the caller so the interesting part stays testable.
+       */
+      const describe = (element: Element) => {
+        const chain: {
+          tag: string;
+          nth: number;
+          id?: string;
+          testId?: string;
+        }[] = [];
+        for (
+          let node: Element | null = element;
+          node !== null && chain.length < 12;
+          node = node.parentElement
+        ) {
+          const parent: Element | null = node.parentElement;
+          const id = node.id === "" ? undefined : node.id;
+          const testId = node.getAttribute("data-testid") ?? undefined;
+          chain.unshift({
+            tag: node.tagName.toLowerCase(),
+            nth:
+              parent === null
+                ? 1
+                : Array.prototype.indexOf.call(parent.children, node) + 1,
+            ...(id === undefined ? {} : { id }),
+            ...(testId === undefined ? {} : { testId }),
+          });
+          if (id !== undefined || testId !== undefined) break;
+        }
+        return chain;
+      };
       const elements = Array.from(
         document.querySelectorAll<HTMLElement>(
           "a,button,input,select,textarea,[role],[tabindex]",
@@ -156,7 +218,8 @@ export class BrowserRuntime {
           return style.visibility !== "hidden" && style.display !== "none" && box.width > 0;
         })
         .slice(0, 250)
-        .map((element) => ({
+        .map((element, index) => ({
+          index,
           tag: element.tagName.toLowerCase(),
           role: element.getAttribute("role"),
           name:
@@ -166,6 +229,29 @@ export class BrowserRuntime {
             element.innerText?.trim().slice(0, 200) ??
             null,
           type: element.getAttribute("type"),
+          // Everything below is what a caller needs to address the element it is
+          // looking at. Without it a snapshot could be read but not acted on.
+          chain: describe(element),
+          id: element.id === "" ? null : element.id,
+          testId: element.getAttribute("data-testid"),
+          attributeName: element.getAttribute("name"),
+          placeholder: element.getAttribute("placeholder"),
+          href: element.getAttribute("href"),
+          value:
+            element instanceof HTMLInputElement ||
+            element instanceof HTMLTextAreaElement ||
+            element instanceof HTMLSelectElement
+              ? element.value.slice(0, 200)
+              : null,
+          disabled:
+            element instanceof HTMLInputElement ||
+            element instanceof HTMLButtonElement ||
+            element instanceof HTMLTextAreaElement ||
+            element instanceof HTMLSelectElement
+              ? element.disabled
+              : null,
+          checked:
+            element instanceof HTMLInputElement ? element.checked : null,
         }));
       return {
         text: text.slice(0, limit),
@@ -177,6 +263,39 @@ export class BrowserRuntime {
       url: page.url(),
       title: await page.title(),
       ...data,
+      elements: data.elements.map(({ chain, ...element }) => ({
+        ...element,
+        selector: buildSelector(chain),
+      })),
+      untrustedContent: true,
+    };
+  }
+
+  /**
+   * Read one element rather than the whole page.
+   *
+   * The old server had `extract_text` and `extract_html`; both were dropped, so
+   * a caller wanting one table out of a large document had to take the entire
+   * page text and cut it up itself. `inspect` already accepts a target, so
+   * scoping it needs no new action.
+   */
+  private async extract(
+    page: Page,
+    operation: BrowserOperation,
+  ): Promise<Record<string, unknown>> {
+    const locator = (await this.locator(page, operation)).first();
+    const [text, html] = await Promise.all([
+      locator.innerText({ timeout: operation.timeoutMs }),
+      locator.innerHTML({ timeout: operation.timeoutMs }),
+    ]);
+    return {
+      url: page.url(),
+      title: await page.title(),
+      target: operation.target,
+      text: text.slice(0, operation.maxChars),
+      html: html.slice(0, operation.maxChars),
+      truncated:
+        text.length > operation.maxChars || html.length > operation.maxChars,
       untrustedContent: true,
     };
   }
@@ -211,9 +330,11 @@ export class BrowserRuntime {
         };
       }
       case "inspect":
-        return await this.snapshot(page, operation.maxChars);
+        return operation.target === undefined
+          ? await this.snapshot(page, operation.maxChars)
+          : await this.extract(page, operation);
       case "click": {
-        await this.locator(page, operation).first().click({
+        await (await this.locator(page, operation)).first().click({
           timeout: operation.timeoutMs,
         });
         return {
@@ -223,7 +344,7 @@ export class BrowserRuntime {
       }
       case "type": {
         if (operation.value === undefined) throw new Error("browser_type_requires_value");
-        await this.locator(page, operation).first().fill(operation.value, {
+        await (await this.locator(page, operation)).first().fill(operation.value, {
           timeout: operation.timeoutMs,
         });
         return {
@@ -233,7 +354,7 @@ export class BrowserRuntime {
       }
       case "select": {
         if (operation.values === undefined) throw new Error("browser_select_requires_values");
-        const selected = await this.locator(page, operation)
+        const selected = await (await this.locator(page, operation))
           .first()
           .selectOption(operation.values, { timeout: operation.timeoutMs });
         return {
@@ -244,7 +365,9 @@ export class BrowserRuntime {
       case "press": {
         if (operation.key === undefined) throw new Error("browser_press_requires_key");
         const locator =
-          operation.target === undefined ? page.locator("body") : this.locator(page, operation);
+          operation.target === undefined
+            ? page.locator("body")
+            : await this.locator(page, operation);
         await locator.first().press(operation.key, { timeout: operation.timeoutMs });
         return {
           pressed: operation.key,
@@ -254,7 +377,7 @@ export class BrowserRuntime {
       case "scroll": {
         const direction = operation.direction ?? "down";
         if (direction === "into_view") {
-          await this.locator(page, operation).first().scrollIntoViewIfNeeded({
+          await (await this.locator(page, operation)).first().scrollIntoViewIfNeeded({
             timeout: operation.timeoutMs,
           });
         } else {
@@ -290,7 +413,7 @@ export class BrowserRuntime {
           throw new Error("browser_upload_requires_file_paths");
         }
         const files = await this.uploadPaths(operation.filePaths);
-        await this.locator(page, operation).first().setInputFiles(files, {
+        await (await this.locator(page, operation)).first().setInputFiles(files, {
           timeout: operation.timeoutMs,
         });
         return {
@@ -302,7 +425,7 @@ export class BrowserRuntime {
         const downloadPromise = page.waitForEvent("download", {
           timeout: operation.timeoutMs,
         });
-        await this.locator(page, operation).first().click({
+        await (await this.locator(page, operation)).first().click({
           timeout: operation.timeoutMs,
         });
         const download = await downloadPromise;
@@ -380,5 +503,6 @@ export class BrowserRuntime {
 }
 
 export * from "./network-policy.js";
+export * from "./selector.js";
 export * from "./stable-dom.js";
 export * from "./browser-connection.js";

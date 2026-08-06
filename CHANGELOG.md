@@ -56,6 +56,22 @@ All notable changes are documented here. The format follows
   flag) is still blocked. Previously such callers hit a flat deny, had to guess
   the right predicate, and mostly gave up.
 
+- Close the browser see/act loop. `browser inspect` reported each element as
+  `{tag, role, name, type}` with nothing that could address it, and the old
+  server's HTML extraction was gone, so a caller could read a page but not
+  construct a target for it — the only route left was exact text matching. Each
+  element now carries a `selector` anchored on the nearest `id`/`data-testid`
+  ancestor (falling back to an `:nth-child` path), plus `index`, `id`, `testId`,
+  `attributeName`, `placeholder`, `href`, `value`, `disabled`, and `checked`.
+- Match `target.text` on substrings when an exact match finds nothing. Exact is
+  still tried first, so precise callers keep precise behaviour, but a button
+  rendered as `<button> Sign in </button>` no longer fails to match `Sign in`.
+- Report a target that matches nothing as `browser_target_not_found:<target>` at
+  resolution time instead of letting Playwright surface it as an opaque action
+  timeout once `timeoutMs` expires.
+- Scope `browser inspect` to a `target` when one is given, returning that
+  element's `text` and `html` rather than the whole page. This restores the old
+  server's `extract_text`/`extract_html` without adding an action.
 - Upgrade `zod` from 3.25.76 to 4.4.3 in `@melra/protocol` and `@melra/server`.
   The only breaking API in use was the single-argument `z.record(value)` form,
   which zod 4 replaces with the explicit `z.record(key, value)` signature; three
