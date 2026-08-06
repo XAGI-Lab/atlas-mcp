@@ -14,7 +14,13 @@ const roots: string[] = [];
 const entry = resolve(import.meta.dirname, "../dist/index.js");
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    // Windows holds the SQLite handle open briefly after the CLI subprocess
+    // exits, so an immediate rmdir loses a race with the OS and fails EBUSY.
+    roots
+      .splice(0)
+      .map((root) => rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })),
+  );
 });
 
 describe("melra CLI", () => {
@@ -152,9 +158,7 @@ describe("melra CLI", () => {
     expect(policy.allowedDomains).toContain("*");
   });
 
-  it(
-    "plans, advances, inspects, and cancels a durable workflow",
-    async () => {
+  it("plans, advances, inspects, and cancels a durable workflow", async () => {
     const root = await mkdtemp(join(tmpdir(), "melra-cli-workflow-"));
     roots.push(root);
     const home = join(root, ".melra");
@@ -218,9 +222,7 @@ describe("melra CLI", () => {
     expect(
       (JSON.parse(cancelled.stdout) as { status: string }).status,
     ).toBe("verified_complete");
-    },
-    20_000,
-  );
+  });
 
   it("uses stable exit codes for workflow approval and unknown IDs", async () => {
     const root = await mkdtemp(join(tmpdir(), "melra-cli-workflow-"));
