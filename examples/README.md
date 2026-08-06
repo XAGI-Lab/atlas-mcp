@@ -10,8 +10,10 @@ Read-only examples execute immediately. Mutation examples request an exact
 task-scoped approval phrase. Run them only in a disposable or reviewed
 workspace.
 
-Browser access is denied by default. The browser example includes a narrowly
-scoped policy that allows only `example.com`:
+Browsing works with the default policy, which allows any public destination and
+blocks private, link-local, loopback, and cloud-metadata addresses at the runtime
+regardless. The browser example ships a narrower policy that allows only
+`example.com`, as a template for restricting a real install:
 
 ```bash
 MELRA_POLICY=examples/04-browser-inspection/policy.json \
