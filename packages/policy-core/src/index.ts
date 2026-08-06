@@ -8,6 +8,7 @@ import type {
   ApprovalChallenge,
   ApprovalResponse,
   Effect,
+  EvidencePredicate,
   Operation,
   PolicyDecision,
   Risk,
@@ -54,6 +55,21 @@ const ALWAYS_DENIED_COMMANDS = new Set([
   "zsh",
 ]);
 
+/**
+ * Defaults tuned so a fresh install is usable without editing `policy.json`.
+ *
+ * `allowedDomains: ["*"]` is not the SSRF boundary and never was. `assertSafeUrl`
+ * in `@melra/browser-runtime` independently rejects non-http(s) protocols, URL
+ * credentials, private ranges, and cloud metadata (169.254/16), and it resolves
+ * DNS before allowing a navigation so a public name cannot be rebound to a
+ * private address. The domain list is a *narrowing* control on top of that guard,
+ * for operators who want to restrict which public sites are reachable — it is not
+ * what stops a browser from reaching the loopback interface.
+ *
+ * Defaulting it to `[]` made every single navigation fail with
+ * `browser_domain_not_allowed` out of the box, which is why browser use was
+ * reported as unusable. Operators who want an allowlist set one explicitly.
+ */
 export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
   return {
     version: "1",
@@ -73,8 +89,8 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
       "tail",
       "wc",
     ],
-    allowedDomains: [],
-    allowLocalhost: false,
+    allowedDomains: ["*"],
+    allowLocalhost: true,
     mutations: "confirm",
     approvalTtlMs: 5 * 60_000,
     maxFileBytes: 10 * 1024 * 1024,
@@ -200,6 +216,66 @@ export function classifyOperation(operation: Operation): {
         capability: "system.info",
         target: "local-system",
       };
+  }
+}
+
+/**
+ * Evidence a mutation must satisfy when the caller declared none.
+ *
+ * Mutations still require evidence — that rule is the product's verification
+ * thesis and is not relaxed here. What changed is the failure mode: previously a
+ * caller who omitted `requiredEvidence` got a flat `mutation_requires_evidence`
+ * deny and had to guess the right predicate, so most callers simply gave up. Now
+ * the obvious post-condition is derived from the operation itself, and the task
+ * is held to it exactly as if the caller had written it.
+ *
+ * Returns `[]` when no post-condition is derivable from the request alone (for
+ * example a `terminal run`, whose effect depends on the command). Those still
+ * deny, because a mutation nobody can check is precisely what should not run
+ * unattended.
+ */
+export function defaultEvidenceFor(
+  operation: Operation,
+): EvidencePredicate[] {
+  // Reads are never denied for missing evidence and already fall back to a
+  // synthetic `operation_completed` item, so synthesizing a predicate for them
+  // would only invent a way for a successful read to verify as `partial`.
+  if (classifyOperation(operation).effect === "read") return [];
+  switch (operation.kind) {
+    case "file":
+      switch (operation.action) {
+        case "write":
+        case "mkdir":
+          return [{ type: "file_exists", path: operation.path }];
+        case "delete":
+          return [{ type: "file_absent", path: operation.path }];
+        case "move":
+          return operation.destination === undefined
+            ? []
+            : [
+                { type: "file_absent", path: operation.path },
+                { type: "file_exists", path: operation.destination },
+              ];
+        default:
+          return [];
+      }
+    case "memory":
+      // Field names differ per action; each is the adapter's own report that the
+      // record actually changed, so a silent no-op cannot pass as a success.
+      // `clear` returns a count rather than a flag, so it has no boolean
+      // post-condition to assert.
+      return operation.action === "put"
+        ? [{ type: "result_equals", path: "stored", value: true }]
+        : operation.action === "delete"
+          ? [{ type: "result_equals", path: "deleted", value: true }]
+          : [];
+    case "browser":
+    case "computer":
+      // These adapters report an explicit `success` flag; hold the task to it
+      // rather than letting a silent no-op pass as a completed action.
+      return [{ type: "result_equals", path: "success", value: true }];
+    default:
+      return [];
   }
 }
 

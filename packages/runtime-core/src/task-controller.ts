@@ -13,6 +13,7 @@ import type {
 import { TaskRequestSchema } from "@melra/protocol";
 import {
   classifyOperation,
+  defaultEvidenceFor,
   evaluatePolicy,
   type LocalPolicy,
   validateApproval,
@@ -76,6 +77,21 @@ function certificateResult(task: TaskRecord): CertificateResult {
   }
 }
 
+/**
+ * Fill in `requiredEvidence` for a mutation that declared none.
+ *
+ * Applied once, where the request is normalized, so the derived predicates flow
+ * identically into the policy decision, the sealed payload, the persisted task
+ * record, and verification. A caller that declared its own evidence is left
+ * untouched — this only replaces an empty list.
+ */
+function withDefaultEvidence(request: TaskRequest): TaskRequest {
+  if (request.requiredEvidence.length > 0) return request;
+  const derived = defaultEvidenceFor(request.operation);
+  if (derived.length === 0) return request;
+  return { ...request, requiredEvidence: derived };
+}
+
 export class TaskController {
   private readonly active = new Map<string, AbortController>();
 
@@ -91,7 +107,7 @@ export class TaskController {
     request: TaskRequest,
     options: TaskPlanOptions = {},
   ): TaskRecord {
-    const parsedRequest = TaskRequestSchema.parse(request);
+    const parsedRequest = withDefaultEvidence(TaskRequestSchema.parse(request));
     if (
       options.idempotencyKey !== undefined &&
       !/^[a-f0-9]{64}$/.test(options.idempotencyKey)
@@ -141,7 +157,7 @@ export class TaskController {
   }
 
   preflight(request: TaskRequest): PolicyDecision {
-    const parsed = TaskRequestSchema.parse(request);
+    const parsed = withDefaultEvidence(TaskRequestSchema.parse(request));
     const capabilities = this.executor.capabilities?.();
     if (
       capabilities !== undefined &&

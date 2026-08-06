@@ -174,11 +174,11 @@ export const scenarios: EvaluationScenario[] = [
     expectedFinal: "verified_success",
   },
   {
-    id: "file-delete-without-evidence",
+    id: "file-delete-derives-absence-evidence",
     category: "policy",
     fixtures: [{ path: "delete.txt", content: "keep until approved" }],
     request: {
-      goal: "Delete without evidence",
+      goal: "Delete without declaring evidence",
       operation: {
         kind: "file",
         action: "delete",
@@ -191,7 +191,12 @@ export const scenarios: EvaluationScenario[] = [
       budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 1 },
       requiredEvidence: [],
     },
-    expectedPlan: "policy_blocked",
+    // A delete has an obvious post-condition, so the task reaches approval
+    // instead of dead-ending — and is then held to `file_absent` before it can
+    // be called a success.
+    expectedPlan: "awaiting_approval",
+    approve: true,
+    expectedFinal: "verified_success",
   },
   {
     id: "file-delete-approved-and-verified-absent",
@@ -418,10 +423,10 @@ export const scenarios: EvaluationScenario[] = [
     expectedFinal: "verified_success",
   },
   {
-    id: "memory-clear-without-evidence",
+    id: "memory-clear-without-derivable-evidence",
     category: "policy",
     request: {
-      goal: "Clear memory without evidence",
+      goal: "Clear memory without declaring evidence",
       operation: {
         kind: "memory",
         action: "clear",
@@ -434,6 +439,31 @@ export const scenarios: EvaluationScenario[] = [
       budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
       requiredEvidence: [],
     },
+    // `clear` reports a count, not a boolean post-condition, so there is nothing
+    // honest to derive and this destructive op stays blocked.
+    expectedPlan: "policy_blocked",
+  },
+  {
+    id: "terminal-mutation-without-derivable-evidence",
+    category: "policy",
+    request: {
+      goal: "Install dependencies without declaring evidence",
+      operation: {
+        kind: "terminal",
+        action: "run",
+        command: "npm",
+        args: ["install"],
+        timeoutMs: 5_000,
+        maxOutputChars: 10_000,
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    // Nothing in the request says what the command should leave behind, so no
+    // honest post-condition exists and the mutation-requires-evidence guarantee
+    // still blocks it.
     expectedPlan: "policy_blocked",
   },
   {
