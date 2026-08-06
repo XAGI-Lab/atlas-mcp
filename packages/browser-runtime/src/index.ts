@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type {
   Browser,
   BrowserContext,
+  Frame,
   Locator,
   Page,
   Route,
@@ -31,6 +32,154 @@ export interface BrowserRuntimeOptions extends NetworkPolicy {
   cdpEndpoint?: string;
   cdpContextIndex?: number;
   recordHarPath?: string;
+}
+
+/**
+ * How many frames one page is searched across. Ad and analytics stacks attach
+ * dozens; the interactive ones a caller cares about are always near the front.
+ */
+const MAX_FRAMES = 20;
+
+/**
+ * Total elements one `inspect` reports. Each frame contributes at most 250
+ * (the cap inside `collectFrame`), so the main document can never consume the
+ * whole budget and leave a consent iframe unlisted.
+ */
+const MAX_ELEMENTS = 400;
+
+/** How often `waitForTarget` re-resolves the target across the frame list. */
+const WAIT_POLL_MS = 100;
+
+/**
+ * Frame URLs of the widgets that gate a page behind a human check.
+ *
+ * These are reported, never solved. Detecting one turns an opaque "click timed
+ * out" into a caller-actionable "a captcha is in the way", which is the honest
+ * outcome and the only one we will produce.
+ */
+const CAPTCHA_FRAMES: [RegExp, string][] = [
+  [/^https?:\/\/(?:www\.)?(?:google\.com|recaptcha\.net)\/recaptcha\//, "recaptcha"],
+  [/^https?:\/\/(?:[^/]+\.)?hcaptcha\.com\//, "hcaptcha"],
+  [/^https?:\/\/challenges\.cloudflare\.com\//, "turnstile"],
+  [/^https?:\/\/(?:[^/]+\.)?arkoselabs\.com\//, "arkose"],
+];
+
+/**
+ * Name any human-verification widget embedded in the page.
+ *
+ * Returns nothing when the page is clear, so a normal snapshot is unchanged.
+ */
+export function captchaReport(frameUrls: string[]): Record<string, unknown> {
+  const vendors = new Set<string>();
+  for (const url of frameUrls) {
+    for (const [pattern, vendor] of CAPTCHA_FRAMES) {
+      if (pattern.test(url)) vendors.add(vendor);
+    }
+  }
+  if (vendors.size === 0) return {};
+  return {
+    captcha: {
+      present: true,
+      vendors: [...vendors].sort(),
+      // Stated in the payload rather than only in docs, because the caller
+      // reading this is usually a model deciding whether to keep retrying.
+      note: "A human-verification challenge is present. MELRA does not solve or bypass captchas; the page needs a human, a pre-authenticated session, or a different route.",
+    },
+  };
+}
+
+/**
+ * Collect the readable text and addressable elements of one frame.
+ *
+ * Module level rather than inline because it is now evaluated once per frame
+ * instead of once per page. It runs inside the browser, so it may not close
+ * over anything here.
+ */
+function collectFrame(limit: number) {
+  const text = document.body?.innerText ?? "";
+  /**
+   * Walk up from the element recording the position of each ancestor, and
+   * stop at the first one the page has labelled. The selector string is
+   * assembled by the caller so the interesting part stays testable.
+   */
+  const describe = (element: Element) => {
+    const chain: {
+      tag: string;
+      nth: number;
+      id?: string;
+      testId?: string;
+    }[] = [];
+    for (
+      let node: Element | null = element;
+      node !== null && chain.length < 12;
+      node = node.parentElement
+    ) {
+      const parent: Element | null = node.parentElement;
+      const id = node.id === "" ? undefined : node.id;
+      const testId = node.getAttribute("data-testid") ?? undefined;
+      chain.unshift({
+        tag: node.tagName.toLowerCase(),
+        nth:
+          parent === null
+            ? 1
+            : Array.prototype.indexOf.call(parent.children, node) + 1,
+        ...(id === undefined ? {} : { id }),
+        ...(testId === undefined ? {} : { testId }),
+      });
+      if (id !== undefined || testId !== undefined) break;
+    }
+    return chain;
+  };
+  const elements = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      "a,button,input,select,textarea,[role],[tabindex]",
+    ),
+  )
+    .filter((element) => {
+      const style = window.getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.visibility !== "hidden" && style.display !== "none" && box.width > 0;
+    })
+    .slice(0, 250)
+    .map((element) => ({
+      tag: element.tagName.toLowerCase(),
+      role: element.getAttribute("role"),
+      name:
+        element.getAttribute("aria-label") ??
+        element.getAttribute("alt") ??
+        element.getAttribute("title") ??
+        element.innerText?.trim().slice(0, 200) ??
+        null,
+      type: element.getAttribute("type"),
+      // Everything below is what a caller needs to address the element it is
+      // looking at. Without it a snapshot could be read but not acted on.
+      chain: describe(element),
+      id: element.id === "" ? null : element.id,
+      testId: element.getAttribute("data-testid"),
+      attributeName: element.getAttribute("name"),
+      placeholder: element.getAttribute("placeholder"),
+      href: element.getAttribute("href"),
+      value:
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLSelectElement
+          ? element.value.slice(0, 200)
+          : null,
+      disabled:
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLButtonElement ||
+        element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLSelectElement
+          ? element.disabled
+          : null,
+      checked:
+        element instanceof HTMLInputElement ? element.checked : null,
+    }));
+  return {
+    text: text.slice(0, limit),
+    truncated: text.length > limit,
+    elements,
+  };
 }
 
 export class BrowserRuntime {
@@ -151,30 +300,48 @@ export class BrowserRuntime {
   }
 
   /**
+   * The frames a target may live in, main frame first.
+   *
+   * Consent banners, cookie walls, payment fields, and captcha widgets are
+   * almost always in an iframe, and `page.locator` only ever searched the main
+   * document — so the element an agent could plainly see in a screenshot was
+   * unaddressable, and the run died on an action timeout. Searching every frame
+   * with the main one first keeps precise callers unaffected and makes the
+   * embedded case work without a new field to pass.
+   *
+   * Ad and analytics pages can attach dozens of frames, so the list is bounded.
+   */
+  private frames(page: Page): Frame[] {
+    return page.frames().slice(0, MAX_FRAMES);
+  }
+
+  /**
    * Every way the caller gave us to find the element, in the order we trust
    * them. Split out from `locator` because waiting and acting need the same
    * list but disagree about what to do when nothing matches yet.
    */
   private candidates(page: Page, target: BrowserTarget): Locator[] {
-    const found: Locator[] = [];
-    if (target.role !== undefined) {
-      found.push(
-        page.getByRole(target.role as Parameters<Page["getByRole"]>[0], {
-          ...(target.name === undefined ? {} : { name: target.name }),
-        }),
-      );
-    }
-    if (target.selector !== undefined) found.push(page.locator(target.selector));
-    if (target.text !== undefined) {
-      found.push(
-        page.getByText(target.text, { exact: true }),
-        page.getByText(target.text, { exact: false }),
-      );
-    }
-    if (found.length === 0) {
-      throw new Error("browser_target_requires_role_selector_or_text");
-    }
-    return found;
+    return this.frames(page).flatMap((frame) => {
+      const found: Locator[] = [];
+      if (target.role !== undefined) {
+        found.push(
+          frame.getByRole(target.role as Parameters<Frame["getByRole"]>[0], {
+            ...(target.name === undefined ? {} : { name: target.name }),
+          }),
+        );
+      }
+      if (target.selector !== undefined) found.push(frame.locator(target.selector));
+      if (target.text !== undefined) {
+        found.push(
+          frame.getByText(target.text, { exact: true }),
+          frame.getByText(target.text, { exact: false }),
+        );
+      }
+      if (found.length === 0) {
+        throw new Error("browser_target_requires_role_selector_or_text");
+      }
+      return found;
+    });
   }
 
   /**
@@ -203,11 +370,56 @@ export class BrowserRuntime {
   }
 
   /**
-   * The same target, but matching nothing *yet* is the normal case rather than
-   * an error — that is the entire point of waiting for it.
+   * Wait for a target to reach a state, re-resolving it on every poll.
+   *
+   * Playwright's own `waitFor` is bound to one frame decided up front, which is
+   * exactly wrong here: the consent iframe or captcha widget being waited for
+   * usually does not exist yet when the wait starts. Re-reading `page.frames()`
+   * each round costs a poll interval of latency and covers the frame that
+   * appears halfway through.
+   *
+   * `visible` and `attached` are satisfied by any one candidate; `hidden` and
+   * `detached` must hold for all of them. Fanning out across frames makes that
+   * distinction load-bearing — most frames never contain the target, so "some
+   * candidate is absent" is true from the first poll and would report a banner
+   * as dismissed while it is still on screen.
    */
-  private pendingLocator(page: Page, target: BrowserTarget): Locator {
-    return this.candidates(page, target).reduce((left, right) => left.or(right));
+  private async waitForTarget(
+    page: Page,
+    target: BrowserTarget,
+    state: NonNullable<BrowserOperation["state"]>,
+    timeoutMs: number,
+  ): Promise<void> {
+    const negated = state === "hidden" || state === "detached";
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      let reached = negated;
+      for (const candidate of this.candidates(page, target)) {
+        const element = candidate.first();
+        // `isVisible`/`count` report on a missing element rather than throwing,
+        // so absence is an answer here: it satisfies `hidden` and `detached`.
+        const present =
+          state === "attached" || state === "detached"
+            ? (await element.count()) > 0
+            : await element.isVisible();
+        if (negated) {
+          if (present) {
+            reached = false;
+            break;
+          }
+        } else if (present) {
+          reached = true;
+          break;
+        }
+      }
+      if (reached) return;
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `browser_wait_timeout:${state}:${JSON.stringify(target)}`,
+        );
+      }
+      await page.waitForTimeout(WAIT_POLL_MS);
+    }
   }
 
   /**
@@ -237,101 +449,41 @@ export class BrowserRuntime {
   }
 
   private async snapshot(page: Page, maxChars: number): Promise<Record<string, unknown>> {
-    const data = await page.evaluate((limit) => {
-      const text = document.body?.innerText ?? "";
-      /**
-       * Walk up from the element recording the position of each ancestor, and
-       * stop at the first one the page has labelled. The selector string is
-       * assembled by the caller so the interesting part stays testable.
-       */
-      const describe = (element: Element) => {
-        const chain: {
-          tag: string;
-          nth: number;
-          id?: string;
-          testId?: string;
-        }[] = [];
-        for (
-          let node: Element | null = element;
-          node !== null && chain.length < 12;
-          node = node.parentElement
-        ) {
-          const parent: Element | null = node.parentElement;
-          const id = node.id === "" ? undefined : node.id;
-          const testId = node.getAttribute("data-testid") ?? undefined;
-          chain.unshift({
-            tag: node.tagName.toLowerCase(),
-            nth:
-              parent === null
-                ? 1
-                : Array.prototype.indexOf.call(parent.children, node) + 1,
-            ...(id === undefined ? {} : { id }),
-            ...(testId === undefined ? {} : { testId }),
-          });
-          if (id !== undefined || testId !== undefined) break;
+    const frames = this.frames(page);
+    const collected = await Promise.all(
+      frames.map(async (frame) => {
+        try {
+          return await frame.evaluate(collectFrame, maxChars);
+        } catch {
+          // A frame that navigated or detached mid-evaluate is not a failed
+          // inspect. Losing an ad frame should not lose the page.
+          return undefined;
         }
-        return chain;
-      };
-      const elements = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          "a,button,input,select,textarea,[role],[tabindex]",
-        ),
+      }),
+    );
+    const main = collected[0];
+    const elements = collected
+      .flatMap((data, frameIndex) =>
+        (data?.elements ?? []).map(({ chain, ...element }) => ({
+          ...element,
+          selector: buildSelector(chain),
+          // Which document the element lives in. `null` is the main one; a
+          // caller does not need this to act (targets are resolved across every
+          // frame) but it explains why an element is not in the page text.
+          frame: frameIndex === 0 ? null : (frames[frameIndex]?.url() ?? null),
+        })),
       )
-        .filter((element) => {
-          const style = window.getComputedStyle(element);
-          const box = element.getBoundingClientRect();
-          return style.visibility !== "hidden" && style.display !== "none" && box.width > 0;
-        })
-        .slice(0, 250)
-        .map((element, index) => ({
-          index,
-          tag: element.tagName.toLowerCase(),
-          role: element.getAttribute("role"),
-          name:
-            element.getAttribute("aria-label") ??
-            element.getAttribute("alt") ??
-            element.getAttribute("title") ??
-            element.innerText?.trim().slice(0, 200) ??
-            null,
-          type: element.getAttribute("type"),
-          // Everything below is what a caller needs to address the element it is
-          // looking at. Without it a snapshot could be read but not acted on.
-          chain: describe(element),
-          id: element.id === "" ? null : element.id,
-          testId: element.getAttribute("data-testid"),
-          attributeName: element.getAttribute("name"),
-          placeholder: element.getAttribute("placeholder"),
-          href: element.getAttribute("href"),
-          value:
-            element instanceof HTMLInputElement ||
-            element instanceof HTMLTextAreaElement ||
-            element instanceof HTMLSelectElement
-              ? element.value.slice(0, 200)
-              : null,
-          disabled:
-            element instanceof HTMLInputElement ||
-            element instanceof HTMLButtonElement ||
-            element instanceof HTMLTextAreaElement ||
-            element instanceof HTMLSelectElement
-              ? element.disabled
-              : null,
-          checked:
-            element instanceof HTMLInputElement ? element.checked : null,
-        }));
-      return {
-        text: text.slice(0, limit),
-        truncated: text.length > limit,
-        elements,
-      };
-    }, maxChars);
+      .slice(0, MAX_ELEMENTS)
+      // Numbered after flattening: a per-frame index would repeat across
+      // frames, and this one is only ever a handle on the returned list.
+      .map((element, index) => ({ index, ...element }));
     return {
       url: page.url(),
       title: await page.title(),
-      ...data,
-      elements: data.elements.map(({ chain, ...element }) => ({
-        ...element,
-        selector: buildSelector(chain),
-      })),
+      text: main?.text ?? "",
+      truncated: main?.truncated ?? false,
+      elements,
+      ...captchaReport(frames.map((frame) => frame.url())),
       untrustedContent: true,
     };
   }
@@ -463,9 +615,12 @@ export class BrowserRuntime {
             timeout: deadline,
           });
         } else if (operation.target !== undefined) {
-          await this.pendingLocator(page, operation.target)
-            .first()
-            .waitFor({ state: operation.state ?? "visible", timeout: deadline });
+          await this.waitForTarget(
+            page,
+            operation.target,
+            operation.state ?? "visible",
+            deadline,
+          );
         } else if (operation.value !== undefined) {
           const needle = operation.value;
           await page.waitForFunction(

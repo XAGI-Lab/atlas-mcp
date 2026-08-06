@@ -70,6 +70,16 @@ Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `wait`, `click`,
   `inspect` reports a `selector` for every element it lists, so a caller can act
   on what it just read; passing a `target` to `inspect` scopes it to that
   element's `text` and `html` instead of the whole page.
+- Targets resolve across the page's frames, main document first, so a consent
+  banner, cookie wall, payment field, or login form embedded in an iframe can be
+  clicked and typed into without naming the frame. `inspect` lists elements from
+  every frame and reports the owning frame URL (`null` for the main document),
+  which explains why an element it lists is absent from the page text. At most
+  20 frames are searched and 400 elements reported.
+- A human-verification widget (reCAPTCHA, hCaptcha, Turnstile, Arkose) is
+  reported by `inspect` as `captcha.present` with the vendor names. MELRA does
+  not solve or bypass captchas; the report exists so a caller stops retrying and
+  escalates instead of failing on an opaque timeout.
 - History, tab, and `wait` actions are classified `read`: they move where the
   session is looking, or block until the page reaches a state, rather than
   acting on a document — so stepping back, switching tabs, or waiting does not
@@ -84,7 +94,10 @@ Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `wait`, `click`,
 - `wait` takes exactly one condition: a `target` reaching a `state`
   (`visible`, `hidden`, `attached`, `detached`), a `urlContains` substring, or a
   `value` substring of the page text. It is the supported way to handle a slow
-  redirect or a late-rendering panel — raising `settleTimeoutMs` is not.
+  redirect or a late-rendering panel — raising `settleTimeoutMs` is not. A
+  `target` wait re-resolves across every frame on each poll, so it also covers a
+  frame that only attaches after the wait starts. `visible` and `attached` are
+  met by any one frame; `hidden` and `detached` must hold in all of them.
 - `type` presses keys rather than assigning the value, so widgets that listen
   for keystrokes (autocomplete, comboboxes, inputs that enable a submit on
   `keyup`) receive the typing. `delayMs` slows it for anything that debounces;
@@ -101,7 +114,7 @@ Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `wait`, `click`,
   directory.
 
 Persistent login profiles, visual/OCR targeting, and deterministic replay are
-not implemented in `0.3`.
+not implemented in `0.3`. Captchas are detected and reported, never solved.
 
 ### Memory
 
