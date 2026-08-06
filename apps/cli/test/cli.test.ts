@@ -14,7 +14,13 @@ const roots: string[] = [];
 const entry = resolve(import.meta.dirname, "../dist/index.js");
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    // Windows holds the SQLite handle open briefly after the CLI subprocess
+    // exits, so an immediate rmdir loses a race with the OS and fails EBUSY.
+    roots
+      .splice(0)
+      .map((root) => rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })),
+  );
 });
 
 describe("melra CLI", () => {
