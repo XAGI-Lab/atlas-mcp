@@ -5,11 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 MELRA is a local-only MCP server (stdio transport) that turns one tool call into a
-governed, verified, receipted task. Six MCP tools (`melra_capabilities`, `melra_plan`,
-`melra_execute`, `melra_task_status`, `melra_task_cancel`, `melra_receipt`) sit in front of
-five capability runtimes: files, terminal, browser, memory, computer. pnpm workspace of
-TypeScript packages (Node 22+, ESM, strict tsc), plus two Python projects managed by `uv`
-(`sdk-py`, `benchmarks/browser-agent`).
+governed, verified, receipted task. Ten MCP tools sit in front of five capability
+runtimes (files, terminal, browser, memory, computer): six task tools
+(`melra_capabilities`, `melra_plan`, `melra_execute`, `melra_task_status`,
+`melra_task_cancel`, `melra_receipt`) and four durable-workflow tools
+(`melra_workflow_plan`, `melra_workflow_advance`, `melra_workflow_status`,
+`melra_workflow_cancel`). pnpm workspace of TypeScript packages (Node 22+, ESM,
+strict tsc), plus two Python projects managed by `uv` (`sdk-py`,
+`benchmarks/browser-agent`).
 
 ## Commands
 
@@ -104,6 +107,25 @@ uses the conditional-spread idiom (`...(x === undefined ? {} : { x })`) instead 
 
 Every source file carries the two-line `Copyright 2026 XAGI Labs Private Limited` /
 `SPDX-License-Identifier: Apache-2.0` header.
+
+## Durable workflows
+
+`WorkflowController` (`packages/runtime-core/src/workflow-controller.ts`) layers a bounded
+graph over the same task pipeline — every workflow node that does work goes through
+`TaskController`, so policy, approvals, verification, and receipts are never bypassed. Seven
+node types: `operation`, `approval`, `condition`, `parallel`, `bounded_loop`, `checkpoint`,
+`compensation`.
+
+Invariants worth knowing before touching this code:
+
+- `validateWorkflow` (`workflow-graph.ts`) rejects dependency cycles at plan time (`workflow_dependency_cycle`), so `advance` can assume a finite graph. Loop bounds come from the schema instead: `bounded_loop.maxIterations` is capped at 100 by `WorkflowNodeSchema` and enforced by the controller's iteration guard. Adding a node type means updating both `validateWorkflow` and `readyNodeIds`.
+- `advance()` chains per-workflow promises in an in-process map, so concurrent advances for one workflow serialize before any adapter runs. Duplicate effects and duplicate receipts are prevented here, not in the adapters.
+- Effects are deduplicated across restarts by `idempotencyKey` (`taskIdempotencyKey(identity, request)`) recorded in the `idempotency_commits` table. `recoverInterrupted()` replays committed work from that table rather than rerunning adapters. A verified task committed before its workflow projection is recovered, not re-executed.
+- Events are append-only and ordered; projections and snapshots are derived. Read state through `status()`/`events()` rather than querying tables directly.
+- Exact workflow definitions and adapter results are sealed with AES-256-GCM (`payload-cipher.ts`) bound to record identity and purpose. Keys come from `MELRA_PAYLOAD_KEY` or a mode-`0600` file (`packages/server/src/payload-key.ts`); permissive key files fail closed.
+
+All of this lives in SQLite migration version 1 (`packages/storage-sqlite/src/index.ts`).
+Schema changes need a new migration, not an edit to the version-1 statements.
 
 ## Versions must move in lockstep
 
