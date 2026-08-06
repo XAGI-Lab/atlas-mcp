@@ -145,6 +145,13 @@ All notable changes are documented here. The format follows
   advisories that `pnpm audit --prod` reported through
   `@modelcontextprotocol/sdk`. The SDK's own ranges already allow the patched
   releases; only the lockfile was pinning the vulnerable ones.
+- Force `lxml>=6.1.0` in the browser benchmark harness through a `uv`
+  dependency override, clearing the XXE advisory (GHSA-vfmq-68hx-4jfw /
+  CVE-2026-41066, high) in which `iterparse()` and `ETCompatXMLParser()` resolve
+  local file entities by default. `browsergym-core` pins `lxml<6.0.0` and the fix
+  only landed in 6.1.0, so the bound is overridden rather than left vulnerable;
+  it reads as upstream caution rather than a known incompatibility, and
+  `pnpm benchmark:browser:check` passes on 6.1.1.
 
 ## [0.3.0-alpha.0] - 2026-07-30
 
