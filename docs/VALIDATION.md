@@ -255,7 +255,7 @@ findings.
   implemented.
 - Browser sessions are isolated and non-persistent.
 - Computer screenshot and input adapters are alpha; OCR/visual targeting,
-  accessibility targeting, Windows input, focus verification, interactive
-  PTY, semantic embeddings, and extension loading remain roadmap items.
+  accessibility targeting, focus verification, interactive PTY, semantic
+  embeddings, and extension loading remain roadmap items.
 - Node’s built-in SQLite API emits an experimental warning on Node 22/24.
 - Alpha database downgrades and migrations are not guaranteed.

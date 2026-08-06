@@ -36,6 +36,27 @@ All notable changes are documented here. The format follows
   `attached` are satisfied by any one frame; `hidden` and `detached` must hold
   in all of them, since most frames never contain the target and "some candidate
   is absent" would otherwise report a banner as dismissed while it is on screen.
+- Windows computer use, through Windows PowerShell and .NET. There was no
+  `win32` branch in the adapter factory at all, so `capabilities` reported
+  `adapter: "unavailable"` on Windows and every input action threw a bare
+  `computer_use_unavailable` — the whole capability was missing rather than
+  degraded, and CI stayed green on `windows-latest` because nothing exercised
+  Windows behaviour. Screenshots use `Graphics.CopyFromScreen` over the virtual
+  desktop; pointer and wheel input reach `SetCursorPos` and `mouse_event`
+  through P/Invoke, which .NET does not otherwise expose; keyboard input uses
+  `SendKeys`. Both dependencies ship with the OS, so nothing extra is installed.
+  PowerShell remains unconditionally denied for caller-supplied terminal
+  commands: this is the trusted adapter running a fixed script it owns, the
+  same arrangement under which the macOS adapter uses `osascript`. Coordinates,
+  wheel deltas, and text reach that script through the environment and are
+  never interpolated into its source.
+- `SendKeys` reads `+^%~(){}[]` as modifiers and grouping rather than as
+  literal characters, so typed text containing them is escaped first — a
+  password with a `+` would otherwise have sent a Shift chord, and a `~` an
+  Enter keypress. The escaping is a pure exported function with tests that run
+  on every platform, since getting it wrong corrupts typed text silently rather
+  than failing. Windows capability, screenshot, and pointer tests run for real
+  on `windows-latest`.
 - Browser history navigation: `back`, `forward`, and `reload`. A session could
   previously only move forward, so a wrong click was unrecoverable without
   re-navigating from scratch. `back`/`forward` report `moved`, which is false

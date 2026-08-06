@@ -148,11 +148,15 @@ Actions: `capabilities`, `screenshot`, `click`, `move`, `type`, `key`,
   approval.
 - Coordinates name normalized or pixel space; key input uses a fixed allowlist.
 - macOS requires Screen Recording or Accessibility permission. Linux input
-  currently requires X11 and `xdotool`.
+  currently requires X11 and `xdotool`. Windows uses Windows PowerShell and
+  .NET, which ship with the OS, so it needs no extra install; input goes to
+  whichever window holds focus, and cannot reach an elevated window unless the
+  server is elevated too. Normalized coordinates span the whole virtual desktop
+  on Windows and the main display elsewhere.
 
 Accessibility targeting, OCR/vision fallback, focus verification,
-multi-display normalization, Windows input, and official task-benchmark
-evidence remain roadmap work.
+multi-display normalization, per-monitor DPI compensation, and official
+task-benchmark evidence remain roadmap work.
 
 ### System
 

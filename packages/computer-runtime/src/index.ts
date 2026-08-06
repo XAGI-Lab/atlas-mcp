@@ -13,7 +13,7 @@ const execFileAsync = promisify(execFile);
 
 export interface ComputerCapabilities {
   platform: NodeJS.Platform;
-  adapter: "macos-native" | "linux-xdotool" | "unavailable";
+  adapter: "macos-native" | "linux-xdotool" | "windows-powershell" | "unavailable";
   available: boolean;
   screenshot: boolean;
   pointer: boolean;
@@ -68,12 +68,14 @@ async function run(
   args: string[],
   timeoutMs: number,
   signal?: AbortSignal,
+  env?: Record<string, string>,
 ): Promise<{ stdout: string; stderr: string }> {
   const result = await execFileAsync(file, args, {
     timeout: timeoutMs,
     maxBuffer: 1_000_000,
     windowsHide: true,
     ...(signal === undefined ? {} : { signal }),
+    ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
   });
   return {
     stdout: result.stdout,
@@ -374,6 +376,283 @@ class LinuxXdotoolAdapter implements ComputerAdapter {
   }
 }
 
+/**
+ * `SendKeys` reads `+^%~(){}[]` as modifiers and grouping rather than as
+ * literal characters, so a password containing `+` types a Shift chord and a
+ * `(` opens a group that never closes. Each one is wrapped in braces, which is
+ * how `SendKeys` spells "the literal character".
+ *
+ * Exported because it is the part of the Windows adapter worth testing on any
+ * platform: the escaping is pure, and getting it wrong silently corrupts typed
+ * text rather than failing.
+ */
+export function escapeSendKeys(text: string): string {
+  return text.replace(/[+^%~(){}[\]]/g, (character) => `{${character}}`);
+}
+
+/** `SendKeys` names for the fixed key allowlist. */
+const WINDOWS_KEYS: Record<string, string> = {
+  ENTER: "{ENTER}",
+  TAB: "{TAB}",
+  SPACE: " ",
+  BACKSPACE: "{BACKSPACE}",
+  ESCAPE: "{ESC}",
+  LEFT: "{LEFT}",
+  RIGHT: "{RIGHT}",
+  DOWN: "{DOWN}",
+  UP: "{UP}",
+  HOME: "{HOME}",
+  END: "{END}",
+  PAGEUP: "{PGUP}",
+  PAGEDOWN: "{PGDN}",
+  DELETE: "{DELETE}",
+};
+
+/**
+ * Pointer and wheel input, which .NET does not expose — `SetCursorPos` and
+ * `mouse_event` have to be reached through P/Invoke.
+ *
+ * Reads its inputs from the environment rather than being interpolated with
+ * them, so nothing a caller supplies is ever parsed as PowerShell.
+ */
+const WINDOWS_POINTER_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class MelraInput {
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, IntPtr extra);
+}
+'@
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+if ($env:MELRA_NORMALIZED -eq '1') {
+  $x = [int][Math]::Round($bounds.X + $bounds.Width * [double]$env:MELRA_X)
+  $y = [int][Math]::Round($bounds.Y + $bounds.Height * [double]$env:MELRA_Y)
+} else {
+  $x = [int][Math]::Round([double]$env:MELRA_X)
+  $y = [int][Math]::Round([double]$env:MELRA_Y)
+}
+if ($env:MELRA_MOVE -eq '1') { [void][MelraInput]::SetCursorPos($x, $y) }
+if ($env:MELRA_CLICK -eq '1') {
+  [MelraInput]::mouse_event(0x0002, 0, 0, 0, [IntPtr]::Zero)
+  [MelraInput]::mouse_event(0x0004, 0, 0, 0, [IntPtr]::Zero)
+}
+if ($env:MELRA_WHEEL -ne $null -and $env:MELRA_WHEEL -ne '') {
+  [MelraInput]::mouse_event(0x0800, 0, 0, [uint32][int]$env:MELRA_WHEEL, [IntPtr]::Zero)
+}
+Write-Output "$x $y"
+`;
+
+const WINDOWS_SCREENSHOT_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+$bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+$graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+try {
+  $graphics.CopyFromScreen($bounds.X, $bounds.Y, 0, 0, $bitmap.Size)
+  $bitmap.Save($env:MELRA_PATH, [System.Drawing.Imaging.ImageFormat]::Png)
+} finally {
+  $graphics.Dispose()
+  $bitmap.Dispose()
+}
+`;
+
+const WINDOWS_TYPE_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait($env:MELRA_KEYS)
+`;
+
+/**
+ * Windows computer use through Windows PowerShell and .NET.
+ *
+ * `capabilities` used to report `unavailable` here and every input action threw
+ * a bare `computer_use_unavailable`, which is the whole of Windows computer use
+ * being missing rather than degraded.
+ *
+ * PowerShell is in the terminal runtime's unconditional deny list, and stays
+ * there: this is the trusted adapter invoking a fixed script it owns, the same
+ * arrangement under which the macOS adapter uses `osascript`. Nothing a caller
+ * supplies reaches the script as source — coordinates, wheel deltas, and text
+ * arrive in the environment.
+ */
+class WindowsAdapter implements ComputerAdapter {
+  private readonly powershell = join(
+    process.env["SystemRoot"] ?? "C:\\Windows",
+    "System32",
+    "WindowsPowerShell",
+    "v1.0",
+    "powershell.exe",
+  );
+
+  async capabilities(): Promise<ComputerCapabilities> {
+    // Windows PowerShell 5.1 ships with the OS, so this is present unless the
+    // install has been trimmed. `pwsh` is deliberately not consulted: it is an
+    // optional install and its absence is not the question being asked.
+    const available = await executable(this.powershell);
+    return {
+      platform: "win32",
+      adapter: "windows-powershell",
+      available,
+      screenshot: available,
+      pointer: available,
+      keyboard: available,
+      scroll: available,
+      coordinateSpaces: ["normalized", "pixel"],
+      limitations: [
+        ...(available
+          ? []
+          : ["Windows PowerShell was not found at the expected system path"]),
+        "input is delivered to whichever window holds focus; focus is not verified",
+        "SendKeys cannot type into a window running elevated unless this process is elevated too",
+        "normalized coordinates span the whole virtual desktop, not one display",
+        "per-monitor DPI scaling is not compensated for",
+      ],
+    };
+  }
+
+  private async powershellScript(
+    script: string,
+    operation: ComputerOperation,
+    env: Record<string, string>,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    if (!(await executable(this.powershell))) {
+      throw new Error("computer_input_unavailable");
+    }
+    const { stdout } = await run(
+      this.powershell,
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        script,
+      ],
+      operation.timeoutMs,
+      signal,
+      env,
+    );
+    return stdout;
+  }
+
+  async execute(
+    operation: ComputerOperation,
+    artifactDirectory: string,
+    signal?: AbortSignal,
+  ): Promise<Record<string, unknown>> {
+    switch (operation.action) {
+      case "capabilities":
+        return { ...(await this.capabilities()) };
+      case "screenshot": {
+        await mkdir(artifactDirectory, { recursive: true });
+        const path = join(artifactDirectory, `computer-${randomUUID()}.png`);
+        await this.powershellScript(
+          WINDOWS_SCREENSHOT_SCRIPT,
+          operation,
+          { MELRA_PATH: path },
+          signal,
+        );
+        const bytes = await readFile(path);
+        return {
+          success: true,
+          captured: true,
+          path,
+          size: bytes.byteLength,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        };
+      }
+      case "click":
+      case "move": {
+        if (operation.x === undefined || operation.y === undefined) {
+          throw new Error(`computer_${operation.action}_requires_coordinates`);
+        }
+        const stdout = await this.powershellScript(
+          WINDOWS_POINTER_SCRIPT,
+          operation,
+          {
+            MELRA_X: String(operation.x),
+            MELRA_Y: String(operation.y),
+            MELRA_NORMALIZED: operation.coordinateSpace === "normalized" ? "1" : "0",
+            MELRA_MOVE: "1",
+            MELRA_CLICK: operation.action === "click" ? "1" : "0",
+            MELRA_WHEEL: "",
+          },
+          signal,
+        );
+        // The script resolves normalized coordinates against the virtual
+        // desktop, so the pixel point it actually used is reported back rather
+        // than recomputed here from a display size this process never saw.
+        const [x, y] = stdout.trim().split(/\s+/).map(Number);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          throw new Error("computer_display_geometry_unavailable");
+        }
+        return {
+          success: true,
+          action: operation.action,
+          coordinateSpace: operation.coordinateSpace,
+          x,
+          y,
+        };
+      }
+      case "type": {
+        if (operation.text === undefined) {
+          throw new Error("computer_type_requires_text");
+        }
+        await this.powershellScript(
+          WINDOWS_TYPE_SCRIPT,
+          operation,
+          { MELRA_KEYS: escapeSendKeys(operation.text) },
+          signal,
+        );
+        return { success: true, action: "type", characters: operation.text.length };
+      }
+      case "key": {
+        const key = operation.key?.toLocaleUpperCase();
+        const sequence = key === undefined ? undefined : WINDOWS_KEYS[key];
+        if (sequence === undefined) throw new Error("computer_key_not_allowed");
+        await this.powershellScript(
+          WINDOWS_TYPE_SCRIPT,
+          operation,
+          { MELRA_KEYS: sequence },
+          signal,
+        );
+        return { success: true, action: "key", key };
+      }
+      case "scroll": {
+        const deltaY = operation.deltaY ?? 0;
+        // One wheel notch is 120 units, and the sign is inverted against the
+        // web convention: a positive `deltaY` scrolls the page down, which is a
+        // negative wheel rotation.
+        const notches = Math.max(-20, Math.min(20, Math.round(deltaY / 100)));
+        // The wheel goes to the window under the cursor, so scroll positions it
+        // first when told where — and leaves it alone when not, rather than
+        // parking it at the origin and scrolling whatever happens to be there.
+        const positioned = operation.x !== undefined && operation.y !== undefined;
+        await this.powershellScript(
+          WINDOWS_POINTER_SCRIPT,
+          operation,
+          {
+            MELRA_X: String(operation.x ?? 0),
+            MELRA_Y: String(operation.y ?? 0),
+            MELRA_NORMALIZED: operation.coordinateSpace === "normalized" ? "1" : "0",
+            MELRA_MOVE: positioned ? "1" : "0",
+            MELRA_CLICK: "0",
+            MELRA_WHEEL: String(-notches * 120),
+          },
+          signal,
+        );
+        return { success: true, action: "scroll", deltaY };
+      }
+    }
+  }
+}
+
 class UnavailableAdapter implements ComputerAdapter {
   async capabilities(): Promise<ComputerCapabilities> {
     return {
@@ -400,6 +679,7 @@ class UnavailableAdapter implements ComputerAdapter {
 export function createSystemComputerAdapter(): ComputerAdapter {
   if (process.platform === "darwin") return new MacOsAdapter();
   if (process.platform === "linux") return new LinuxXdotoolAdapter();
+  if (process.platform === "win32") return new WindowsAdapter();
   return new UnavailableAdapter();
 }
 
