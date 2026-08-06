@@ -153,6 +153,10 @@ Actions: `capabilities`, `screenshot`, `click`, `move`, `type`, `key`,
   whichever window holds focus, and cannot reach an elevated window unless the
   server is elevated too. Normalized coordinates span the whole virtual desktop
   on Windows and the main display elsewhere.
+- Every Windows action pays PowerShell startup, and pointer/scroll additionally
+  compile a small P/Invoke shim, because .NET exposes no cursor or wheel API.
+  That cost is per-process, so `timeoutMs` may need raising above its 10s
+  default on a slow or loaded machine; `capabilities` reports this too.
 
 Accessibility targeting, OCR/vision fallback, focus verification,
 multi-display normalization, per-monitor DPI compensation, and official

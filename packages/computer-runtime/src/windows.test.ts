@@ -18,6 +18,18 @@ import { ComputerRuntime, createSystemComputerAdapter, escapeSendKeys } from "./
 const onWindows = process.platform === "win32";
 const roots: string[] = [];
 
+/**
+ * Vitest's own 5s default killed the two tests below before the 30s budget they
+ * pass to the operation ever expired — two clocks, and only one was set.
+ *
+ * The wait is real, not slack: `powershell.exe` cold-starts in seconds, and the
+ * pointer script's `Add-Type -TypeDefinition` runs the C# compiler to build the
+ * P/Invoke shim. That cost is per-process, so it is paid on every action, and a
+ * caller who leaves `timeoutMs` at its 10s default is closer to the edge on a
+ * loaded machine than the number suggests.
+ */
+const POWERSHELL_TEST_TIMEOUT_MS = 60_000;
+
 afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
@@ -81,7 +93,7 @@ describe.runIf(onWindows)("Windows computer adapter", () => {
     expect(written.size).toBeGreaterThan(0);
     expect(observed.size).toBe(written.size);
     expect(String(observed.sha256)).toHaveLength(64);
-  });
+  }, POWERSHELL_TEST_TIMEOUT_MS);
 
   it("resolves a normalized coordinate against the virtual desktop", async () => {
     const runtime = new ComputerRuntime({
@@ -106,5 +118,5 @@ describe.runIf(onWindows)("Windows computer adapter", () => {
     // here, so a normalized centre must land somewhere other than the origin.
     expect(observed.x).toBeGreaterThan(0);
     expect(observed.y).toBeGreaterThan(0);
-  });
+  }, POWERSHELL_TEST_TIMEOUT_MS);
 });

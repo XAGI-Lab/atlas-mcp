@@ -511,6 +511,7 @@ class WindowsAdapter implements ComputerAdapter {
         "SendKeys cannot type into a window running elevated unless this process is elevated too",
         "normalized coordinates span the whole virtual desktop, not one display",
         "per-monitor DPI scaling is not compensated for",
+        "every action pays PowerShell startup, and pointer/scroll additionally compile a P/Invoke shim, so raise timeoutMs above its 10s default on a slow or loaded machine",
       ],
     };
   }
