@@ -8,6 +8,27 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- Browsing works on a fresh install. `createDefaultPolicy` previously shipped
+  `allowedDomains: []` and `allowLocalhost: false`, and `melra init` wrote that
+  file to disk, so **every** browser navigation failed with
+  `browser_domain_not_allowed` until the operator hand-edited `policy.json`. The
+  defaults are now `["*"]` and `true`. This does not widen the security boundary:
+  `assertSafeUrl` independently rejects non-HTTP(S) schemes, URL credentials,
+  private ranges, and cloud metadata (169.254/16), and resolves DNS before
+  allowing a navigation so a public name cannot be rebound to a private address.
+  The domain list is a narrowing control layered on that guard, not the guard
+  itself. Operators who want an allowlist still set one explicitly.
+- A mutation that declares no `requiredEvidence` now has the obvious
+  post-condition derived from the operation instead of being denied outright — a
+  `file write` gets `file_exists`, a `delete` gets `file_absent`, a `move` gets
+  both, and a `memory put`/`delete` is held to the flag the adapter actually
+  reports. The mutation-requires-evidence guarantee is unchanged: the task is
+  verified against the derived predicate exactly as if the caller had written it,
+  and an operation with no honest post-condition derivable from the request
+  alone (a `terminal run`, a `memory clear`, which reports a count rather than a
+  flag) is still blocked. Previously such callers hit a flat deny, had to guess
+  the right predicate, and mostly gave up.
+
 - Upgrade `zod` from 3.25.76 to 4.4.3 in `@melra/protocol` and `@melra/server`.
   The only breaking API in use was the single-argument `z.record(value)` form,
   which zod 4 replaces with the explicit `z.record(key, value)` signature; three

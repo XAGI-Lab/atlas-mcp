@@ -400,7 +400,7 @@ describe("TaskController", () => {
     expect(result.task.status).toBe("verified_success");
   });
 
-  it("blocks mutation plans without expected evidence", async () => {
+  it("derives evidence for a mutation that declared none", async () => {
     const { controller } = await setup();
     const task = controller.plan(
       TaskRequestSchema.parse({
@@ -413,6 +413,29 @@ describe("TaskController", () => {
         },
       }),
     );
+    // A write has an obvious post-condition, so the task proceeds to approval
+    // rather than dead-ending — but it is still held to that post-condition.
+    expect(task.status).toBe("awaiting_approval");
+    expect(task.request.requiredEvidence).toEqual([
+      { type: "file_exists", path: "result.txt" },
+    ]);
+  });
+
+  it("still blocks a mutation whose evidence cannot be derived", async () => {
+    const { controller } = await setup();
+    const task = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Run a build",
+        operation: {
+          kind: "terminal",
+          action: "run",
+          command: "npm",
+          args: ["run", "build"],
+        },
+      }),
+    );
+    // Nothing about the request says what the command should leave behind, so
+    // the mutation-requires-evidence guarantee still holds.
     expect(task.status).toBe("policy_blocked");
     expect(task.policyDecision.reason).toBe("mutation_requires_evidence");
   });

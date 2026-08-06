@@ -141,9 +141,15 @@ describe("melra CLI", () => {
     const policy = JSON.parse(await readFile(initialized.policyPath, "utf8")) as {
       mutations: string;
       allowLocalhost: boolean;
+      allowedDomains: string[];
     };
+    // Mutations stay approval-gated. Browsing is usable out of the box —
+    // localhost is the developer's own machine, and the network guard still
+    // blocks private ranges, cloud metadata, and non-HTTP schemes regardless of
+    // what the allowlist says.
     expect(policy.mutations).toBe("confirm");
-    expect(policy.allowLocalhost).toBe(false);
+    expect(policy.allowLocalhost).toBe(true);
+    expect(policy.allowedDomains).toContain("*");
   });
 
   it("plans, advances, inspects, and cancels a durable workflow", async () => {

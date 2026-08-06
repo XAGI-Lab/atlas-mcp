@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { TaskRequestSchema } from "@melra/protocol";
 import {
   createDefaultPolicy,
+  defaultEvidenceFor,
   evaluatePolicy,
   validateApproval,
 } from "./index.js";
@@ -174,5 +175,116 @@ describe("local policy", () => {
         createDefaultPolicy(root),
       ).decision.reason,
     ).toBe("effect_forbidden_by_request");
+  });
+
+  it("allows a browser navigation with the shipped defaults", () => {
+    // Regression: allowedDomains defaulted to [] and denied every navigation
+    // out of the box, which is what made browser use unusable on a fresh install.
+    const request = TaskRequestSchema.parse({
+      goal: "Open a docs page",
+      operation: {
+        kind: "browser",
+        action: "navigate",
+        url: "https://example.com/docs",
+      },
+    });
+    expect(
+      evaluatePolicy(
+        "0f9e6d2a-3c41-4b8e-9a77-1d5b8c2e4f60",
+        request,
+        createDefaultPolicy(root),
+      ).decision.outcome,
+    ).toBe("allow");
+  });
+});
+
+describe("default evidence", () => {
+  it("derives the obvious post-condition per file action", () => {
+    expect(
+      defaultEvidenceFor({
+        kind: "file",
+        action: "write",
+        path: "out.txt",
+        encoding: "utf8",
+        recursive: false,
+      }),
+    ).toEqual([{ type: "file_exists", path: "out.txt" }]);
+    expect(
+      defaultEvidenceFor({
+        kind: "file",
+        action: "delete",
+        path: "out.txt",
+        encoding: "utf8",
+        recursive: false,
+      }),
+    ).toEqual([{ type: "file_absent", path: "out.txt" }]);
+    expect(
+      defaultEvidenceFor({
+        kind: "file",
+        action: "move",
+        path: "a.txt",
+        destination: "b.txt",
+        encoding: "utf8",
+        recursive: false,
+      }),
+    ).toEqual([
+      { type: "file_absent", path: "a.txt" },
+      { type: "file_exists", path: "b.txt" },
+    ]);
+  });
+
+  it("derives nothing for a terminal run, so it still denies", () => {
+    // The request says nothing about what the command should leave behind, so
+    // there is no honest post-condition to synthesize.
+    expect(
+      defaultEvidenceFor({
+        kind: "terminal",
+        action: "run",
+        command: "npm",
+        args: ["run", "build"],
+        timeoutMs: 30_000,
+        maxOutputChars: 100_000,
+      }),
+    ).toEqual([]);
+  });
+
+  it("derives nothing for a read, which already has a fallback", () => {
+    expect(
+      defaultEvidenceFor({
+        kind: "file",
+        action: "read",
+        path: "a.txt",
+        encoding: "utf8",
+        recursive: false,
+      }),
+    ).toEqual([]);
+  });
+
+  it("matches the field each memory action actually reports", () => {
+    expect(
+      defaultEvidenceFor({
+        kind: "memory",
+        action: "put",
+        scope: "workspace",
+        key: "k",
+        value: "v",
+        confidence: 1,
+        tags: [],
+        includeSuperseded: false,
+        limit: 20,
+      }),
+    ).toEqual([{ type: "result_equals", path: "stored", value: true }]);
+    // `clear` reports a count, not a boolean, so nothing is derivable.
+    expect(
+      defaultEvidenceFor({
+        kind: "memory",
+        action: "clear",
+        scope: "workspace",
+        confidence: 1,
+        tags: [],
+        includeSuperseded: false,
+        limit: 20,
+      }),
+    ).toEqual([]);
   });
 });
