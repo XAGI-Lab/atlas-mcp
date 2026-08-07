@@ -8,6 +8,34 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Browser targets resolve across every frame of the page, main document first.
+  Every locator was built from the `Page`, which searches only the main
+  document, so a consent banner, cookie wall, payment field, or login form
+  inside an iframe — where such things almost always live — was unaddressable:
+  an agent could see the button in a screenshot and every attempt to click it
+  died as an opaque thirty-second action timeout. The fan-out happens in the one
+  place all targeting routes through, so `click`, `type`, `fill_form`, `select`,
+  `press`, `upload`, `download`, `extract`, and `wait` are fixed together, with
+  no new field for a caller to pass. At most 20 frames are searched, since ad
+  and analytics stacks attach dozens.
+- `inspect` reports elements from every frame and names the owning frame URL
+  (`null` for the main document), so a caller can tell why an element it can act
+  on is missing from the page text. Each frame contributes at most 250 elements
+  and the merged list is capped at 400, so a long main document cannot consume
+  the budget and leave the consent iframe unlisted.
+- `inspect` reports `captcha.present` and the vendor when a human-verification
+  widget (reCAPTCHA, hCaptcha, Turnstile, Arkose) is embedded in the page.
+  MELRA does not solve or bypass captchas and this does not attempt to; the
+  report exists so a blocked run says it is blocked and why, instead of burning
+  its budget retrying an element that will never become clickable. Vendor
+  matching is anchored on the frame origin, so a lookalike host does not match.
+- `wait` on a target re-resolves it across the frame list on every poll rather
+  than binding to one frame up front, which Playwright's own `waitFor` does —
+  wrong for the common case, since the consent iframe or captcha widget being
+  waited for usually does not exist yet when the wait starts. `visible` and
+  `attached` are satisfied by any one frame; `hidden` and `detached` must hold
+  in all of them, since most frames never contain the target and "some candidate
+  is absent" would otherwise report a banner as dismissed while it is on screen.
 - Browser history navigation: `back`, `forward`, and `reload`. A session could
   previously only move forward, so a wrong click was unrecoverable without
   re-navigating from scratch. `back`/`forward` report `moved`, which is false
