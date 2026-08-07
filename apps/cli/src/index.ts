@@ -109,17 +109,36 @@ function argument(name: string, args: string[]): string | undefined {
   return index < 0 ? undefined : args[index + 1];
 }
 
+// `JSON.parse` reports a character offset and nothing about where it was
+// reading, so a typo in a workflow definition surfaced as a bare
+// "Expected property name or '}' in JSON at position 1". Name the source.
+function parseJson(text: string, source: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${source} is not valid JSON: ${detail}`);
+  }
+}
+
 async function readTaskRequest(args: string[]): Promise<TaskRequest> {
   const requestPath = argument("--request", args);
   if (requestPath !== undefined) {
+    const absolute = resolve(requestPath);
     return TaskRequestSchema.parse(
-      JSON.parse(await readFile(resolve(requestPath), "utf8")),
+      parseJson(await readFile(absolute, "utf8"), absolute),
     );
   }
   if (!process.stdin.isTTY) {
     let input = "";
     for await (const chunk of process.stdin) input += String(chunk);
-    return TaskRequestSchema.parse(JSON.parse(input));
+    // Redirected-but-empty stdin is what a script gets wrong, and `JSON.parse`
+    // answers it with "Unexpected end of JSON input" — true, and no help at
+    // all. Say the same thing an interactive shell would.
+    if (input.trim() === "") {
+      throw new Error("provide --request <file> or pipe a JSON task request");
+    }
+    return TaskRequestSchema.parse(parseJson(input, "the piped task request"));
   }
   throw new Error("provide --request <file> or pipe a JSON task request");
 }
@@ -131,8 +150,9 @@ async function readWorkflowDefinition(
   if (definitionPath === undefined) {
     throw new Error("workflow plan requires --definition <file>");
   }
+  const absolute = resolve(definitionPath);
   return WorkflowDefinitionSchema.parse(
-    JSON.parse(await readFile(resolve(definitionPath), "utf8")),
+    parseJson(await readFile(absolute, "utf8"), absolute),
   );
 }
 
@@ -629,9 +649,43 @@ async function main(): Promise<void> {
   }
 }
 
+interface SchemaIssue {
+  readonly path?: readonly (string | number)[];
+  readonly message?: string;
+}
+
+/**
+ * A schema rejection, rendered as one line per problem.
+ *
+ * Zod's `message` is the JSON dump of its issue array, so an input missing one
+ * field used to fill the terminal with brackets and offsets. The useful part of
+ * each issue is where it is and what is wrong with it.
+ *
+ * Detected by shape rather than `instanceof ZodError` so the CLI does not take
+ * a direct zod dependency to print an error — every schema it parses comes from
+ * `@melra/protocol`, and matching on `issues` also survives a major zod bump.
+ */
+function schemaIssues(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const { issues } = error as { issues?: unknown };
+  if (!Array.isArray(issues) || issues.length === 0) return undefined;
+  const lines = (issues as SchemaIssue[]).map((issue) => {
+    const path = (issue.path ?? [])
+      .map((segment) =>
+        typeof segment === "number" ? `[${segment}]` : `.${segment}`,
+      )
+      .join("")
+      .replace(/^\./, "");
+    const message = issue.message ?? "invalid value";
+    return `  ${path === "" ? "(root)" : path}: ${message}`;
+  });
+  return ["input does not match the schema:", ...lines].join("\n");
+}
+
 main().catch((error) => {
-  process.stderr.write(
-    `melra: ${error instanceof Error ? error.message : String(error)}\n`,
-  );
+  const message =
+    schemaIssues(error) ??
+    (error instanceof Error ? error.message : String(error));
+  process.stderr.write(`melra: ${message}\n`);
   process.exitCode = 1;
 });

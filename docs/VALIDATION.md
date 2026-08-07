@@ -280,7 +280,10 @@ findings.
 - Computer screenshot and input adapters are alpha; OCR/visual targeting,
   accessibility targeting, focus verification, interactive PTY, semantic
   embeddings, and extension loading remain roadmap items.
-- Node’s built-in SQLite API emits an experimental warning on Node 22/24.
+- Node's built-in SQLite API emits an experimental warning on Node 22/24. The
+  `melra` executable suppresses that one warning so it does not appear on every
+  command or in MCP server logs; embedding `@melra/storage-sqlite` as a library
+  still surfaces it, because silencing a host's warnings is not a library's call.
 - Alpha database downgrades and migrations are not guaranteed.
 - Unhinged mode is an explicit opt-out of the safety model, not a limitation of
   it. On Windows it lifts confinement to the root of the drive MELRA runs from;

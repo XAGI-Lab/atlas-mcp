@@ -84,10 +84,10 @@ the published `SHA256SUMS`, then run it:
 
 ```bash
 tar -xzf melra-node-<version>.tar.gz -C melra
-node melra/dist/index.js doctor
+node melra/dist/bin.js doctor
 ```
 
-Add `melra/dist/index.js` to your `PATH` as `melra`, or use the full path in
+Add `melra/dist/bin.js` to your `PATH` as `melra`, or use the full path in
 the client configurations below.
 
 ### From source
@@ -245,7 +245,7 @@ client resolves the package itself:
 Pin an exact version instead of `@alpha` if you want the server to stay fixed
 until you change it; `@alpha` picks up each new alpha on first launch.
 
-Otherwise replace `melra` with the absolute path to `dist/index.js` from the
+Otherwise replace `melra` with the absolute path to `dist/bin.js` from the
 release tarball, or use `docker` with the arguments in [Docker](#docker) below.
 
 This structure is accepted by Claude Desktop and clients that implement the

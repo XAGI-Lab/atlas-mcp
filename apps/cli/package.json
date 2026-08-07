@@ -12,7 +12,7 @@
   "bugs": "https://github.com/XAGI-Lab/melra/issues",
   "type": "module",
   "bin": {
-    "melra": "./dist/index.js"
+    "melra": "./dist/bin.js"
   },
   "exports": {
     ".": {
@@ -20,9 +20,12 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "build": "tsc -p tsconfig.json && chmod +x dist/bin.js dist/index.js",
     "clean": "rm -rf dist",
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",

@@ -39,5 +39,5 @@ RUN mkdir -p /workspace /data \
 
 USER node
 VOLUME ["/workspace", "/data"]
-ENTRYPOINT ["node", "/opt/melra/dist/index.js"]
+ENTRYPOINT ["node", "/opt/melra/dist/bin.js"]
 CMD ["serve"]

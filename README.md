@@ -250,7 +250,7 @@ docker run --rm ghcr.io/xagi-lab/melra:alpha doctor
 
 ```bash
 tar -xzf melra-node-<version>.tar.gz -C melra
-node melra/dist/index.js doctor
+node melra/dist/bin.js doctor
 ```
 
 **From source** (for development):
@@ -300,17 +300,17 @@ finishes at a durable checkpoint. Each CLI invocation is a new process, so this
 sequence exercises restart persistence without keeping a daemon alive:
 
 ```bash
-node apps/cli/dist/index.js workflow plan \
+node apps/cli/dist/bin.js workflow plan \
   --definition examples/workflows/restart-safe.json
 # save the returned workflow id
 
-node apps/cli/dist/index.js workflow advance <workflow-id>
-node apps/cli/dist/index.js workflow advance <workflow-id>
+node apps/cli/dist/bin.js workflow advance <workflow-id>
+node apps/cli/dist/bin.js workflow advance <workflow-id>
 # the second command exits 3 and returns the write approval challenge
 
-node apps/cli/dist/index.js workflow advance <workflow-id> \
+node apps/cli/dist/bin.js workflow advance <workflow-id> \
   --approval '<approval-id>:<exact phrase>'
-node apps/cli/dist/index.js workflow advance <workflow-id>
+node apps/cli/dist/bin.js workflow advance <workflow-id>
 ```
 
 Shortened output captured from the `0.3.0-alpha.0` release candidate:

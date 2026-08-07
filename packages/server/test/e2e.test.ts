@@ -15,7 +15,7 @@ import { createMelraRuntime } from "../src/runtime.js";
 
 const detectedBrowserExecutable = await detectBrowserExecutable();
 const rootPackage = resolve(import.meta.dirname, "../../..");
-const cli = join(rootPackage, "apps/cli/dist/index.js");
+const cli = join(rootPackage, "apps/cli/dist/bin.js");
 const childEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(
     (entry): entry is [string, string] => entry[1] !== undefined,

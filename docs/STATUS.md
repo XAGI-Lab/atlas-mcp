@@ -45,7 +45,8 @@ Documented in docs/VALIDATION.md "Known alpha limitations":
 - Stdio transport only (HTTP/OAuth not implemented)
 - Browser sessions non-persistent
 - Computer OCR/accessibility targeting roadmap
-- Node SQLite experimental warning (platform limitation)
+- Node SQLite experimental warning (suppressed in the CLI; visible when the
+  storage package is embedded as a library)
 - Unhinged mode (`--unhinged` / `MELRA_UNHINGED=1`) is an explicit opt-out of the
   entire safety model, not a scope limit. Nothing in this document's safety
   claims applies to a process running in it.

@@ -11,7 +11,20 @@ import { parseCliEnvironment, serverLaunch } from "../src/environment.js";
 
 const execute = promisify(execFile);
 const roots: string[] = [];
-const entry = resolve(import.meta.dirname, "../dist/index.js");
+
+// `execFile` has no stdin option and leaves the pipe open, so a command that
+// reads stdin would hang until the test timeout. Promisified, it still exposes
+// the child, which is enough to write the input and close it.
+function executeWithInput(
+  args: readonly string[],
+  options: Parameters<typeof execute>[2],
+  input: string,
+): ReturnType<typeof execute> {
+  const running = execute(process.execPath, [...args], options);
+  running.child.stdin?.end(input);
+  return running;
+}
+const entry = resolve(import.meta.dirname, "../dist/bin.js");
 
 afterEach(async () => {
   await Promise.all(
@@ -133,6 +146,76 @@ describe("melra CLI", () => {
         report.checks.find((check) => check.name === "computer")?.status ?? "",
       ),
     ).toBe(true);
+  });
+
+  it("keeps Node's SQLite warning out of every invocation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
+    roots.push(root);
+    const env = {
+      ...process.env,
+      MELRA_HOME: join(root, ".melra"),
+      MELRA_WORKSPACE: root,
+    };
+    // `help` links the graph without doing any work, so it is the cheapest
+    // proof the warning is gone at import time rather than at first query.
+    const help = await execute(process.execPath, [entry, "help"], { cwd: root, env });
+    expect(help.stderr).toBe("");
+
+    // And on a command that really opens the database, where a caller reading
+    // stderr for errors would otherwise get a false positive on every run.
+    const doctor = await execute(process.execPath, [entry, "doctor"], { cwd: root, env });
+    expect(doctor.stderr).toBe("");
+    expect(JSON.parse(doctor.stdout).ready).toBe(true);
+  });
+
+  it("explains bad input instead of leaking parser internals", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
+    roots.push(root);
+    const options = {
+      cwd: root,
+      env: {
+        ...process.env,
+        MELRA_HOME: join(root, ".melra"),
+        MELRA_WORKSPACE: root,
+      },
+    };
+
+    // Redirected-but-empty stdin is the scripted form of running `run` with no
+    // arguments, and used to answer with JSON.parse's "unexpected end of input".
+    await expect(
+      executeWithInput([entry, "run"], options, ""),
+    ).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining("provide --request <file> or pipe"),
+    });
+
+    // A syntax error names its source, so a caller with several request files
+    // knows which one to open.
+    const requestPath = join(root, "broken.json");
+    await writeFile(requestPath, "{oops", "utf8");
+    await expect(
+      execute(process.execPath, [entry, "run", "--request", requestPath], options),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining(`${requestPath} is not valid JSON`),
+    });
+
+    // A schema rejection is one line per problem, keyed by field path, rather
+    // than the JSON dump of zod's issue array.
+    await expect(
+      executeWithInput(
+        [entry, "run"],
+        options,
+        JSON.stringify({ goal: "no operation here", oops: 1 }),
+      ),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining(
+        [
+          "input does not match the schema:",
+          "  operation: Invalid input: expected object, received undefined",
+          '  (root): Unrecognized key: "oops"',
+        ].join("\n"),
+      ),
+    });
   });
 
   it("cannot run unhinged without saying so", async () => {

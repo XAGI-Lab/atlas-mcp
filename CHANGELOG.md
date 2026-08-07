@@ -45,6 +45,15 @@ All notable changes are documented here. The format follows
 
 ### Changed
 
+- The CLI no longer prints Node's `node:sqlite` experimental warning. It appeared
+  on every invocation — `melra help` and `melra version` included — and in MCP
+  server logs, about a dependency the user did not choose and cannot change. Only
+  that one warning is suppressed, and only in the `melra` executable; embedding
+  `@melra/storage-sqlite` as a library still surfaces it.
+- Bad input is explained rather than dumped. A schema rejection prints one line
+  per problem keyed by field path instead of zod's raw issue array, a JSON syntax
+  error names the file it came from, and `melra run` with empty piped stdin says
+  how to supply a request instead of reporting "Unexpected end of JSON input".
 - `MelraClient.plan` accepts a task request before schema defaults are applied,
   matching `planWorkflow`. Callers no longer have to restate `encoding`,
   `recursive`, `maxSteps`, and the other defaults by hand to satisfy the
