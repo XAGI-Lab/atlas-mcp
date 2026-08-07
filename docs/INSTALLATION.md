@@ -18,26 +18,8 @@ computer-use adapter, and policy readiness without exposing credentials.
 
 ## Install
 
-Pick one. npm is the shortest path; the container needs no Node install; the
-release tarball is a prebuilt Node runtime; source is for development.
-
-### npm (shortest)
-
-```bash
-npx @melra/cli@alpha doctor
-```
-
-Or install it globally so `melra` is on your `PATH`:
-
-```bash
-npm install -g @melra/cli@alpha
-melra doctor
-```
-
-Alpha releases publish under the `alpha` dist-tag, so a plain
-`npm install @melra/cli` will not pull a prerelease once a stable version
-exists. Pin an exact version with `@melra/cli@0.3.0-alpha.1` when you need
-reproducibility.
+Pick one. The container needs no Node install; the release tarball is a
+prebuilt Node runtime; source is for development.
 
 ### Container
 
@@ -132,14 +114,14 @@ task-scoped approval phrase that must be echoed back before it runs. Set
 
 ## MCP clients
 
-Use the client’s `mcpServers` configuration field. With npm:
+Use the client’s `mcpServers` configuration field:
 
 ```json
 {
   "mcpServers": {
     "melra": {
-      "command": "npx",
-      "args": ["-y", "@melra/cli@alpha", "serve"],
+      "command": "melra",
+      "args": ["serve"],
       "env": {
         "MELRA_WORKSPACE": "/absolute/path/to/your/workspace",
         "MELRA_HOME": "/absolute/path/to/local/melra-data",
@@ -150,8 +132,8 @@ Use the client’s `mcpServers` configuration field. With npm:
 }
 ```
 
-Or with a global install (`npm install -g @melra/cli@alpha`), set
-`"command": "melra"` and `"args": ["serve"]`.
+Replace `melra` with the absolute path to `dist/index.js` from the release
+tarball, or use `docker` with the arguments in [Docker](#docker) below.
 
 This structure is accepted by Claude Desktop and clients that implement the
 common MCP server configuration format. Cursor and VS Code use the same command,

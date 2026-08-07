@@ -11,24 +11,29 @@ Version: `0.3.0-alpha.1`
 - ✅ **Gate green**: `pnpm check`, `pnpm e2e`, `pnpm security:audit` all pass
 - ✅ **Release artifacts published**: GitHub release v0.3.0-alpha.1, container at `ghcr.io/xagi-lab/melra:alpha`
 - ✅ **CHANGELOG.md** updated with 0.3.0-alpha.1 section
-- ✅ **Install paths documented**: npm (shortest), container, release tarball, source
-- ✅ **npm publish workflow wired**: `.github/workflows/release.yml` publishes all 14 packages with provenance attestation
+- ✅ **Install paths documented**: container, release tarball, source
+- ✅ **npm publish workflow wired**: `.github/workflows/release.yml` publishes all 14 packages with provenance attestation — inactive until `NPM_TOKEN` is set
 
 ## Requires Project Action
 
 ### npm Registry Token
 
-**What:** Release workflow ready to publish `@melra/cli@alpha` and 13 dependency packages to npm registry.
+**What:** Release workflow is wired to publish `@melra/cli` and 13 dependency
+packages to the npm registry with provenance attestation.
 
-**Blocker:** Requires `NPM_TOKEN` secret configured in repository settings.
+**Blocker:** Requires `NPM_TOKEN` secret configured in repository settings. The
+registry currently has no `@melra/*` packages, so npm install instructions are
+deliberately absent from the README and INSTALLATION docs — they would not work.
 
 **Steps:**
-1. Generate npm automation token at https://www.npmjs.com/settings/OWNER/tokens
-2. Add as repository secret: Settings → Secrets and variables → Actions → New repository secret
+1. Generate an npm automation token at https://www.npmjs.com/settings/OWNER/tokens
+2. Add as a repository secret: Settings → Secrets and variables → Actions → New repository secret
 3. Name: `NPM_TOKEN`
-4. Next tag push will publish to npm registry automatically
+4. Push the next `v*` tag; the workflow publishes automatically
 
-**Impact:** Once configured, `npx @melra/cli@alpha doctor` becomes the fastest install path — no clone, no container, just Node.
+**After that lands:** add the npm path to README and `docs/INSTALLATION.md`
+(`npx @melra/cli@alpha doctor`, and an `npx` MCP client config), since it
+becomes the shortest install — no clone, no container, just Node.
 
 ### Manual Named-Client Verification
 

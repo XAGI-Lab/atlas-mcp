@@ -229,27 +229,13 @@ file writes, terminal checks, scoped memory, and computer capability discovery.
 
 ## Quickstart 🚀
 
-**Fastest:** Install from npm and run the doctor check:
-
-```bash
-npx @melra/cli@alpha doctor
-```
-
-Or install globally:
-
-```bash
-npm install -g @melra/cli@alpha
-melra doctor
-```
-
-**Container:**
+**Container (no Node install needed):**
 
 ```bash
 docker run --rm ghcr.io/xagi-lab/melra:alpha doctor
 ```
 
-**Prebuilt release:** Download the latest tarball from the
-[releases page](https://github.com/XAGI-Lab/melra.git/releases), extract, and run:
+**Prebuilt release:** Download from the [releases page](https://github.com/XAGI-Lab/melra/releases), extract, and run:
 
 ```bash
 tar -xzf melra-node-<version>.tar.gz -C melra
