@@ -6,6 +6,29 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-alpha.2] - 2026-08-07
+
+### Added
+
+- The release workflow publishes every public workspace package to the npm
+  registry, so installing MELRA no longer requires Docker, a tarball download,
+  or a source build. Prereleases go to a dist-tag matching the channel in the
+  tag name (`alpha`, `beta`), which keeps `npm install @melra/cli` from
+  resolving to a prerelease once a stable line exists. Publishing runs after
+  the GitHub release is created and uses `pnpm -r publish` rather than
+  publishing the deploy output, because the CLI depends on six workspace
+  siblings whose `workspace:*` specifiers only resolve when the whole
+  workspace is published together.
+- Published packages carry npm provenance attestation, generated from the
+  workflow's OIDC identity, so the registry records which repository, commit,
+  and workflow produced each tarball.
+
+### Changed
+
+- Version references across `README.md`, `docs/CAPABILITIES.md`,
+  `docs/COMPATIBILITY.md`, `docs/INSTALLATION.md`, and `docs/THREAT_MODEL.md`
+  track the current release.
+
 ## [0.3.0-alpha.1] - 2026-08-06
 
 ### Added
@@ -371,7 +394,8 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.1...HEAD
+[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.2...HEAD
+[0.3.0-alpha.2]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.1...v0.3.0-alpha.2
 [0.3.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.0...v0.3.0-alpha.1
 [0.3.0-alpha.0]: https://github.com/XAGI-Lab/melra/compare/v0.2.0-alpha.1...v0.3.0-alpha.0
 [0.2.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.1.0-alpha.1...v0.2.0-alpha.1

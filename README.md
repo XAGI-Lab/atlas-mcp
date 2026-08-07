@@ -67,7 +67,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 > end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
 > and command allowlists narrow, and review every consequential approval.
 
-### Durable Core Alpha — `0.3.0-alpha.1`
+### Durable Core Alpha — `0.3.0-alpha.2`
 
 | Shipped in this source release | Evidence |
 |---|---|

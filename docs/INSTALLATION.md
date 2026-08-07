@@ -29,7 +29,7 @@ docker run --rm ghcr.io/xagi-lab/melra:alpha doctor
 
 Images are published for `linux/amd64` and `linux/arm64` with build
 provenance and an SBOM attested to the registry. Use `:alpha` for the latest
-alpha or pin an exact tag such as `:v0.3.0-alpha.1`. See
+alpha or pin an exact tag such as `:v0.3.0-alpha.2`. See
 [Docker](#docker) below for the hardened `serve` invocation an MCP client
 should use.
 
