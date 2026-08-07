@@ -74,28 +74,26 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-checksums: release/SHA256SUMS
-      - name: Verify npm publish
+      - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
           printf '//registry.npmjs.org/:_authToken=%s\n' "${NODE_AUTH_TOKEN}" >> .npmrc
           npm whoami --registry=https://registry.npmjs.org/
-          pnpm -r publish --dry-run --tag alpha --no-git-checks --access public
-          # A dry run never contacts the registry with a PUT, so it cannot catch a
-          # missing scope or a token without rights to it — the failure mode that
-          # would otherwise surface only after the GitHub release exists. Ask the
-          # registry directly whether this token may write to the scope.
-          scope="$(node -p "require('./apps/cli/package.json').name.split('/')[0]")"
-          status="$(curl -sS -o /tmp/scope-probe.json -w '%{http_code}' \
-            -H "Authorization: Bearer ${NODE_AUTH_TOKEN}" \
-            "https://registry.npmjs.org/-/org/${scope#@}/package")"
-          if [ "$status" = "404" ]; then
-            echo "::error::npm scope ${scope} does not exist. Create the organization at" \
-              "https://www.npmjs.com/org/create (name: ${scope#@}) and re-run this job." >&2
-            exit 1
-          fi
-          echo "scope ${scope} reachable (HTTP ${status})"
+          case "${GITHUB_REF_NAME}" in
+            *-alpha*) tag=alpha ;;
+            *-beta*)  tag=beta ;;
+            *-rc*)    tag=rc ;;
+            *)        tag=latest ;;
+          esac
+          # Publishing runs before the GitHub release is created. There is no
+          # reliable pre-flight for this: a dry run never issues a PUT, so it
+          # cannot detect a missing scope or a token without rights to one, and
+          # the registry's org endpoints answer 403 for every scope a granular
+          # token cannot read, existing or not. The publish itself is the only
+          # honest check, so it runs first and a failure leaves no release behind.
+          pnpm -r publish --tag "${tag}" --provenance --no-git-checks --access public
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,18 +109,6 @@ jobs:
             gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
               --verify-tag --generate-notes ${prerelease}
           fi
-      - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        shell: bash
-        run: |
-          case "${GITHUB_REF_NAME}" in
-            *-alpha*) tag=alpha ;;
-            *-beta*)  tag=beta ;;
-            *-rc*)    tag=rc ;;
-            *)        tag=latest ;;
-          esac
-          pnpm -r publish --tag "${tag}" --provenance --no-git-checks --access public
 
   container:
     runs-on: ubuntu-latest

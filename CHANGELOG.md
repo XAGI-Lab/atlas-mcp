@@ -23,11 +23,28 @@ All notable changes are documented here. The format follows
   workflow's OIDC identity, so the registry records which repository, commit,
   and workflow produced each tarball.
 
+- Every published manifest carries `repository`, `homepage`, and `bugs`, so the
+  registry links each package back to its source directory. npm refuses to
+  generate a provenance attestation for a package without `repository`, so this
+  is a requirement of the step above rather than cosmetic metadata.
+
 ### Changed
 
 - Version references across `README.md`, `docs/CAPABILITIES.md`,
   `docs/COMPATIBILITY.md`, `docs/INSTALLATION.md`, and `docs/THREAT_MODEL.md`
   track the current release.
+
+### Fixed
+
+- The release job publishes to npm before it creates the GitHub release, and
+  creating a release is idempotent on re-run. The first `0.3.0-alpha.2` attempt
+  created a GitHub release and then failed to publish, leaving a release with no
+  matching packages: a dry-run publish never issues a PUT, so it cannot detect a
+  missing scope or a token without rights to one. Publishing first makes the
+  publish its own check — a failure now leaves nothing user-visible behind.
+- The npm publish step appends its registry token to `.npmrc` instead of
+  overwriting the file, which had dropped the repository's `save-exact` and
+  `strict-peer-dependencies` settings for the rest of the job.
 
 ## [0.3.0-alpha.1] - 2026-08-06
 

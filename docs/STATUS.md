@@ -2,34 +2,45 @@
 
 Last updated: 2026-08-07
 
-Version: `0.3.0-alpha.1`
+Version: `0.3.0-alpha.2`
 
 ## Engineering Complete
 
 - ✅ **All 227 tests passing** (Vitest, Python pytest)
 - ✅ **Versions consistent** across 17 locations (root, 15 packages, protocol constant, sdk-py)
 - ✅ **Gate green**: `pnpm check`, `pnpm e2e`, `pnpm security:audit` all pass
-- ✅ **Release artifacts published**: GitHub release v0.3.0-alpha.1, container at `ghcr.io/xagi-lab/melra:alpha`
-- ✅ **CHANGELOG.md** updated with 0.3.0-alpha.1 section
+- ✅ **Release artifacts published**: GitHub release v0.3.0-alpha.2, container at `ghcr.io/xagi-lab/melra:alpha`
+- ✅ **CHANGELOG.md** updated with 0.3.0-alpha.2 section
 - ✅ **Install paths documented**: container, release tarball, source
-- ✅ **npm publish workflow wired**: `.github/workflows/release.yml` publishes all 14 packages with provenance attestation — inactive until `NPM_TOKEN` is set
+- ✅ **npm publish workflow wired**: `.github/workflows/release.yml` publishes all 14 packages with provenance attestation, and every manifest carries the `repository` metadata provenance requires
 
 ## Requires Project Action
 
-### npm Registry Token
+### npm Organization
 
-**What:** Release workflow is wired to publish `@melra/cli` and 13 dependency
-packages to the npm registry with provenance attestation.
+**What:** The release workflow publishes `@melra/cli` and 13 dependency packages
+to the npm registry with provenance attestation. `NPM_TOKEN` is configured and
+authenticates as `xagilab`.
 
-**Blocker:** Requires `NPM_TOKEN` secret configured in repository settings. The
-registry currently has no `@melra/*` packages, so npm install instructions are
-deliberately absent from the README and INSTALLATION docs — they would not work.
+**Blocker:** The `@melra` scope does not exist on npmjs.com. The `v0.3.0-alpha.2`
+run reached the publish step and failed with
+`404 Not Found - PUT https://registry.npmjs.org/@melra%2fprotocol - Scope not found`.
+A scope is not created implicitly by publishing into it; the organization has to
+exist and the publishing account has to be a member.
+
+Because nothing is on the registry, npm install instructions are deliberately
+absent from the README and INSTALLATION docs — they would not work.
 
 **Steps:**
-1. Generate an npm automation token at https://www.npmjs.com/settings/OWNER/tokens
-2. Add as a repository secret: Settings → Secrets and variables → Actions → New repository secret
-3. Name: `NPM_TOKEN`
-4. Push the next `v*` tag; the workflow publishes automatically
+1. Sign in to npmjs.com as `xagilab` and create the organization at
+   https://www.npmjs.com/org/create with the name `melra` (free tier covers
+   public packages).
+2. Re-run the failed `artifacts` job of the `v0.3.0-alpha.2` release run, or push
+   the next `v*` tag. Release creation is idempotent, so a re-run refreshes the
+   existing release rather than failing on the duplicate tag.
+
+The workflow now publishes to npm before creating the GitHub release, so this
+failure mode no longer leaves a release with no matching packages behind.
 
 **After that lands:** add the npm path to README and `docs/INSTALLATION.md`
 (`npx @melra/cli@alpha doctor`, and an `npx` MCP client config), since it
@@ -46,14 +57,14 @@ becomes the shortest install — no clone, no container, just Node.
 
 **Current state:** Automated compatibility claim is official MCP SDK over stdio (TypeScript + Python). Named graphical clients remain release-gated until manually exercised.
 
-**Action:** Download `v0.3.0-alpha.1` release artifact, configure each client per docs/INSTALLATION.md, verify discovery/plan/execute/receipt cycle.
+**Action:** Download `v0.3.0-alpha.2` release artifact, configure each client per docs/INSTALLATION.md, verify discovery/plan/execute/receipt cycle.
 
 ### Independent Security Review
 
 **From VALIDATION.md:**
 > Before `1.0`, a clean released artifact must pass on supported Linux, macOS, and Windows machines, and an independent security review must resolve all critical findings.
 
-**Current state:** Threat model reviewed for 0.3.0-alpha.1, no independent audit yet.
+**Current state:** Threat model reviewed for 0.3.0-alpha.2, no independent audit yet.
 
 **Action:** Engage external security reviewer when approaching beta/1.0.
 
@@ -70,6 +81,7 @@ These are documented boundaries, not defects.
 
 ## Summary
 
-**Code complete.** The codebase is production-ready for the declared alpha scope. Remaining items are external verification (manual client exercise), project infrastructure (npm token), and known alpha boundaries (documented, not broken).
+**Code complete.** The codebase is production-ready for the declared alpha scope. Remaining items are external verification (manual client exercise), project infrastructure (the `@melra` npm organization), and known alpha boundaries (documented, not broken).
 
-Once `NPM_TOKEN` is configured, the next tag push will publish to npm and `npx @melra/cli@alpha` becomes the primary install path.
+Creating the `melra` organization on npmjs.com is the last step before
+`npx @melra/cli@alpha` becomes the primary install path.
