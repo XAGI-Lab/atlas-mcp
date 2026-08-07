@@ -169,6 +169,46 @@ describe("melra http server", () => {
     }
   });
 
+  it("gives each client its own session over one runtime", async () => {
+    const connect = async (name: string) => {
+      const client = new Client({ name, version: "0.0.0" });
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(`${base}/mcp`), {
+          requestInit: { headers: { authorization: "Bearer test-token" } },
+        }),
+      );
+      return client;
+    };
+    const [one, two] = await Promise.all([connect("one"), connect("two")]);
+    try {
+      // Separate protocol state: two sessions, two ids.
+      const call = async (client: Client) => {
+        const planned = await client.callTool({
+          name: "melra_plan",
+          arguments: {
+            goal: "Read one file per session",
+            operation: { kind: "file", action: "read", path: "note.txt" },
+          },
+        });
+        return JSON.parse(
+          (planned.content as { type: string; text: string }[])[0]!.text,
+        ) as { id: string };
+      };
+      const [first, second] = await Promise.all([call(one), call(two)]);
+      expect(first.id).not.toBe(second.id);
+
+      // Shared durable state: either session can read either task, exactly as
+      // two stdio servers over one data directory already can.
+      for (const id of [first.id, second.id]) {
+        const status = await authed(`/api/tasks/${id}`);
+        expect(status.status, id).toBe(200);
+      }
+    } finally {
+      await one.close();
+      await two.close();
+    }
+  });
+
   it("streams workflow events and replays from a cursor", async () => {
     const planned = runtime.workflows.plan({
       schemaVersion: "1.0.0",

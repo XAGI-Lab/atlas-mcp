@@ -98,9 +98,10 @@ promise of stable API compatibility.
 
 ### Transport and identity
 
-- [ ] Local Streamable HTTP transport.
-- [ ] Local OAuth and client identity.
-- [ ] Multi-client session isolation.
+- [x] Local Streamable HTTP transport.
+- [ ] Local OAuth and client identity. Bearer-token auth ships today; OAuth is
+      the remaining work.
+- [x] Multi-client session isolation.
 - [ ] Optional desktop control surface.
 
 ## v0.3 — Durable Core Alpha
