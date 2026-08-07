@@ -82,16 +82,35 @@ jobs:
           printf '//registry.npmjs.org/:_authToken=%s\n' "${NODE_AUTH_TOKEN}" >> .npmrc
           npm whoami --registry=https://registry.npmjs.org/
           pnpm -r publish --dry-run --tag alpha --no-git-checks --access public
+          # A dry run never contacts the registry with a PUT, so it cannot catch a
+          # missing scope or a token without rights to it — the failure mode that
+          # would otherwise surface only after the GitHub release exists. Ask the
+          # registry directly whether this token may write to the scope.
+          scope="$(node -p "require('./apps/cli/package.json').name.split('/')[0]")"
+          status="$(curl -sS -o /tmp/scope-probe.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${NODE_AUTH_TOKEN}" \
+            "https://registry.npmjs.org/-/org/${scope#@}/package")"
+          if [ "$status" = "404" ]; then
+            echo "::error::npm scope ${scope} does not exist. Create the organization at" \
+              "https://www.npmjs.com/org/create (name: ${scope#@}) and re-run this job." >&2
+            exit 1
+          fi
+          echo "scope ${scope} reachable (HTTP ${status})"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          prerelease=""
-          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then prerelease="--prerelease"; fi
-          gh release create "${GITHUB_REF_NAME}" \
-            release/*.tar.gz release/*.whl release/*.json release/SHA256SUMS \
-            --verify-tag --generate-notes ${prerelease}
+          assets=(release/*.tar.gz release/*.whl release/*.json release/SHA256SUMS)
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            # Re-run after a later step failed: keep the release, refresh its assets.
+            gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" --clobber
+          else
+            prerelease=""
+            if [[ "${GITHUB_REF_NAME}" == *-* ]]; then prerelease="--prerelease"; fi
+            gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
+              --verify-tag --generate-notes ${prerelease}
+          fi
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
