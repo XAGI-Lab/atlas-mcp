@@ -184,7 +184,14 @@ export const ComputerOperationSchema = z
       ])
       .optional(),
     deltaY: z.number().int().min(-2_000).max(2_000).optional(),
-    timeoutMs: z.number().int().min(100).max(30_000).default(10_000),
+    // Capped at 120s like every other operation kind rather than 30s. A
+    // computer action spawns a whole interpreter — `powershell.exe` plus the
+    // .NET assemblies it loads, `osascript`, `xdotool` — and the first such
+    // spawn after boot exceeded the old 30s ceiling on a cold Windows machine,
+    // which made the maximum itself unreachable there. The default stays 10s
+    // because a warm call is fast; a caller who knows it is cold can now ask
+    // for more instead of being denied by the schema.
+    timeoutMs: z.number().int().min(100).max(120_000).default(10_000),
   })
   .strict();
 
