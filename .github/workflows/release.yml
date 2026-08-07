@@ -84,6 +84,19 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" \
             release/*.tar.gz release/*.whl release/*.json release/SHA256SUMS \
             --verify-tag --generate-notes ${prerelease}
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+          if [[ "${GITHUB_REF_NAME}" == *-alpha* ]]; then
+            pnpm -r publish --tag alpha --provenance --no-git-checks --access public
+          elif [[ "${GITHUB_REF_NAME}" == *-beta* ]]; then
+            pnpm -r publish --tag beta --provenance --no-git-checks --access public
+          else
+            pnpm -r publish --provenance --no-git-checks --access public
+          fi
 
   container:
     runs-on: ubuntu-latest
