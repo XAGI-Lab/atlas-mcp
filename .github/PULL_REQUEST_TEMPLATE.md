@@ -17,4 +17,3 @@
 - [ ] I have signed off my commits under the DCO.
 - [ ] I have not included secrets, customer data, or deployment details.
 - [ ] API changes include documentation and tests.
-- [ ] Architecture changes include an ADR.

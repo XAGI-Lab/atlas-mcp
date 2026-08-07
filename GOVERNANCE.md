@@ -27,7 +27,7 @@ release advisories. They are listed in `CODEOWNERS`.
 
 - Routine changes use pull-request consensus.
 - Protocol, security posture, licensing, and compatibility changes need
-  an ADR and approval from two maintainers when two are available.
+  approval from two maintainers when two are available.
 - A maintainer with a direct conflict of interest should not be the only
   approver.
 - Security maintainers may merge an embargoed fix before public discussion.
@@ -36,7 +36,6 @@ release advisories. They are listed in `CODEOWNERS`.
 
 Once a package reaches `1.0.0`, breaking changes require:
 
-- an ADR;
 - a documented migration path;
 - a deprecation period;
 - a major version.
