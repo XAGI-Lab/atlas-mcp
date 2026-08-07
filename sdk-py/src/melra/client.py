@@ -88,9 +88,17 @@ class MelraClient:
         return parsed
 
     async def capabilities(self) -> dict[str, Any]:
+        """Read the server's capabilities, policy defaults, and runtime limits."""
         return await self.call_tool("melra_capabilities", {})
 
     async def plan(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Plan a task without running it.
+
+        A mutation comes back with an approval challenge to echo to `execute`.
+        A refusal is a normal result with `status` `policy_blocked` and a reason,
+        not an exception. Leave `constraints` out — any value denies — and give
+        `requiredEvidence` for anything that is not a read.
+        """
         return await self.call_tool("melra_plan", request)
 
     async def execute(
@@ -98,15 +106,24 @@ class MelraClient:
         task_id: str,
         approval: dict[str, str] | None = None,
     ) -> dict[str, Any]:
+        """Run a planned task, verify it, and receipt it.
+
+        Pass the challenge from `plan` as `{"approvalId": ..., "phrase": ...}`
+        when there was one; the phrase is scoped to this task and expires.
+        Policy is evaluated again here, so a plan made under a looser policy is
+        still refused.
+        """
         arguments: dict[str, Any] = {"taskId": task_id}
         if approval is not None:
             arguments["approval"] = approval
         return await self.call_tool("melra_execute", arguments)
 
     async def status(self, task_id: str) -> dict[str, Any]:
+        """Read a task's durable state."""
         return await self.call_tool("melra_task_status", {"taskId": task_id})
 
     async def cancel(self, task_id: str) -> dict[str, Any]:
+        """Cooperatively cancel a running or pending task."""
         return await self.call_tool("melra_task_cancel", {"taskId": task_id})
 
     async def receipt(
@@ -115,6 +132,7 @@ class MelraClient:
         task_id: str | None = None,
         receipt_id: str | None = None,
     ) -> dict[str, Any]:
+        """Retrieve action receipts and the execution certificate."""
         if task_id is None and receipt_id is None:
             raise ValueError("task_id or receipt_id is required")
         arguments: dict[str, Any] = {}
@@ -128,6 +146,7 @@ class MelraClient:
         self,
         definition: dict[str, Any],
     ) -> dict[str, Any]:
+        """Validate and persist a workflow without running any of it."""
         if not isinstance(definition, dict):
             raise TypeError("definition must be an object")
         return self._object(
@@ -145,6 +164,12 @@ class MelraClient:
         approvals: list[dict[str, str]] | None = None,
         inputs: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        """Run one scheduling wave.
+
+        Call until the run reaches a terminal status; committed effects are not
+        repeated. `approvals` answers approval nodes, `inputs` answers
+        `human_input` nodes as `{"nodeId": ..., "value": ...}`.
+        """
         workflow_id = self._workflow_id(workflow_id)
         parsed_approvals = approvals or []
         for approval in parsed_approvals:
@@ -171,6 +196,7 @@ class MelraClient:
         )
 
     async def workflow_status(self, workflow_id: str) -> dict[str, Any]:
+        """Read the current durable workflow projection."""
         return self._object(
             await self.call_tool(
                 "melra_workflow_status",
@@ -180,6 +206,7 @@ class MelraClient:
         )
 
     async def cancel_workflow(self, workflow_id: str) -> dict[str, Any]:
+        """Cooperatively cancel nonterminal workflow nodes and their tasks."""
         return self._object(
             await self.call_tool(
                 "melra_workflow_cancel",
@@ -193,6 +220,7 @@ class MelraClient:
         workflow_id: str,
         action: str,
     ) -> dict[str, Any]:
+        """Pause, resume, or suspend a run without losing its place."""
         if action not in {"pause", "resume", "suspend"}:
             raise ValueError("action must be pause, resume, or suspend")
         return self._object(
