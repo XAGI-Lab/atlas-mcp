@@ -7,7 +7,6 @@ import {
   MelraCapabilitiesInputSchema,
   MelraExecuteInputSchema,
   MelraPlanInputSchema,
-  MelraReceiptBaseSchema,
   MelraReceiptInputSchema,
   MelraTaskCancelInputSchema,
   MelraTaskStatusInputSchema,
@@ -46,7 +45,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       title: "MELRA capabilities",
       description:
         "Discover available local execution capabilities, policy defaults, and runtime limits.",
-      inputSchema: MelraCapabilitiesInputSchema.shape,
+      inputSchema: MelraCapabilitiesInputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -137,7 +136,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       title: "Plan a MELRA task",
       description:
         "Persist a bounded task, evaluate policy, and return any scoped approval challenge without executing.",
-      inputSchema: MelraPlanInputSchema.shape,
+      inputSchema: MelraPlanInputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -154,7 +153,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       title: "Execute a planned MELRA task",
       description:
         "Execute one previously planned task through policy, runtime, verification, and receipt generation.",
-      inputSchema: MelraExecuteInputSchema.shape,
+      inputSchema: MelraExecuteInputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -175,7 +174,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
     {
       title: "Inspect MELRA task status",
       description: "Read the current durable state of a task.",
-      inputSchema: MelraTaskStatusInputSchema.shape,
+      inputSchema: MelraTaskStatusInputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -194,7 +193,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
     {
       title: "Cancel a MELRA task",
       description: "Cooperatively cancel a running or pending task.",
-      inputSchema: MelraTaskCancelInputSchema.shape,
+      inputSchema: MelraTaskCancelInputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -213,7 +212,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
     {
       title: "Read MELRA evidence",
       description: "Retrieve action receipts and the execution certificate.",
-      inputSchema: MelraReceiptBaseSchema.shape,
+      inputSchema: MelraReceiptInputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -240,7 +239,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       title: "Plan a MELRA workflow",
       description:
         "Validate, preflight, encrypt, and persist a bounded workflow without executing it.",
-      inputSchema: WorkflowPlanInputSchema.shape,
+      inputSchema: WorkflowPlanInputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -264,7 +263,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       title: "Advance a MELRA workflow",
       description:
         "Execute one ready workflow scheduling wave through governed MELRA tasks.",
-      inputSchema: WorkflowAdvanceInputSchema.shape,
+      inputSchema: WorkflowAdvanceInputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -289,7 +288,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
     {
       title: "Inspect a MELRA workflow",
       description: "Read the current durable workflow projection.",
-      inputSchema: WorkflowIdInputSchema.shape,
+      inputSchema: WorkflowIdInputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -309,7 +308,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       title: "Cancel a MELRA workflow",
       description:
         "Cooperatively cancel nonterminal workflow nodes and their tasks.",
-      inputSchema: WorkflowIdInputSchema.shape,
+      inputSchema: WorkflowIdInputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -329,7 +328,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       title: "Pause, resume, or suspend a MELRA workflow",
       description:
         "Halt a running workflow without losing node state, or lift a halt. Node progress is untouched, so a resumed workflow continues where it stopped.",
-      inputSchema: WorkflowControlInputSchema.shape,
+      inputSchema: WorkflowControlInputSchema,
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,

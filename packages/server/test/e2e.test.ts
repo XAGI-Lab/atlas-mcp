@@ -249,6 +249,41 @@ describe("MELRA over real stdio transport", () => {
     ).toBe("verified_complete");
   });
 
+  it("names a mistyped field instead of dropping it", async () => {
+    // A misspelled `forbiddenEffects` used to be stripped before the schema saw
+    // it, so the task planned as if the caller had declared no limit at all.
+    const mistyped = (await client.callTool({
+      name: "melra_plan",
+      arguments: {
+        goal: "Read one file",
+        operation: { kind: "file", action: "read", path: "notes.txt" },
+        forbiddenEffcts: ["mutate"],
+      },
+    })) as TextToolResult;
+    expect(mistyped.isError).toBe(true);
+    expect(mistyped.content.map((item) => item.text ?? "").join("\n")).toContain(
+      'Unrecognized key: "forbiddenEffcts"',
+    );
+
+    // The receipt tool needs one of two identifiers, and the requirement is part
+    // of the advertised contract rather than an error thrown after the call.
+    const noIdentifier = (await client.callTool({
+      name: "melra_receipt",
+      arguments: {},
+    })) as TextToolResult;
+    expect(noIdentifier.isError).toBe(true);
+    expect(
+      noIdentifier.content.map((item) => item.text ?? "").join("\n"),
+    ).toContain("taskId or receiptId is required");
+
+    // Strictness is advertised, so a client can reject the typo locally instead
+    // of learning about it in a round trip.
+    const plan = (await client.listTools()).tools.find(
+      (tool) => tool.name === "melra_plan",
+    );
+    expect(plan?.inputSchema.additionalProperties).toBe(false);
+  });
+
   it("rejects the retired tool prefix", async () => {
     const retiredPrefix = ["at", "las"].join("");
     const result = (await client.callTool({

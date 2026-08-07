@@ -61,6 +61,16 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- MCP tools reject unknown fields instead of dropping them. Every tool schema is
+  `.strict()`, but the server handed the SDK a raw shape, which rebuilt a
+  permissive object schema and stripped unknown keys before validation — so a
+  mistyped `forbiddenEffects` or `budget` silently discarded a limit the caller
+  thought it had declared, and the task planned as if it had asked for nothing.
+  The tools now advertise the strict schemas themselves: the typo comes back
+  named, `additionalProperties: false` appears in the published JSON Schema so a
+  client can catch it without a round trip, and `melra_receipt` states its
+  "taskId or receiptId" requirement in the contract rather than throwing after
+  the call.
 - `pnpm test` no longer exhausts system memory. pnpm's default
   workspace-concurrency multiplied by vitest's default fork pool spawned roughly
   four times as many Node processes as the machine had cores, each with its own
