@@ -103,23 +103,25 @@ Host exercised locally: macOS arm64 (Darwin 25.5.0), Node.js 24, Python 3.11.14
 
 This verifies the harness, not a browser-agent score.
 
-### Accepted dependency risk
+### Resolved dependency risk
 
-One advisory is knowingly allowed in the dependency-review gate:
-**GHSA-vfmq-68hx-4jfw** (`lxml < 6.1.0`, high) — XXE through the default
-`iterparse()` and `ETCompatXMLParser()` configuration.
+**GHSA-vfmq-68hx-4jfw** (`lxml < 6.1.0`, high — XXE through the default
+`iterparse()` and `ETCompatXMLParser()` configuration) was previously allowed
+through the dependency-review gate on the grounds that it could not be patched:
+`browsergym-core==0.14.3` caps `lxml` below `6.0.0`, and that browsergym version
+is frozen by the pre-registered benchmark manifests.
 
-| Question | Answer |
-|---|---|
-| How does it enter? | Transitively via `browsergym-core`, behind the optional `miniwob` extra of `benchmarks/browser-agent` |
-| Is it in a shipped artifact? | No. Neither the published CLI nor the Python SDK installs it |
-| Why not patch it? | `browsergym-core==0.14.3` requires `lxml>=4.9,<6.0.0`; the fix lands in 6.1.0, and the browsergym version is frozen by the pre-registered manifests |
-| What would patching cost? | Invalidating the registered upstream selection that `verify-upstream` enforces |
-| Exposure | XML parsed from a local MiniWoB instance on a developer machine, not untrusted input |
-| Exit condition | Revisit when `browsergym-core` relaxes its `lxml` cap, re-register the upstream pins, then remove the allowance |
+That reasoning was wrong about the cost. A `uv` `override-dependencies` entry
+resolves `lxml>=6.1.0` without changing the `browsergym-core` pin, so the
+registered upstream selection that `verify-upstream` enforces is untouched. The
+benchmark project now locks `lxml` 6.1.1, the advisory is patched rather than
+accepted, and the `allow-ghsas` entry has been deleted — the gate carries no
+exemptions.
 
-The allowance names exactly one GHSA, so any other advisory in the benchmark
-dependency tree still fails the gate.
+The cap is browsergym being cautious, not a known incompatibility.
+`benchmark:browser:check` passes on 6.1.1. That check does not install the
+MiniWoB or WebArena extras, so if a future browsergym release genuinely breaks
+on `lxml` 6 it surfaces in a benchmark run rather than in CI.
 
 **No representative browser-agent result is published, and none is claimed.**
 `docs/research/results/` deliberately contains no
