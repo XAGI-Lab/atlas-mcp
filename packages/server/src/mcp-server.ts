@@ -33,28 +33,13 @@ function toolResult(value: unknown) {
   };
 }
 
-export function createMcpServer(runtime: MelraRuntime): McpServer {
-  const server = new McpServer({
-    name: "melra",
-    version: PRODUCT_VERSION,
-  });
-
-  server.registerTool(
-    "melra_capabilities",
-    {
-      title: "MELRA capabilities",
-      description:
-        "Discover available local execution capabilities, policy defaults, and runtime limits.",
-      inputSchema: MelraCapabilitiesInputSchema,
-      annotations: {
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-    },
-    async () =>
-      toolResult({
+/**
+ * The one description of what this server can do. The HTTP API serves the same
+ * object, so a console and a model cannot be told different stories about the
+ * posture they are operating under.
+ */
+export function capabilitiesPayload(runtime: MelraRuntime): unknown {
+  return {
         product: "MELRA",
         version: PRODUCT_VERSION,
         protocolVersion: PROTOCOL_VERSION,
@@ -127,7 +112,30 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
           allowLocalhost: runtime.policy.allowLocalhost,
           telemetry: "off",
         },
-      }),
+  };
+}
+
+export function createMcpServer(runtime: MelraRuntime): McpServer {
+  const server = new McpServer({
+    name: "melra",
+    version: PRODUCT_VERSION,
+  });
+
+  server.registerTool(
+    "melra_capabilities",
+    {
+      title: "MELRA capabilities",
+      description:
+        "Discover available local execution capabilities, policy defaults, and runtime limits.",
+      inputSchema: MelraCapabilitiesInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => toolResult(capabilitiesPayload(runtime)),
   );
 
   server.registerTool(

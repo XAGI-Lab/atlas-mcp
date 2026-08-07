@@ -21,6 +21,7 @@ import {
 } from "@melra/protocol";
 import {
   createMelraRuntime,
+  serveHttp,
   serveStdio,
   unconfinedRoot,
   type MelraRuntime,
@@ -107,6 +108,28 @@ function output(value: unknown): void {
 function argument(name: string, args: string[]): string | undefined {
   const index = args.indexOf(name);
   return index < 0 ? undefined : args[index + 1];
+}
+
+/**
+ * A flag this command does not know is a typo, and a typo must not be silently
+ * ignored: `melra run --requst t.json` fell through to reading stdin, which in
+ * a terminal prints nothing and in a pipeline that never closes hangs forever.
+ */
+function rejectUnknownFlags(args: string[], known: readonly string[]): void {
+  const allowed = new Set([...known, "--unhinged"]);
+  // A flag's own value can look like a flag (`--input node=--x`), so skip the
+  // slot after any known flag that takes one.
+  const valued = new Set(known.filter((flag) => flag !== "--http"));
+  for (let index = 0; index < args.length; index += 1) {
+    const argument_ = args[index];
+    if (argument_ === undefined || !argument_.startsWith("--")) continue;
+    if (!allowed.has(argument_)) {
+      throw new Error(
+        `unknown flag ${argument_}. Known here: ${[...allowed].sort().join(", ")}`,
+      );
+    }
+    if (valued.has(argument_)) index += 1;
+  }
 }
 
 // `JSON.parse` reports a character offset and nothing about where it was
@@ -545,7 +568,7 @@ Usage:
   melra setup [--client <claude|cursor|vscode|codex|generic>]
   melra doctor
   melra init --client <claude|cursor|vscode|codex|generic>
-  melra serve
+  melra serve [--http] [--port <port>]
   melra run --request <task.json>
   melra inspect <task-id>
   melra workflow plan --definition <workflow.json>
@@ -561,12 +584,18 @@ Usage:
 Flags:
   --unhinged       Run with no policy and no guardrails. Everything the OS user
                    can do, any caller can now do. Same as MELRA_UNHINGED=1.
+  --http           Serve MCP over loopback HTTP instead of stdio, alongside a
+                   read-only REST API, a workflow event stream, and the console.
+                   Prints a bearer token; every request must carry it.
+  --port <port>    HTTP port (default: 7457, or MELRA_HTTP_PORT).
 
 Environment:
   MELRA_WORKSPACE  Workspace boundary (default: current directory)
   MELRA_HOME       Local database and artifact directory
   MELRA_POLICY     Optional local policy JSON
   MELRA_UNHINGED   Set to 1 to disable every guardrail (see --unhinged)
+  MELRA_HTTP_PORT  Port for 'serve --http' (default: 7457)
+  MELRA_HTTP_TOKEN Fixed bearer token for 'serve --http' (default: random)
   MELRA_BROWSER    Optional Chrome/Chromium/Edge executable
   MELRA_BROWSER_CDP_ENDPOINT       Optional HTTP(S) CDP endpoint
   MELRA_BROWSER_CDP_CONTEXT_INDEX  External context index (-1 is last)
@@ -592,22 +621,48 @@ async function main(): Promise<void> {
   }
   switch (command) {
     case "doctor": {
+      rejectUnknownFlags(args, []);
       const { report, failed } = await doctor(env);
       output(report);
       process.exitCode = failed ? 1 : 0;
       return;
     }
     case "init":
+      rejectUnknownFlags(args, ["--client"]);
       output(await init(args, env));
       return;
     case "setup":
+      rejectUnknownFlags(args, ["--client"]);
       process.exitCode = await setup(args, env);
       return;
     case "serve": {
+      rejectUnknownFlags(args, ["--http", "--port"]);
       const melra = await runtime(env);
-      const server = await serveStdio(melra);
+      const http = args.includes("--http");
+      const port = argument("--port", args);
+      const server = http
+        ? undefined
+        : await serveStdio(melra);
+      const endpoint = http
+        ? await serveHttp({
+            runtime: melra,
+            ...(port === undefined ? {} : { port: Number(port) }),
+          })
+        : undefined;
+      if (endpoint !== undefined) {
+        // stdout stays clean for the stdio transport's sake even here, so the
+        // one command an operator has to copy goes where they can read it.
+        process.stderr.write(
+          `MELRA HTTP server listening on http://${endpoint.host}:${endpoint.port}\n` +
+            `  Console:  ${endpoint.url}\n` +
+            `  MCP:      ${endpoint.mcpUrl}\n` +
+            `  Token:    ${endpoint.token}\n` +
+            `Loopback only. Anyone who can read this token can drive this machine.\n`,
+        );
+      }
       const close = async () => {
-        await server.close();
+        await server?.close();
+        await endpoint?.close();
         await melra.close();
       };
       process.once("SIGINT", () => void close().finally(() => process.exit(0)));
@@ -615,16 +670,20 @@ async function main(): Promise<void> {
       return;
     }
     case "run":
+      rejectUnknownFlags(args, ["--request"]);
       process.exitCode = await runTask(args, env);
       return;
     case "inspect":
     case "export":
+      rejectUnknownFlags(args, []);
       await inspectTask(args, env);
       return;
     case "workflow":
+      rejectUnknownFlags(args, ["--definition", "--approval", "--input"]);
       process.exitCode = await workflowCommand(args, env);
       return;
     case "demo":
+      rejectUnknownFlags(args, []);
       if (args[0] !== "durable-core") {
         throw new Error("demo supports only 'durable-core'");
       }
@@ -632,6 +691,7 @@ async function main(): Promise<void> {
       return;
     case "policy":
       if (args[0] !== "test") throw new Error("policy supports only 'test'");
+      rejectUnknownFlags(args.slice(1), ["--request"]);
       await policyTest(args.slice(1), env);
       return;
     case "version":

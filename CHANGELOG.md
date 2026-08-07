@@ -8,6 +8,21 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- A local HTTP front door. `melra serve --http` opens the same runtime the stdio
+  transport serves, on `127.0.0.1:7457` by default, behind a bearer token printed
+  at startup (`MELRA_HTTP_TOKEN` to fix it, `MELRA_HTTP_PORT` or `--port` to move
+  it). Three surfaces sit behind that token: `/mcp` for Streamable HTTP MCP
+  clients, a read-only JSON API (`/api/capabilities`, `/api/tasks`,
+  `/api/workflows`, `/api/workflows/:id/events?after=<sequence>`), and
+  `/api/workflows/:id/stream`, an SSE tail of the append-only event log that
+  replays from a cursor so a reconnecting client cannot miss an event. Writes stay
+  on the governed MCP and CLI paths — the JSON API answers `405` to anything but
+  `GET`, so nothing reachable over HTTP can start work policy has not seen.
+- The Community console, served at `/` by `melra serve --http`: one
+  self-contained page, no build step and no external requests, showing the posture
+  you are running under (including the unhinged banner), every workflow run, each
+  node's status, and a live event tail.
+
 - Every published package now carries its own README, so the npm page explains
   what the package is, how to install it, and the invariants that are not obvious
   from the type signatures. `pnpm readme:check` (part of `pnpm check`) typechecks
@@ -74,6 +89,10 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- A mistyped flag now fails immediately and names itself. `melra run --requst
+  task.json` used to ignore the unknown flag, fall through to reading stdin, and
+  hang forever in a pipeline; every command now rejects flags it does not know and
+  lists the ones it takes.
 - MCP tools reject unknown fields instead of dropping them. Every tool schema is
   `.strict()`, but the server handed the SDK a raw shape, which rebuilt a
   permissive object schema and stripped unknown keys before validation — so a

@@ -115,6 +115,8 @@ MELRA uses these environment variables:
 | `MELRA_BROWSER` | Chrome, Chromium, or Edge executable | auto-detected |
 | `MELRA_PAYLOAD_KEY` | Optional canonical base64url 256-bit payload key | private `<MELRA_HOME>/payload.key` |
 | `MELRA_UNHINGED` | Set to `1` to remove every guardrail — see below | unset (all guardrails on) |
+| `MELRA_HTTP_PORT` | Port for `melra serve --http` | `7457` |
+| `MELRA_HTTP_TOKEN` | Bearer token for `melra serve --http` | a fresh random token, printed at startup |
 
 Back up `payload.key` with the SQLite files. Changing or losing it makes
 persisted task and workflow payloads unreadable. Never place it in a client
@@ -156,6 +158,57 @@ a worked example that allows only `example.com`.
 Mutations default to `"confirm"`: every non-read operation returns a
 task-scoped approval phrase that must be echoed back before it runs. Set
 `"mutations": "deny"` for a read-only install.
+
+## HTTP server and console
+
+`melra serve` speaks stdio, which is what MCP clients spawn. `melra serve --http`
+opens the same runtime — same policy, same database, same receipts — on
+`127.0.0.1:7457` instead, for clients that speak Streamable HTTP and for the
+browser console:
+
+```bash
+melra serve --http            # or --port 8080, or MELRA_HTTP_PORT=8080
+```
+
+Startup prints, to stderr, the console URL with the token already in it, the MCP
+endpoint, and the token on its own line:
+
+```
+MELRA HTTP server listening on http://127.0.0.1:7457
+  Console:  http://127.0.0.1:7457/?token=<token>
+  MCP:      http://127.0.0.1:7457/mcp
+  Token:    <token>
+```
+
+Every route needs that token, as `Authorization: Bearer <token>` or `?token=`
+(the query form exists because `EventSource` cannot set headers). Set
+`MELRA_HTTP_TOKEN` to keep it stable across restarts; otherwise a fresh one is
+generated each start. **Anyone who can read the token can drive this machine** —
+the server binds loopback only, and putting it behind a proxy on a reachable
+interface hands out that reach.
+
+| Route | Method | What it returns |
+|---|---|---|
+| `/` | `GET` | The console |
+| `/mcp` | `POST`/`GET`/`DELETE` | MCP over Streamable HTTP — all eleven tools |
+| `/api/capabilities` | `GET` | The same payload `melra_capabilities` returns |
+| `/api/tasks?limit=<n>` | `GET` | Recent tasks, newest first |
+| `/api/tasks/:id` | `GET` | One task's status |
+| `/api/tasks/:id/receipts` | `GET` | That task's receipts |
+| `/api/workflows` | `GET` | Every workflow run |
+| `/api/workflows/:id` | `GET` | One run's projection, node by node |
+| `/api/workflows/:id/events?after=<sequence>` | `GET` | Append-only events after a cursor |
+| `/api/workflows/:id/stream?after=<sequence>` | `GET` | The same events as SSE, replayed from the cursor and then followed live |
+
+The JSON API is read-only and answers `405` to anything but `GET`. Planning and
+advancing stay on the MCP and CLI paths, so nothing reachable from a browser tab
+can start work policy has not seen. Each SSE frame carries the event's
+`sequence`, so a client that reconnects with `after=<last sequence>` resumes
+without gaps.
+
+The console is one self-contained page with no build step and no external
+requests: the posture you are running under (including a red banner in unhinged
+mode), every workflow run, each node's status, and a live event tail.
 
 ## Unhinged mode
 

@@ -218,6 +218,56 @@ describe("melra CLI", () => {
     });
   });
 
+  it("names a mistyped flag instead of waiting on stdin", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
+    roots.push(root);
+    const options = {
+      cwd: root,
+      env: {
+        ...process.env,
+        MELRA_HOME: join(root, ".melra"),
+        MELRA_WORKSPACE: root,
+      },
+    };
+
+    // `execute` leaves stdin an open pipe that never sends EOF, which is what
+    // makes this a regression test: `run` used to ignore the unknown flag, fall
+    // through to reading stdin, and hang here until the test timed out.
+    await expect(
+      execute(
+        process.execPath,
+        [entry, "run", "--workflow", join(root, "wf.json")],
+        options,
+      ),
+    ).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining("unknown flag --workflow"),
+    });
+
+    // The message lists what this command does take, so the fix is in the error.
+    await expect(
+      execute(
+        process.execPath,
+        [entry, "workflow", "plan", "--defintion", join(root, "wf.json")],
+        options,
+      ),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining("--approval, --definition, --input"),
+    });
+
+    // A known flag's value may itself look like a flag, and must not be read as
+    // one.
+    await expect(
+      execute(
+        process.execPath,
+        [entry, "workflow", "advance", "missing-id", "--input", "node=--x"],
+        options,
+      ),
+    ).rejects.toMatchObject({
+      stderr: expect.not.stringContaining("unknown flag"),
+    });
+  });
+
   it("cannot run unhinged without saying so", async () => {
     const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
     roots.push(root);

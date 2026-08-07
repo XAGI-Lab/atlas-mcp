@@ -129,7 +129,7 @@ promise of stable API compatibility.
 ### Remaining workflow work
 
 - [ ] PostgreSQL event and projection provider.
-- [ ] HTTP API, event stream, and Community console.
+- [x] HTTP API, event stream, and Community console.
 
 ## v0.4 and later
 
