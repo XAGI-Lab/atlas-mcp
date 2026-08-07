@@ -8,7 +8,7 @@ promise of stable API compatibility.
 
 ### Runtime and protocol
 
-- [x] Strict versioned task contracts, now exposed through a ten-tool MCP surface.
+- [x] Strict versioned task contracts, now exposed through an eleven-tool MCP surface.
 - [x] Local stdio transport.
 - [x] Persisted task state, budgets, cancellation, and bounded read retries.
 - [x] Local allow/deny/confirm policy re-evaluated at execution.
@@ -108,8 +108,8 @@ promise of stable API compatibility.
 ### Workflow runtime
 
 - [x] Immutable versioned workflow definitions and bounded DAG validation.
-- [x] Operation, approval, condition, parallel, bounded-loop, checkpoint, and
-      compensation nodes.
+- [x] Operation, approval, condition, parallel, bounded-loop, checkpoint,
+      compensation, human-input, and delegation nodes.
 - [x] Transactional workflow events, projections, snapshots, and monotonic
       aggregate sequences.
 - [x] Encrypted exact workflow definitions with separately redacted status.
@@ -119,16 +119,15 @@ promise of stable API compatibility.
 - [x] Workflow/node/request-bound idempotency keys and committed-attempt
       constraints.
 - [x] In-process serialization of competing advances for one workflow.
-- [x] Four workflow MCP tools and matching CLI, TypeScript, and Python methods.
+- [x] Cross-process leases for multiple servers sharing one data directory.
+- [x] Operator commands for pause, resume, and suspension.
+- [x] Five workflow MCP tools and matching CLI, TypeScript, and Python methods.
 - [x] Real child-process restart E2E with approval tamper and plaintext scans.
 - [x] Immutable eight-scenario Durable Core evaluation manifest and raw JSONL
       evidence tooling.
 
 ### Remaining workflow work
 
-- [ ] Cross-process leases for multiple servers sharing one data directory.
-- [ ] Human-input and delegation nodes.
-- [ ] Operator commands for pause, resume, and suspension.
 - [ ] PostgreSQL event and projection provider.
 - [ ] HTTP API, event stream, and Community console.
 
