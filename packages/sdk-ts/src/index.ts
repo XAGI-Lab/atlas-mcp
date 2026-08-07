@@ -12,7 +12,7 @@ import {
   WorkflowRunSchema,
   TaskRequestSchema,
   type WorkflowAdvanceResult,
-  type WorkflowDefinition,
+  type WorkflowDefinitionInput,
   type WorkflowInput,
   type WorkflowRun,
   type ApprovalResponse,
@@ -110,14 +110,21 @@ export class MelraClient {
     taskId?: string;
     receiptId?: string;
   }): Promise<Record<string, unknown>> {
+    // The server says the same thing, but saying it here costs no round trip and
+    // matches the Python SDK.
+    if (input.taskId === undefined && input.receiptId === undefined) {
+      throw new Error("taskId or receiptId is required");
+    }
     return await this.call("melra_receipt", {
       ...(input.taskId === undefined ? {} : { taskId: input.taskId }),
       ...(input.receiptId === undefined ? {} : { receiptId: input.receiptId }),
     });
   }
 
+  // Same reason as `plan`: this is the shape an author writes, not the shape the
+  // schema produces.
   async planWorkflow(
-    definition: WorkflowDefinition,
+    definition: WorkflowDefinitionInput,
   ): Promise<WorkflowRun> {
     const parsed = WorkflowDefinitionSchema.parse(definition);
     return WorkflowRunSchema.parse(

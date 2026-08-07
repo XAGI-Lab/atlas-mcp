@@ -113,4 +113,87 @@ describe("TypeScript workflow SDK", () => {
       },
     ]);
   });
+
+  it("plans a definition written by hand, defaults and all", async () => {
+    const run = {
+      schemaVersion: "1.0.0",
+      id: "55555555-5555-4555-8555-555555555555",
+      definitionId: "66666666-6666-4666-8666-666666666666",
+      definitionVersion: 1,
+      status: "planned",
+      stateVersion: 2,
+      nodes: { inspect: { status: "pending", taskIds: [] } },
+      traceId: "77777777-7777-4777-8777-777777777777",
+      createdAt: "2026-08-08T12:00:00.000Z",
+      updatedAt: "2026-08-08T12:00:00.000Z",
+    };
+    const callTool = vi.fn(
+      async (_input: { name: string; arguments: Record<string, unknown> }) => ({
+        content: [{ type: "text", text: JSON.stringify(run) }],
+      }),
+    );
+    const client = new (MelraClient as unknown as new (
+      client: { callTool: typeof callTool; close(): Promise<void> },
+    ) => MelraClient)({ callTool, async close() {} });
+
+    // No `dependsOn`, `constraints`, `forbiddenEffects`, `requiredEvidence`, or
+    // `budget`. Requiring those would mean writing out `constraints: []` — where
+    // any other value is a policy deny — just to satisfy the compiler.
+    await client.planWorkflow({
+      schemaVersion: "1.0.0",
+      id: run.definitionId,
+      version: 1,
+      name: "Handwritten workflow",
+      nodes: [
+        {
+          id: "inspect",
+          type: "operation",
+          request: {
+            goal: "Inspect",
+            operation: { kind: "system", action: "info" },
+          },
+        },
+      ],
+    });
+
+    // The server still receives the complete definition, so the defaults are
+    // applied once here rather than differing per caller.
+    expect(callTool.mock.calls[0]?.[0]).toEqual({
+      name: "melra_workflow_plan",
+      arguments: {
+        definition: {
+          schemaVersion: "1.0.0",
+          id: run.definitionId,
+          version: 1,
+          name: "Handwritten workflow",
+          nodes: [
+            {
+              id: "inspect",
+              type: "operation",
+              dependsOn: [],
+              request: {
+                goal: "Inspect",
+                operation: { kind: "system", action: "info" },
+                constraints: [],
+                forbiddenEffects: [],
+                requiredEvidence: [],
+                budget: { maxSteps: 10, maxDurationMs: 120_000, maxRetries: 2 },
+              },
+            },
+          ],
+        },
+      },
+    });
+  });
+
+  it("names the missing receipt selector without a round trip", async () => {
+    const callTool = vi.fn();
+    const client = new (MelraClient as unknown as new (
+      client: { callTool: typeof callTool; close(): Promise<void> },
+    ) => MelraClient)({ callTool, async close() {} });
+    await expect(client.receipt({})).rejects.toThrow(
+      "taskId or receiptId is required",
+    );
+    expect(callTool).not.toHaveBeenCalled();
+  });
 });

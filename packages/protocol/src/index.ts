@@ -601,6 +601,11 @@ export type CheckpointNode = z.infer<typeof CheckpointNodeSchema>;
 export type CompensationNode = z.infer<typeof CompensationNodeSchema>;
 export type WorkflowNode = z.infer<typeof WorkflowNodeSchema>;
 export type WorkflowDefinition = z.infer<typeof WorkflowDefinitionSchema>;
+// What a caller writes, before the schema fills in `dependsOn`, `constraints`,
+// `requiredEvidence`, and the rest. Requiring the parsed shape would make an
+// author state every default by hand — including `constraints: []`, where any
+// other value is a deny.
+export type WorkflowDefinitionInput = z.input<typeof WorkflowDefinitionSchema>;
 export type WorkflowStatus = z.infer<typeof WorkflowStatusSchema>;
 export type WorkflowNodeStatus = z.infer<typeof WorkflowNodeStatusSchema>;
 export type EncryptedPayload = z.infer<typeof EncryptedPayloadSchema>;

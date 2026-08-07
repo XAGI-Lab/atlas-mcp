@@ -58,6 +58,12 @@ All notable changes are documented here. The format follows
   matching `planWorkflow`. Callers no longer have to restate `encoding`,
   `recursive`, `maxSteps`, and the other defaults by hand to satisfy the
   compiler; the client parses the request itself.
+- `MelraClient.planWorkflow` does the same for workflow definitions, taking the
+  new `WorkflowDefinitionInput` type. Writing a definition in TypeScript no
+  longer means spelling out `dependsOn: []`, `requiredEvidence: []`, and
+  `constraints: []` on every node — the last of which is a policy deny at any
+  other value. `receipt({})` now names the missing selector instead of spending a
+  round trip to be told, which is what the Python SDK already did.
 
 ### Fixed
 
