@@ -12,6 +12,7 @@ import {
   type TaskRequest,
   type WorkflowDefinition,
   type WorkflowEvent,
+  type WorkflowInput,
   type WorkflowNode,
   type WorkflowNodeState,
   type WorkflowRun,
@@ -55,14 +56,17 @@ interface TaskIdentity {
 }
 
 export class WorkflowController {
-  // ponytail: process-local serialization; add SQLite leases before supporting
-  // multiple MELRA server processes against one data directory.
+  // In-process advances serialize on this map; competing *processes* serialize
+  // on a SQLite lease (see `advance`). Both are needed: the map keeps one
+  // process from racing itself without touching the disk on every call.
   private readonly advances = new Map<string, Promise<WorkflowAdvanceResult>>();
+  private readonly owner = `${process.pid}:${randomUUID()}`;
 
   constructor(
     private readonly store: SqliteStore,
     private readonly tasks: TaskController,
     private readonly payloadCipher: PayloadCipher,
+    private readonly leaseDurationMs = 60_000,
   ) {}
 
   plan(definition: WorkflowDefinition): WorkflowRun {
@@ -128,6 +132,7 @@ export class WorkflowController {
   async advance(
     workflowId: string,
     approvals: ApprovalResponse[] = [],
+    inputs: WorkflowInput[] = [],
   ): Promise<WorkflowAdvanceResult> {
     const previous = this.advances.get(workflowId);
     const ready =
@@ -137,7 +142,9 @@ export class WorkflowController {
             () => undefined,
             () => undefined,
           );
-    const result = ready.then(() => this.advanceOnce(workflowId, approvals));
+    const result = ready.then(() =>
+      this.leasedAdvance(workflowId, approvals, inputs),
+    );
     this.advances.set(workflowId, result);
     try {
       return await result;
@@ -148,13 +155,57 @@ export class WorkflowController {
     }
   }
 
+  // The lease is taken before any adapter runs, so a second process cannot
+  // start duplicate side effects while this one is mid-flight. `transitionWorkflow`
+  // still guards the commit; this guards the work leading up to it.
+  private async leasedAdvance(
+    workflowId: string,
+    approvals: ApprovalResponse[],
+    inputs: WorkflowInput[],
+  ): Promise<WorkflowAdvanceResult> {
+    this.status(workflowId);
+    const now = Date.now();
+    if (
+      !this.store.acquireWorkflowLease(
+        workflowId,
+        this.owner,
+        new Date(now).toISOString(),
+        new Date(now + this.leaseDurationMs).toISOString(),
+      )
+    ) {
+      throw new Error("workflow_lease_held");
+    }
+    // A long advance must not let its own lease lapse and invite a second
+    // process in, so renew at half the duration while the adapters run.
+    const renewal = setInterval(() => {
+      this.store.renewWorkflowLease(
+        workflowId,
+        this.owner,
+        new Date(Date.now() + this.leaseDurationMs).toISOString(),
+      );
+    }, Math.max(1_000, Math.floor(this.leaseDurationMs / 2)));
+    renewal.unref();
+    try {
+      return await this.advanceOnce(workflowId, approvals, inputs);
+    } finally {
+      clearInterval(renewal);
+      this.store.releaseWorkflowLease(workflowId, this.owner);
+    }
+  }
+
   private async advanceOnce(
     workflowId: string,
     approvals: ApprovalResponse[],
+    inputs: WorkflowInput[],
   ): Promise<WorkflowAdvanceResult> {
     const current = this.status(workflowId);
     if (["verified_complete", "cancelled"].includes(current.status)) {
       return { run: current, tasks: [], events: [] };
+    }
+    // A halted workflow is a deliberate operator decision. Failing loudly beats
+    // returning an unchanged run, which reads to a caller like "nothing to do".
+    if (["paused", "suspended"].includes(current.status)) {
+      throw new Error(`workflow_halted:${current.status}`);
     }
     const definition = this.loadDefinition(current);
     const graph = validateWorkflow(definition);
@@ -176,11 +227,16 @@ export class WorkflowController {
     if (current.status === "failed" && rollback.length === 0) {
       return { run: current, tasks: [], events: [] };
     }
+    // A node parked for a human — approval phrase or supplied input — is no
+    // longer `pending`, so `readyNodeIds` will not return it. Re-offer it here
+    // or the workflow would stall forever with the answer in hand.
     const awaiting = [...graph.nodes.values()]
       .filter(
         (node) =>
           node.type !== "compensation" &&
-          current.nodes[node.id]?.status === "awaiting_approval",
+          ["awaiting_approval", "awaiting_input"].includes(
+            current.nodes[node.id]?.status ?? "",
+          ),
       )
       .map((node) => node.id)
       .sort();
@@ -205,6 +261,7 @@ export class WorkflowController {
             current.nodes[nodeId]!,
             current,
             approvals,
+            inputs,
           ),
         };
       }),
@@ -383,6 +440,60 @@ export class WorkflowController {
     return recovered;
   }
 
+  // Operator controls. `pause` is a soft stop an operator lifts with `resume`;
+  // `suspend` is the same stop for an operator who wants the run parked
+  // indefinitely. Neither touches node state, so resuming picks the graph up
+  // exactly where it stopped — that is why `advance` refuses to run while a
+  // workflow sits in either status instead of quietly continuing.
+  pause(workflowId: string): WorkflowRun {
+    return this.halt(workflowId, "paused", "workflow.paused");
+  }
+
+  suspend(workflowId: string): WorkflowRun {
+    return this.halt(workflowId, "suspended", "workflow.suspended");
+  }
+
+  resume(workflowId: string): WorkflowRun {
+    const current = this.status(workflowId);
+    if (!["paused", "suspended"].includes(current.status)) {
+      throw new Error("workflow_not_paused");
+    }
+    return this.transition(current, (draft, emit) => {
+      const from = draft.status;
+      // Restore whatever the graph was actually blocked on before the halt,
+      // so resuming a run parked on a human does not claim it is running.
+      const nodes = Object.values(draft.nodes);
+      draft.status = nodes.some(
+        (node) => node.status === "awaiting_approval",
+      )
+        ? "awaiting_approval"
+        : nodes.some((node) => node.status === "awaiting_input")
+        ? "awaiting_input"
+        : "running";
+      delete draft.error;
+      emit("workflow.resumed", { from, to: draft.status });
+    });
+  }
+
+  private halt(
+    workflowId: string,
+    to: "paused" | "suspended",
+    eventType: string,
+  ): WorkflowRun {
+    const current = this.status(workflowId);
+    if (current.status === to) return current;
+    if (
+      ["verified_complete", "cancelled", "failed"].includes(current.status)
+    ) {
+      throw new Error("workflow_not_haltable");
+    }
+    return this.transition(current, (draft, emit) => {
+      const from = draft.status;
+      draft.status = to;
+      emit(eventType, { from, to });
+    });
+  }
+
   cancel(workflowId: string): WorkflowRun {
     const current = this.status(workflowId);
     if (
@@ -488,6 +599,7 @@ export class WorkflowController {
     state: WorkflowNodeState,
     run: WorkflowRun,
     approvals: ApprovalResponse[],
+    inputs: WorkflowInput[],
   ): Promise<NodeAdvance> {
     switch (node.type) {
       case "operation": {
@@ -590,6 +702,77 @@ export class WorkflowController {
           tasks: [],
           checkpoint: true,
         };
+      case "human_input": {
+        const supplied = inputs.find((item) => item.nodeId === node.id);
+        if (supplied === undefined) {
+          return {
+            state: {
+              status: "awaiting_input",
+              taskIds: [],
+              prompt: node.prompt,
+            },
+            tasks: [],
+          };
+        }
+        if (supplied.value.length > node.maxLength) {
+          throw new Error(`workflow_input_too_long:${node.id}`);
+        }
+        if (
+          node.choices.length > 0 &&
+          !node.choices.includes(supplied.value)
+        ) {
+          throw new Error(`workflow_input_not_a_choice:${node.id}`);
+        }
+        return {
+          state: {
+            status: "verified_complete",
+            taskIds: [],
+            prompt: node.prompt,
+            input: recordedInput(supplied.value),
+          },
+          tasks: [],
+        };
+      }
+      case "delegation": {
+        const supplied = inputs.find((item) => item.nodeId === node.id);
+        // Node state caps `prompt` at 2,000 chars; assignee + goal can exceed
+        // that, and a truncated label is better than a schema rejection.
+        const prompt = `${node.assignee}: ${node.goal}`.slice(0, 2_000);
+        if (supplied === undefined) {
+          return {
+            state: { status: "awaiting_input", taskIds: [], prompt },
+            tasks: [],
+          };
+        }
+        // The delegate reporting "done" is not evidence. If the node declared
+        // predicates, they decide — a node whose evidence fails is `failed`,
+        // never complete, exactly as for an operation node.
+        if (node.requiredEvidence.length > 0) {
+          const verification = await this.tasks.verifyStandalone(
+            node.requiredEvidence,
+          );
+          if (!verification.verified) {
+            return {
+              state: {
+                status: "failed",
+                taskIds: [],
+                prompt,
+                error: `workflow_delegation_unverified:${node.id}`,
+              },
+              tasks: [],
+            };
+          }
+        }
+        return {
+          state: {
+            status: "verified_complete",
+            taskIds: [],
+            prompt,
+            input: recordedInput(supplied.value),
+          },
+          tasks: [],
+        };
+      }
       default:
         throw new Error("workflow_node_not_executable");
     }
@@ -781,6 +964,13 @@ export class WorkflowController {
     ) {
       return "awaiting_approval";
     }
+    // A run blocked on a person is not "running" — reporting it as running
+    // makes an operator wait for a machine that is waiting for them.
+    if (
+      required.some((node) => run.nodes[node.id]?.status === "awaiting_input")
+    ) {
+      return "awaiting_input";
+    }
     if (
       required.every((node) => {
         const state = run.nodes[node.id];
@@ -821,6 +1011,13 @@ function makeEvent(
   });
 }
 
+// Human- and delegate-supplied text is untrusted like any other input, so it is
+// redacted before it reaches persisted state. Redaction can lengthen a value
+// (a short secret becomes a longer marker), hence the cap the state schema wants.
+function recordedInput(value: string): string {
+  return String(redactStructuredValue(value).value).slice(0, 10_000);
+}
+
 function requestsFor(node: WorkflowNode): TaskRequest[] {
   switch (node.type) {
     case "operation":
@@ -834,6 +1031,11 @@ function requestsFor(node: WorkflowNode): TaskRequest[] {
       return node.body;
     case "approval":
     case "checkpoint":
+    case "human_input":
+      return [];
+    // A delegate reports work done elsewhere. MELRA runs no adapter for it, so
+    // it contributes no task requests — only evidence to verify.
+    case "delegation":
       return [];
   }
 }
@@ -945,7 +1147,12 @@ function expectedTaskKeys(
       ).flat();
     case "compensation":
       return [key(node.request, 0, "compensation")];
+    // Neither runs an adapter, so neither reserves an idempotency key: a
+    // checkpoint only records a resume point, and human_input/delegation
+    // record what a person supplied or a delegate reported.
     case "checkpoint":
+    case "human_input":
+    case "delegation":
       return [];
   }
 }

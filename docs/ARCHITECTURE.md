@@ -147,12 +147,13 @@ interface is served.
 - Competing advances for one workflow are serialized inside a server process.
   Concurrent independent branches remain parallel.
 
-Multiple MELRA server processes must not share one `MELRA_HOME` in this alpha;
-cross-process workflow leases are not implemented.
+Multiple MELRA server processes may share one `MELRA_HOME`. Advancing a workflow
+takes an expiring SQLite lease before any adapter runs, so a second process is
+refused with `workflow_lease_held` rather than starting duplicate side effects.
 
 ## Public interfaces
 
-The stdio MCP server exposes exactly ten tools:
+The stdio MCP server exposes exactly eleven tools:
 
 | Task tools | Workflow tools |
 |---|---|
@@ -160,11 +161,12 @@ The stdio MCP server exposes exactly ten tools:
 | `melra_plan` | `melra_workflow_advance` |
 | `melra_execute` | `melra_workflow_status` |
 | `melra_task_status` | `melra_workflow_cancel` |
-| `melra_task_cancel` |  |
+| `melra_task_cancel` | `melra_workflow_control` |
 | `melra_receipt` |  |
 
-The CLI exposes `workflow plan`, `workflow advance`, `workflow inspect`, and
-`workflow cancel`. The TypeScript and Python SDKs call the same four workflow
+The CLI exposes `workflow plan`, `workflow advance`, `workflow inspect`,
+`workflow cancel`, and the operator halts `workflow pause`, `workflow resume`,
+and `workflow suspend`. The TypeScript and Python SDKs call the same workflow
 tools and do not implement a second execution engine.
 
 ## Packages

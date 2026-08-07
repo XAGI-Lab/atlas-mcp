@@ -25,7 +25,7 @@ describe("TypeScript SDK result parsing", () => {
 });
 
 describe("TypeScript workflow SDK", () => {
-  it("calls the four exact workflow tools with typed arguments", async () => {
+  it("calls the exact workflow tools with typed arguments", async () => {
     const workflowId = "11111111-1111-4111-8111-111111111111";
     const traceId = "22222222-2222-4222-8222-222222222222";
     const definition = WorkflowDefinitionSchema.parse({
@@ -79,9 +79,15 @@ describe("TypeScript workflow SDK", () => {
       phrase: "APPROVE exact",
     };
 
+    const answer = {
+      nodeId: "inspect",
+      value: "ship it",
+    };
+
     await client.planWorkflow(definition);
-    await client.advanceWorkflow(workflowId, [approval]);
+    await client.advanceWorkflow(workflowId, [approval], [answer]);
     await client.workflowStatus(workflowId);
+    await client.controlWorkflow(workflowId, "pause");
     await client.cancelWorkflow(workflowId);
 
     expect(callTool.mock.calls.map(([input]) => input)).toEqual([
@@ -91,11 +97,15 @@ describe("TypeScript workflow SDK", () => {
       },
       {
         name: "melra_workflow_advance",
-        arguments: { workflowId, approvals: [approval] },
+        arguments: { workflowId, approvals: [approval], inputs: [answer] },
       },
       {
         name: "melra_workflow_status",
         arguments: { workflowId },
+      },
+      {
+        name: "melra_workflow_control",
+        arguments: { workflowId, action: "pause" },
       },
       {
         name: "melra_workflow_cancel",

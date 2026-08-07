@@ -255,6 +255,34 @@ export class SqliteStore {
         )
         .run(new Date().toISOString());
     });
+    // Migration 2 adds cross-process advance leases. Schema changes get a new
+    // migration rather than an edit to the version-1 statements above.
+    this.applyMigration(
+      2,
+      `
+      CREATE TABLE IF NOT EXISTS workflow_leases (
+        workflow_id TEXT PRIMARY KEY,
+        owner TEXT NOT NULL,
+        acquired_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
+    `,
+    );
+  }
+
+  private applyMigration(version: number, statements: string): void {
+    this.transaction(() => {
+      const applied = this.database
+        .prepare("SELECT version FROM schema_migrations WHERE version = ?")
+        .get(version);
+      if (applied !== undefined) return;
+      this.database.exec(statements);
+      this.database
+        .prepare(
+          "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+        )
+        .run(version, new Date().toISOString());
+    });
   }
 
   private transaction<T>(action: () => T): T {
@@ -651,6 +679,83 @@ export class SqliteStore {
         throw new Error("workflow_state_conflict");
       }
     });
+  }
+
+  // Cross-process mutual exclusion for one workflow. `BEGIN IMMEDIATE` in
+  // `transaction` takes SQLite's write lock, so two server processes sharing a
+  // data directory serialize here and exactly one wins the row. Leases expire
+  // so a killed process cannot strand a workflow forever.
+  acquireWorkflowLease(
+    workflowId: string,
+    owner: string,
+    now: string,
+    expiresAt: string,
+  ): boolean {
+    return this.transaction(() => {
+      const existing = this.database
+        .prepare(
+          `SELECT owner, expires_at AS expiresAt
+           FROM workflow_leases WHERE workflow_id = ?`,
+        )
+        .get(workflowId) as
+        | { owner: string; expiresAt: string }
+        | undefined;
+      if (
+        existing !== undefined &&
+        existing.owner !== owner &&
+        existing.expiresAt > now
+      ) {
+        return false;
+      }
+      this.database
+        .prepare(`
+          INSERT INTO workflow_leases(
+            workflow_id, owner, acquired_at, expires_at
+          )
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(workflow_id) DO UPDATE SET
+            owner = excluded.owner,
+            acquired_at = excluded.acquired_at,
+            expires_at = excluded.expires_at
+        `)
+        .run(workflowId, owner, now, expiresAt);
+      return true;
+    });
+  }
+
+  renewWorkflowLease(
+    workflowId: string,
+    owner: string,
+    expiresAt: string,
+  ): boolean {
+    const result = this.database
+      .prepare(
+        `UPDATE workflow_leases SET expires_at = ?
+         WHERE workflow_id = ? AND owner = ?`,
+      )
+      .run(expiresAt, workflowId, owner);
+    return Number(result.changes) === 1;
+  }
+
+  releaseWorkflowLease(workflowId: string, owner: string): void {
+    this.database
+      .prepare(
+        "DELETE FROM workflow_leases WHERE workflow_id = ? AND owner = ?",
+      )
+      .run(workflowId, owner);
+  }
+
+  getWorkflowLease(
+    workflowId: string,
+  ): { owner: string; acquiredAt: string; expiresAt: string } | undefined {
+    return this.database
+      .prepare(`
+        SELECT owner, acquired_at AS acquiredAt, expires_at AS expiresAt
+        FROM workflow_leases WHERE workflow_id = ?
+      `)
+      .get(workflowId) as
+      | { owner: string; acquiredAt: string; expiresAt: string }
+      | undefined;
   }
 
   commitIdempotency(

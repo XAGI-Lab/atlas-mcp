@@ -28,7 +28,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 | Event-consistency rate | `1.0` |
 | Real MCP stdio E2E | 12 cases passed |
 | CLI package dry run | `melra-cli-0.3.0-alpha.1.tgz` produced |
-| Hardened container MCP smoke | all 10 tools discovered; verified certificate produced |
+| Hardened container MCP smoke | all 11 tools discovered; verified certificate produced |
 | Shipped Node and Python dependency audit | no known vulnerabilities |
 | Core component microbenchmark | passed; no cross-product score claimed |
 | Browser harness lint and tests | ruff clean; 28 passed, 2 optional suites skipped |
@@ -38,7 +38,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 
 The real-process workflow test:
 
-- discovers exactly ten MCP tools;
+- discovers exactly eleven MCP tools;
 - plans the committed restart-safe workflow;
 - executes one verified node and records its event sequence;
 - closes the MCP client and child process;
@@ -255,10 +255,9 @@ findings.
   layer.
 - Only filesystem predicates can currently reconcile an interrupted mutation
   independently. Other mutations require operator reconciliation.
-- Multiple server processes must not share one `MELRA_HOME`; cross-process
-  leases are not implemented.
-- Human-input, delegation, pause, and resume workflow commands are not
-  implemented.
+- Multiple server processes may share one `MELRA_HOME`; workflow advances take
+  an expiring SQLite lease, so a second process is refused rather than starting
+  duplicate effects.
 - Browser sessions are isolated and non-persistent.
 - Computer screenshot and input adapters are alpha; OCR/visual targeting,
   accessibility targeting, focus verification, interactive PTY, semantic

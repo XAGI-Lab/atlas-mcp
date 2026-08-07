@@ -397,6 +397,28 @@ export const CompensationNodeSchema = NodeBaseSchema.extend({
   request: TaskRequestSchema,
 }).strict();
 
+// A workflow that needs a person to answer something stops here. The answer is
+// supplied to `advance`, recorded on the node, and readable by later nodes —
+// it is data the graph waited for, not an approval to run a pending mutation.
+export const HumanInputNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("human_input"),
+  prompt: z.string().min(1).max(2_000),
+  // Free text is unconstrained by design; `choices` narrows it to a fixed set
+  // so a workflow can branch on an answer it can actually enumerate.
+  choices: z.array(z.string().min(1).max(200)).max(20).default([]),
+  maxLength: z.number().int().min(1).max(10_000).default(1_000),
+}).strict();
+
+// Delegation hands a named sub-goal to an outside worker (another agent, a
+// person, a queue). MELRA does not execute it — it records the handoff and
+// waits for a result, so the run stays governed and receipted either way.
+export const DelegationNodeSchema = NodeBaseSchema.extend({
+  type: z.literal("delegation"),
+  assignee: z.string().min(1).max(200),
+  goal: z.string().min(1).max(2_000),
+  requiredEvidence: z.array(EvidencePredicateSchema).max(20).default([]),
+}).strict();
+
 export const WorkflowNodeSchema = z.discriminatedUnion("type", [
   OperationNodeSchema,
   ApprovalNodeSchema,
@@ -405,7 +427,20 @@ export const WorkflowNodeSchema = z.discriminatedUnion("type", [
   BoundedLoopNodeSchema,
   CheckpointNodeSchema,
   CompensationNodeSchema,
+  HumanInputNodeSchema,
+  DelegationNodeSchema,
 ]);
+
+// What an operator supplies to `advance` to satisfy a waiting human_input or
+// delegation node.
+export const WorkflowInputSchema = z
+  .object({
+    nodeId: WorkflowNodeIdSchema,
+    value: z.string().min(1).max(10_000),
+  })
+  .strict();
+
+export type WorkflowInput = z.infer<typeof WorkflowInputSchema>;
 
 export const WorkflowDefinitionSchema = z
   .object({
@@ -423,6 +458,9 @@ export const WorkflowStatusSchema = z.enum([
   "draft",
   "planned",
   "awaiting_approval",
+  // Blocked on a person supplying input. Distinct from `paused`/`suspended`,
+  // which are operator halts: this one clears by answering, not by resuming.
+  "awaiting_input",
   "running",
   "paused",
   "suspended",
@@ -437,6 +475,7 @@ export const WorkflowNodeStatusSchema = z.enum([
   "pending",
   "ready",
   "awaiting_approval",
+  "awaiting_input",
   "running",
   "verifying",
   "verified_complete",
@@ -476,6 +515,9 @@ export const WorkflowNodeStateSchema = z
     taskIds: z.array(z.string().uuid()).max(5_000).default([]),
     approval: ApprovalChallengeSchema.optional(),
     iterations: z.number().int().min(0).max(100).optional(),
+    // What a human_input or delegation node is waiting on, and what it got.
+    prompt: z.string().max(2_000).optional(),
+    input: z.string().max(10_000).optional(),
     error: z.string().max(10_000).optional(),
   })
   .strict();
@@ -528,12 +570,24 @@ export const WorkflowAdvanceInputSchema = z
   .object({
     workflowId: z.string().uuid(),
     approvals: z.array(ApprovalResponseSchema).max(50).default([]),
+    // Answers for nodes parked on a person. Supplied on the same call that
+    // resumes the wave, so one round trip both answers and advances.
+    inputs: z.array(WorkflowInputSchema).max(50).default([]),
   })
   .strict();
 
 export const WorkflowIdInputSchema = z
   .object({
     workflowId: z.string().uuid(),
+  })
+  .strict();
+
+// Operator halts and their reversal. One tool with an action beats three tools
+// that differ only in a verb.
+export const WorkflowControlInputSchema = z
+  .object({
+    workflowId: z.string().uuid(),
+    action: z.enum(["pause", "resume", "suspend"]),
   })
   .strict();
 
@@ -560,6 +614,9 @@ export type WorkflowAdvanceResult = z.infer<
 export type WorkflowPlanInput = z.infer<typeof WorkflowPlanInputSchema>;
 export type WorkflowAdvanceInput = z.infer<typeof WorkflowAdvanceInputSchema>;
 export type WorkflowIdInput = z.infer<typeof WorkflowIdInputSchema>;
+export type WorkflowControlInput = z.infer<typeof WorkflowControlInputSchema>;
+export type HumanInputNode = z.infer<typeof HumanInputNodeSchema>;
+export type DelegationNode = z.infer<typeof DelegationNodeSchema>;
 
 export const TaskStatusSchema = z.enum([
   "planned",
@@ -631,4 +688,5 @@ export const TOOL_NAMES = [
   "melra_workflow_advance",
   "melra_workflow_status",
   "melra_workflow_cancel",
+  "melra_workflow_control",
 ] as const;

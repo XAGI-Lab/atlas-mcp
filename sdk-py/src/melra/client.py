@@ -143,6 +143,7 @@ class MelraClient:
         workflow_id: str,
         *,
         approvals: list[dict[str, str]] | None = None,
+        inputs: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         workflow_id = self._workflow_id(workflow_id)
         parsed_approvals = approvals or []
@@ -153,12 +154,17 @@ class MelraClient:
             )
             if not approval.get("phrase"):
                 raise ValueError("approval phrase is required")
+        parsed_inputs = inputs or []
+        for supplied in parsed_inputs:
+            if not supplied.get("nodeId"):
+                raise ValueError("input nodeId is required")
         return self._object(
             await self.call_tool(
                 "melra_workflow_advance",
                 {
                     "workflowId": workflow_id,
                     "approvals": parsed_approvals,
+                    "inputs": parsed_inputs,
                 },
             ),
             "workflow advance",
@@ -180,6 +186,24 @@ class MelraClient:
                 {"workflowId": self._workflow_id(workflow_id)},
             ),
             "workflow cancellation",
+        )
+
+    async def control_workflow(
+        self,
+        workflow_id: str,
+        action: str,
+    ) -> dict[str, Any]:
+        if action not in {"pause", "resume", "suspend"}:
+            raise ValueError("action must be pause, resume, or suspend")
+        return self._object(
+            await self.call_tool(
+                "melra_workflow_control",
+                {
+                    "workflowId": self._workflow_id(workflow_id),
+                    "action": action,
+                },
+            ),
+            "workflow control",
         )
 
     @staticmethod

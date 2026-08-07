@@ -6,6 +6,39 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Workflows can wait on a person. A `human_input` node blocks the run in the new
+  `awaiting_input` status until an answer arrives through
+  `melra_workflow_advance`'s `inputs` argument (`melra workflow advance --input
+  <node-id>=<value>`), and `choices`/`maxLength` constrain what counts as an
+  answer.
+- A `delegation` node records a handoff to an outside worker and waits for a
+  result. The delegate reporting "done" is not evidence: if the node declared
+  `requiredEvidence`, the verifier still decides, and a node whose evidence fails
+  is `failed`, never complete.
+- Operator halts. `melra_workflow_control` — and `melra workflow
+  pause|resume|suspend` — stop a run where it stands and put it back without
+  losing its place. A halted workflow refuses `advance` with
+  `workflow_halted:<status>`, and the halt and its reversal appear in the event
+  log as `workflow.paused` / `workflow.suspended` / `workflow.resumed`.
+- Cross-process workflow leases. Advancing a workflow now takes an expiring
+  SQLite lease before any adapter runs, so several MELRA processes can share one
+  `MELRA_HOME`: the second one is refused with `workflow_lease_held` rather than
+  starting duplicate side effects. Long advances renew their own lease while the
+  adapters run.
+
+### Fixed
+
+- `pnpm test` no longer exhausts system memory. pnpm's default
+  workspace-concurrency multiplied by vitest's default fork pool spawned roughly
+  four times as many Node processes as the machine had cores, each with its own
+  V8 heap; on a 16 GiB machine that was enough to take the whole system down.
+  `scripts/run-tests.mjs` now sizes both fan-outs against available RAM and core
+  count. Measured peak fell from unbounded to 1.7 GiB across 15 processes, with
+  the suite still green. `node scripts/peak-rss.mjs -- <command>` reports the
+  peak for any command, so a regression here stays measurable.
+
 ## [0.3.0-alpha.4] - 2026-08-08
 
 ### Added

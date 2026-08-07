@@ -396,6 +396,15 @@ export class TaskController {
     return await this.verifier.verify(predicates, result);
   }
 
+  // Verify predicates with no task behind them. A delegation node claims work
+  // happened somewhere MELRA did not run it; the claim is only worth what the
+  // evidence proves, so it goes through the same verifier as everything else.
+  async verifyStandalone(
+    predicates: EvidencePredicate[],
+  ): Promise<{ verified: boolean; evidence: EvidenceItem[] }> {
+    return await this.verifier.verify(predicates, {});
+  }
+
   async recoverInterrupted(): Promise<TaskRecord[]> {
     const recovered: TaskRecord[] = [];
     for (const task of this.store.listInterruptedTasks()) {

@@ -16,6 +16,7 @@ import {
   TaskRequestSchema,
   TOOL_NAMES,
   WorkflowAdvanceInputSchema,
+  WorkflowControlInputSchema,
   WorkflowDefinitionSchema,
   WorkflowIdInputSchema,
   WorkflowPlanInputSchema,
@@ -95,6 +96,17 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
           ],
           system: ["info"],
         },
+        workflowNodes: [
+          "operation",
+          "approval",
+          "condition",
+          "parallel",
+          "bounded_loop",
+          "checkpoint",
+          "compensation",
+          "human_input",
+          "delegation",
+        ],
         policy: {
           version: runtime.policy.version,
           workspaceRoot: runtime.policy.workspaceRoot,
@@ -255,6 +267,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
         await runtime.workflows.advance(
           parsed.workflowId,
           parsed.approvals,
+          parsed.inputs,
         ),
       );
     },
@@ -296,6 +309,32 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
     async (input) => {
       const parsed = WorkflowIdInputSchema.parse(input);
       return toolResult(runtime.workflows.cancel(parsed.workflowId));
+    },
+  );
+
+  server.registerTool(
+    "melra_workflow_control",
+    {
+      title: "Pause, resume, or suspend a MELRA workflow",
+      description:
+        "Halt a running workflow without losing node state, or lift a halt. Node progress is untouched, so a resumed workflow continues where it stopped.",
+      inputSchema: WorkflowControlInputSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      const parsed = WorkflowControlInputSchema.parse(input);
+      return toolResult(
+        parsed.action === "pause"
+          ? runtime.workflows.pause(parsed.workflowId)
+          : parsed.action === "suspend"
+            ? runtime.workflows.suspend(parsed.workflowId)
+            : runtime.workflows.resume(parsed.workflowId),
+      );
     },
   );
   return server;

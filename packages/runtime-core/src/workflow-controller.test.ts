@@ -797,3 +797,206 @@ describe("WorkflowController recovery", () => {
     );
   });
 });
+
+describe("WorkflowController operator controls", () => {
+  it("refuses to advance a paused workflow and resumes where it stopped", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(definition("Pause me"));
+
+    expect(controller.pause(planned.id).status).toBe("paused");
+    await expect(controller.advance(planned.id)).rejects.toThrow(
+      "workflow_halted:paused",
+    );
+
+    expect(controller.resume(planned.id).status).toBe("running");
+    const advanced = await controller.advance(planned.id);
+    expect(advanced.run.status).toBe("verified_complete");
+  });
+
+  it("suspends indefinitely and reports the halt in the event log", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(definition("Suspend me"));
+
+    expect(controller.suspend(planned.id).status).toBe("suspended");
+    await expect(controller.advance(planned.id)).rejects.toThrow(
+      "workflow_halted:suspended",
+    );
+    expect(
+      controller.events(planned.id).map((event) => event.type),
+    ).toContain("workflow.suspended");
+
+    controller.resume(planned.id);
+    expect(
+      controller.events(planned.id).map((event) => event.type),
+    ).toContain("workflow.resumed");
+  });
+
+  it("is idempotent on repeat halts and rejects resuming a live run", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(definition("Idempotent halt"));
+
+    expect(controller.pause(planned.id).status).toBe("paused");
+    expect(controller.pause(planned.id).status).toBe("paused");
+    controller.resume(planned.id);
+    expect(() => controller.resume(planned.id)).toThrow(
+      "workflow_not_paused",
+    );
+  });
+
+  it("refuses to halt a finished workflow", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(definition("Already done"));
+    await controller.advance(planned.id);
+
+    expect(() => controller.pause(planned.id)).toThrow(
+      "workflow_not_haltable",
+    );
+  });
+});
+
+describe("WorkflowController human input and delegation", () => {
+  it("waits on a human_input node and clears it when the answer arrives", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(
+      WorkflowDefinitionSchema.parse({
+        schemaVersion: "1.0.0",
+        id: definitionId,
+        version: 1,
+        name: "Ask first",
+        nodes: [
+          {
+            id: "ask",
+            type: "human_input",
+            prompt: "Ship it?",
+            choices: ["yes", "no"],
+          },
+          {
+            id: "act",
+            type: "operation",
+            dependsOn: ["ask"],
+            request: request("after the answer"),
+          },
+        ],
+      }),
+    );
+
+    const waiting = await controller.advance(planned.id);
+    expect(waiting.run.status).toBe("awaiting_input");
+    expect(waiting.run.nodes.ask?.status).toBe("awaiting_input");
+    expect(waiting.run.nodes.ask?.prompt).toBe("Ship it?");
+    expect(waiting.run.nodes.act?.status).toBe("pending");
+
+    // An unlisted answer is rejected, so a workflow can branch on a value it
+    // actually enumerated rather than on arbitrary prose.
+    await expect(
+      controller.advance(planned.id, [], [{ nodeId: "ask", value: "maybe" }]),
+    ).rejects.toThrow("workflow_input_not_a_choice:ask");
+
+    const answered = await controller.advance(
+      planned.id,
+      [],
+      [{ nodeId: "ask", value: "yes" }],
+    );
+    expect(answered.run.nodes.ask?.status).toBe("verified_complete");
+    expect(answered.run.nodes.ask?.input).toBe("yes");
+
+    const finished = await controller.advance(planned.id);
+    expect(finished.run.status).toBe("verified_complete");
+  });
+
+  it("fails a delegation whose declared evidence does not hold", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(
+      WorkflowDefinitionSchema.parse({
+        schemaVersion: "1.0.0",
+        id: definitionId,
+        version: 1,
+        name: "Hand it off",
+        nodes: [
+          {
+            id: "handoff",
+            type: "delegation",
+            assignee: "outside-worker",
+            goal: "write the report",
+            requiredEvidence: [{ type: "file_exists", path: "report.md" }],
+          },
+        ],
+      }),
+    );
+
+    expect((await controller.advance(planned.id)).run.status).toBe(
+      "awaiting_input",
+    );
+
+    // The delegate says done; the file it promised is not there. A delegate's
+    // word is not evidence, so the node fails rather than completing.
+    const reported = await controller.advance(
+      planned.id,
+      [],
+      [{ nodeId: "handoff", value: "done" }],
+    );
+    expect(reported.run.nodes.handoff?.status).toBe("failed");
+    expect(reported.run.nodes.handoff?.error).toBe(
+      "workflow_delegation_unverified:handoff",
+    );
+    expect(reported.run.status).toBe("failed");
+  });
+
+  it("refuses an answer longer than the node allows", async () => {
+    const { controller } = await setup();
+    const planned = controller.plan(
+      WorkflowDefinitionSchema.parse({
+        schemaVersion: "1.0.0",
+        id: definitionId,
+        version: 1,
+        name: "Short answers only",
+        nodes: [
+          {
+            id: "ask",
+            type: "human_input",
+            prompt: "Initials?",
+            maxLength: 4,
+          },
+        ],
+      }),
+    );
+    await controller.advance(planned.id);
+
+    await expect(
+      controller.advance(planned.id, [], [{ nodeId: "ask", value: "far too long" }]),
+    ).rejects.toThrow("workflow_input_too_long:ask");
+  });
+});
+
+describe("WorkflowController leases", () => {
+  it("refuses a second process while one holds the workflow lease", async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started = () => {};
+    const running = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const { store, tasks, cipher, controller } = await setup(async () => {
+      started();
+      await held;
+      return { success: true };
+    });
+    // A distinct controller stands in for a second process: separate owner id,
+    // separate in-process advance map, same SQLite file.
+    const other = new WorkflowController(store, tasks, cipher);
+    const planned = controller.plan(definition("Leased work"));
+
+    const first = controller.advance(planned.id);
+    await running;
+    await expect(other.advance(planned.id)).rejects.toThrow(
+      "workflow_lease_held",
+    );
+
+    release();
+    expect((await first).run.status).toBe("verified_complete");
+    // The lease is released with the advance, so the next process gets in.
+    expect(store.getWorkflowLease(planned.id)).toBeUndefined();
+  });
+});

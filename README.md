@@ -71,9 +71,9 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 | Shipped in this source release | Evidence |
 |---|---|
-| Restart-safe bounded workflows across seven node kinds | Real MCP process is stopped, replaced, and resumed in E2E |
+| Restart-safe bounded workflows across nine node kinds | Real MCP process is stopped, replaced, and resumed in E2E |
 | Encrypted exact task, workflow, and result payloads | AES-256-GCM storage plus plaintext-leak checks across SQLite/WAL and public projections |
-| Ten MCP tools for tasks and workflows | Container and stdio discovery checks require the exact tool set |
+| Eleven MCP tools for tasks and workflows | Container and stdio discovery checks require the exact tool set |
 | Recovery without silent mutation replay | 8/8 deterministic recovery scenarios, zero duplicates, zero false success |
 
 ---
@@ -331,7 +331,7 @@ same `MELRA_HOME` resumes the persisted workflow.
 
 ## A deliberately small MCP surface ✨
 
-Ten tools in front of five capability runtimes and one durable workflow
+Eleven tools in front of five capability runtimes and one durable workflow
 controller:
 
 | MCP tool | Purpose |
@@ -346,10 +346,11 @@ controller:
 | `melra_workflow_advance` | Execute one ready scheduling wave |
 | `melra_workflow_status` | Read the durable workflow projection |
 | `melra_workflow_cancel` | Cooperatively cancel nonterminal workflow work |
+| `melra_workflow_control` | Pause, resume, or suspend a run without losing its place |
 
 Workflow definitions compose operation, approval, condition, parallel,
-bounded-loop, checkpoint, and compensation nodes while every effect still
-travels through the task policy and evidence pipeline.
+bounded-loop, checkpoint, compensation, human-input, and delegation nodes while
+every effect still travels through the task policy and evidence pipeline.
 
 ---
 

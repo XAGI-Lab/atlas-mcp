@@ -71,7 +71,33 @@ describe("SqliteStore", () => {
       store.database
         .prepare("SELECT version FROM schema_migrations ORDER BY version")
         .all(),
-    ).toEqual([{ version: 1 }]);
+    ).toEqual([{ version: 1 }, { version: 2 }]);
+  });
+
+  it("grants a workflow lease to one owner and expires it", () => {
+    store = new SqliteStore(":memory:");
+    const workflowId = "11111111-1111-4111-8111-111111111111";
+    const soon = new Date(Date.now() + 60_000).toISOString();
+    const now = new Date().toISOString();
+
+    expect(store.acquireWorkflowLease(workflowId, "a", now, soon)).toBe(true);
+    expect(store.acquireWorkflowLease(workflowId, "b", now, soon)).toBe(false);
+    // The holder re-entering is not contention.
+    expect(store.acquireWorkflowLease(workflowId, "a", now, soon)).toBe(true);
+    expect(store.getWorkflowLease(workflowId)?.owner).toBe("a");
+
+    // Renewal only works for the holder, so a loser cannot extend a lease it
+    // never won.
+    expect(store.renewWorkflowLease(workflowId, "b", soon)).toBe(false);
+    expect(store.renewWorkflowLease(workflowId, "a", soon)).toBe(true);
+
+    // A dead holder's lease lapses rather than stranding the workflow.
+    const past = new Date(Date.now() - 1_000).toISOString();
+    store.renewWorkflowLease(workflowId, "a", past);
+    expect(store.acquireWorkflowLease(workflowId, "b", now, soon)).toBe(true);
+
+    store.releaseWorkflowLease(workflowId, "b");
+    expect(store.getWorkflowLease(workflowId)).toBeUndefined();
   });
 
   it("persists tasks and scoped memories", () => {

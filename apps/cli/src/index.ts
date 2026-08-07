@@ -11,10 +11,12 @@ import {
   ApprovalResponseSchema,
   TaskRequestSchema,
   WorkflowDefinitionSchema,
+  WorkflowInputSchema,
   PRODUCT_VERSION,
   type ApprovalResponse,
   type TaskRequest,
   type WorkflowDefinition,
+  type WorkflowInput,
   type WorkflowRun,
 } from "@melra/protocol";
 import {
@@ -101,6 +103,9 @@ async function readWorkflowDefinition(
 
 function workflowExitCode(status: WorkflowRun["status"]): number {
   if (status === "awaiting_approval") return 3;
+  // A run waiting on a person is not a failure — it is a prompt. Its own exit
+  // code lets a script tell "answer me" apart from "approve me" and "broke".
+  if (status === "awaiting_input") return 4;
   if (
     [
       "failed",
@@ -112,6 +117,29 @@ function workflowExitCode(status: WorkflowRun["status"]): number {
     return 2;
   }
   return 0;
+}
+
+// `--input <node-id>=<value>`. `=` rather than `:` because a node ID never
+// contains one but an answer very often does (URLs, times, ratios).
+function workflowInputs(args: string[]): WorkflowInput[] {
+  const inputs: WorkflowInput[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== "--input") continue;
+    const value = args[index + 1];
+    if (value === undefined) throw new Error("--input requires a value");
+    const separator = value.indexOf("=");
+    if (separator < 1 || separator === value.length - 1) {
+      throw new Error("--input must be <node-id>=<value>");
+    }
+    inputs.push(
+      WorkflowInputSchema.parse({
+        nodeId: value.slice(0, separator),
+        value: value.slice(separator + 1),
+      }),
+    );
+    index += 1;
+  }
+  return inputs;
 }
 
 function workflowApprovals(args: string[]): ApprovalResponse[] {
@@ -157,9 +185,11 @@ async function workflowCommand(
         if (workflowId === undefined) {
           throw new Error("workflow advance requires a workflow ID");
         }
+        const rest = actionArgs.slice(1);
         const result = await melra.workflows.advance(
           workflowId,
-          workflowApprovals(actionArgs.slice(1)),
+          workflowApprovals(rest),
+          workflowInputs(rest),
         );
         output(result);
         return workflowExitCode(result.run.status);
@@ -181,9 +211,25 @@ async function workflowCommand(
         output(run);
         return workflowExitCode(run.status);
       }
+      case "pause":
+      case "resume":
+      case "suspend": {
+        const workflowId = actionArgs[0];
+        if (workflowId === undefined) {
+          throw new Error(`workflow ${action} requires a workflow ID`);
+        }
+        const run =
+          action === "pause"
+            ? melra.workflows.pause(workflowId)
+            : action === "suspend"
+              ? melra.workflows.suspend(workflowId)
+              : melra.workflows.resume(workflowId);
+        output(run);
+        return workflowExitCode(run.status);
+      }
       default:
         throw new Error(
-          "workflow supports plan, advance, inspect, and cancel",
+          "workflow supports plan, advance, inspect, cancel, pause, resume, and suspend",
         );
     }
   } finally {
@@ -428,8 +474,10 @@ Usage:
   melra inspect <task-id>
   melra workflow plan --definition <workflow.json>
   melra workflow advance <workflow-id> [--approval <id>:<exact-phrase>]
+                                       [--input <node-id>=<value>]
   melra workflow inspect <workflow-id>
   melra workflow cancel <workflow-id>
+  melra workflow pause|resume|suspend <workflow-id>
   melra demo durable-core
   melra policy test --request <task.json>
   melra version

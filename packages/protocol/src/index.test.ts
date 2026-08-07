@@ -56,6 +56,7 @@ describe("public protocol schemas", () => {
       "melra_workflow_advance",
       "melra_workflow_status",
       "melra_workflow_cancel",
+      "melra_workflow_control",
     ]);
     expect(() => MelraReceiptInputSchema.parse({})).toThrow();
     expect(

@@ -13,7 +13,7 @@ Version: `0.3.0-alpha.4`
 - ✅ **npm packages published**: all 14 packages live under the `@melra` scope on the `alpha` dist-tag, each with provenance attestation
 - ✅ **CHANGELOG.md** updated with 0.3.0-alpha.4 section
 - ✅ **Install paths documented**: npm, container, release tarball, source
-- ✅ **Registry install verified end to end**: `npx @melra/cli@alpha doctor` passes every check on a clean npm cache, and the same path serves all 10 MCP tools over stdio
+- ✅ **Registry install verified end to end**: `npx @melra/cli@alpha doctor` passes every check on a clean npm cache, and the same path serves all 11 MCP tools over stdio
 
 ## Requires Project Action
 
@@ -43,7 +43,6 @@ Version: `0.3.0-alpha.4`
 
 Documented in docs/VALIDATION.md "Known alpha limitations":
 - Stdio transport only (HTTP/OAuth not implemented)
-- Cross-process workflow leases not implemented
 - Browser sessions non-persistent
 - Computer OCR/accessibility targeting roadmap
 - Node SQLite experimental warning (platform limitation)

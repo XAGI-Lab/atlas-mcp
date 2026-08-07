@@ -6,11 +6,13 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import {
   WorkflowAdvanceInputSchema,
   WorkflowAdvanceResultSchema,
+  WorkflowControlInputSchema,
   WorkflowDefinitionSchema,
   WorkflowIdInputSchema,
   WorkflowRunSchema,
   type WorkflowAdvanceResult,
   type WorkflowDefinition,
+  type WorkflowInput,
   type WorkflowRun,
   type ApprovalResponse,
   type TaskRequest,
@@ -119,10 +121,12 @@ export class MelraClient {
   async advanceWorkflow(
     workflowId: string,
     approvals: ApprovalResponse[] = [],
+    inputs: WorkflowInput[] = [],
   ): Promise<WorkflowAdvanceResult> {
     const parsed = WorkflowAdvanceInputSchema.parse({
       workflowId,
       approvals,
+      inputs,
     });
     return WorkflowAdvanceResultSchema.parse(
       await this.call("melra_workflow_advance", parsed),
@@ -140,6 +144,16 @@ export class MelraClient {
     const parsed = WorkflowIdInputSchema.parse({ workflowId });
     return WorkflowRunSchema.parse(
       await this.call("melra_workflow_cancel", parsed),
+    );
+  }
+
+  async controlWorkflow(
+    workflowId: string,
+    action: "pause" | "resume" | "suspend",
+  ): Promise<WorkflowRun> {
+    const parsed = WorkflowControlInputSchema.parse({ workflowId, action });
+    return WorkflowRunSchema.parse(
+      await this.call("melra_workflow_control", parsed),
     );
   }
 

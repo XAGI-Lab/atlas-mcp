@@ -70,6 +70,7 @@ try {
     "melra_task_status",
     "melra_workflow_advance",
     "melra_workflow_cancel",
+    "melra_workflow_control",
     "melra_workflow_plan",
     "melra_workflow_status",
   ];

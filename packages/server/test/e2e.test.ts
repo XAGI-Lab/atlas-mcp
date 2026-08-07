@@ -166,7 +166,7 @@ describe("MELRA over real stdio transport", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it("advertises exactly the compact ten-tool product surface", async () => {
+  it("advertises exactly the compact eleven-tool product surface", async () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name).sort()).toEqual([
       "melra_capabilities",
@@ -177,6 +177,7 @@ describe("MELRA over real stdio transport", () => {
       "melra_task_status",
       "melra_workflow_advance",
       "melra_workflow_cancel",
+      "melra_workflow_control",
       "melra_workflow_plan",
       "melra_workflow_status",
     ]);

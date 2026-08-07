@@ -42,6 +42,7 @@ async def test_python_sdk_uses_the_real_stdio_server(tmp_path: Path) -> None:
             "melra_workflow_advance",
             "melra_workflow_status",
             "melra_workflow_cancel",
+            "melra_workflow_control",
         ]
         capabilities = await melra.capabilities()
         assert capabilities["product"] == "MELRA"
@@ -69,6 +70,7 @@ async def test_python_sdk_calls_workflow_tools_with_validated_inputs() -> None:
         "approvalId": "33333333-3333-4333-8333-333333333333",
         "phrase": "APPROVE exact",
     }
+    supplied = {"nodeId": "review", "value": "ship it"}
     client = MelraClient()
     tool = AsyncMock(
         side_effect=[
@@ -76,23 +78,39 @@ async def test_python_sdk_calls_workflow_tools_with_validated_inputs() -> None:
             {"run": {"id": workflow_id}, "tasks": [], "events": []},
             {"id": workflow_id},
             {"id": workflow_id},
+            {"id": workflow_id},
         ]
     )
     client.call_tool = tool
 
     await client.plan_workflow(definition)
-    await client.advance_workflow(workflow_id, approvals=[approval])
+    await client.advance_workflow(
+        workflow_id,
+        approvals=[approval],
+        inputs=[supplied],
+    )
     await client.workflow_status(workflow_id)
+    await client.control_workflow(workflow_id, "pause")
     await client.cancel_workflow(workflow_id)
 
     assert tool.await_args_list == [
         call("melra_workflow_plan", {"definition": definition}),
         call(
             "melra_workflow_advance",
-            {"workflowId": workflow_id, "approvals": [approval]},
+            {
+                "workflowId": workflow_id,
+                "approvals": [approval],
+                "inputs": [supplied],
+            },
         ),
         call("melra_workflow_status", {"workflowId": workflow_id}),
+        call(
+            "melra_workflow_control",
+            {"workflowId": workflow_id, "action": "pause"},
+        ),
         call("melra_workflow_cancel", {"workflowId": workflow_id}),
     ]
     with pytest.raises(ValueError, match="workflow_id must be a UUID"):
         await client.workflow_status("not-a-uuid")
+    with pytest.raises(ValueError, match="action must be"):
+        await client.control_workflow(workflow_id, "destroy")
