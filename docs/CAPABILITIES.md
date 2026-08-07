@@ -107,6 +107,12 @@ Actions: `navigate`, `back`, `forward`, `reload`, `inspect`, `wait`, `click`,
   form instead of one per field.
 - `scroll` takes `pixels` for `up`/`down` and returns the resulting `scrollY`,
   so a caller paging through a document can tell when it has reached the bottom.
+- A `confirm()`, `alert()`, `prompt()`, or `beforeunload` dialog raised by an
+  action is accepted and reported on the result as `dialogs[]`, each with its
+  `type` and `message`. The action that raised the dialog was already approved,
+  so answering it is part of that action; the report is what keeps it honest,
+  because a caller is never told a page changed without also being told what it
+  was asked. The field is absent when nothing was raised.
 - Resolves and checks the destination and every intercepted request.
 - Blocks private, link-local, multicast, unspecified, and cloud-metadata
   addresses. Localhost is opt-in.

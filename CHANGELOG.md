@@ -73,6 +73,21 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- Browser dialogs are answered and reported instead of silently discarded.
+  Playwright dismisses every dialog when no handler is registered, and none
+  was, so a button guarded by `confirm()` reported a successful click while the
+  guarded work never ran: the click really did succeed, so no evidence
+  predicate could catch it, and the caller was told a record was deleted that
+  still existed. `beforeunload` was the same defect pointed at navigation and
+  `prompt()` the same pointed at input. Dialogs are now accepted — the caller
+  already approved the action that raised the confirmation, which is part of
+  that action rather than a second one — and every dialog comes back on the
+  result as `dialogs[]` with its type and message, so a page is never changed
+  without the caller also being told what it was asked. `prompt` accepts the
+  page's own default rather than inventing a value. The handler is registered
+  on the browser context, so tabs opened later are covered too, and the field
+  is absent rather than empty when nothing was raised.
+
 - Browser typing dispatches real key events again. `type` used Playwright's
   `.fill()`, which assigns the value and fires a single `input` event, so
   anything listening for keystrokes never saw the text — React inputs with key
