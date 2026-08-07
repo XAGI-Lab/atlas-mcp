@@ -141,7 +141,7 @@ describe("frame-aware targeting", () => {
     } finally {
       await runtime.close();
     }
-  }, 30_000);
+  });
 
   it("does not report a target as hidden merely because other frames lack it", async () => {
     const context = await fixture();
@@ -167,7 +167,7 @@ describe("frame-aware targeting", () => {
     } finally {
       await runtime.close();
     }
-  }, 30_000);
+  });
 });
 
 describe("captchaReport", () => {
