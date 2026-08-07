@@ -1,5 +1,9 @@
 # Validation
 
+Suite-size rows — Vitest case counts and evaluation scenario counts — are
+refreshed whenever those suites grow, so they report the current `main` rather
+than the dated run they sit under. Every other row is the record of that run.
+
 ## MELRA Durable Core Alpha release candidate
 
 Date: 2026-07-30
@@ -14,7 +18,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 |---|---|
 | Package-version consistency | all 16 workspace manifests, protocol constant, and Python distribution match |
 | TypeScript build and strict typecheck | passed across 15 packages/apps |
-| JavaScript/Vitest cases | 166 passed |
+| JavaScript/Vitest cases | 223 passed |
 | Python lint and SDK tests | ruff passed; 2 tests passed |
 | Safety/execution evaluation | 28 of 28 passed |
 | Durable Core evaluation | 8 valid, 0 invalid |
@@ -92,14 +96,14 @@ Host exercised locally: macOS arm64 (Darwin 25.5.0), Node.js 24, Python 3.11.14
 | Gate | Result |
 |---|---|
 | `pnpm check` | passed (versions, strict typecheck, tests, Python) |
-| TypeScript/Vitest cases | 76 passed |
+| TypeScript/Vitest cases | 223 passed |
 | `pnpm evals` | 28 of 28 scenarios passed, 0 failed |
-| `pnpm e2e` | 7 end-to-end cases passed over real stdio |
+| `pnpm e2e` | 12 end-to-end cases passed over real stdio |
 | `pnpm pack:check` | passed |
 | `pnpm security:audit` | no known vulnerabilities, Node and Python |
-| `pnpm benchmark:browser:check` | ruff clean, 24 pytest cases passed |
+| `pnpm benchmark:browser:check` | ruff clean, 28 pytest cases passed |
 | `pnpm benchmark:browser:verify-upstream` | `suite=webarena-verified-hard-30-v1 tasks=30 unique_templates=30` |
-| Both benchmark extras installed | `browsergym-miniwob==0.14.3` and `webarena-verified==1.2.3` resolve; 24 pytest cases passed |
+| Both benchmark extras installed | `browsergym-miniwob==0.14.3` and `webarena-verified==1.2.3` resolve; 28 pytest cases passed |
 
 This verifies the harness, not a browser-agent score.
 

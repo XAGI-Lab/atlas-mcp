@@ -77,7 +77,7 @@ defaults that trip people up:
 - A non-empty `constraints` array is an outright **deny** (`freeform_constraints_not_enforceable`) — freeform prose is not enforceable, so leave it `[]`.
 - Any non-`read` effect with empty `requiredEvidence` is denied (`mutation_requires_evidence`).
 - Terminal commands must be in `allowedCommands` by basename; shells and `sudo`/`su` are denied unconditionally. `git`'s effect is `read` only for a small read-only subcommand set; `npm`/`npx`/`pnpm` are high-risk mutations.
-- Browser domains are deny-by-default (`allowedDomains: []`, `allowLocalhost: false`), so browser work needs a policy JSON.
+- Browser destinations default to `allowedDomains: ["*"]` with `allowLocalhost: true`, so browsing works without a policy JSON. The allowlist is a narrowing control; `assertSafeUrl` in `browser-runtime` is the actual boundary and independently rejects non-http(s) protocols, URL credentials, private/link-local ranges, and cloud metadata, resolving DNS first so a public name cannot be rebound.
 - Effect/risk classification lives in one place, `classifyOperation`. Adding an action without updating it silently mis-classifies (usually as a mutation).
 
 ## Making changes

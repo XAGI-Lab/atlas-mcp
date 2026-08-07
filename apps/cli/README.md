@@ -8,5 +8,6 @@ melra doctor
 melra init --client generic
 ```
 
-The CLI starts with a local read-only policy. Consequential operations require
-an exact, task-scoped approval phrase and expected evidence.
+The CLI starts with a local policy that allows reads outright and gates every
+mutation: a consequential operation requires declared evidence and an exact,
+task-scoped approval phrase before it runs.

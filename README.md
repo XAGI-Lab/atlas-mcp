@@ -22,7 +22,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 <!-- Evidence -->
 <img src="https://img.shields.io/badge/evals-28_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="28 deterministic evaluation scenarios passing" />
-<img src="https://img.shields.io/badge/tests-166_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="166 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/tests-215_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="215 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-12_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="12 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 
@@ -423,7 +423,7 @@ pairs *and* its sanitized artifact passes the publication gate.
 | 📴 | Telemetry is **off** |
 | 🚫 | Shell interpreters, privilege escalation, and arbitrary desktop key names are denied |
 | 📁 | Paths and terminal working directories stay inside the configured root |
-| 🌐 | Browser domains start **deny-by-default**; private, link-local, loopback, and cloud-metadata destinations stay blocked unless explicitly permitted |
+| 🌐 | Private, link-local, loopback, and cloud-metadata destinations are blocked by the browser runtime itself, before any allowlist is consulted; `allowedDomains` narrows which *public* sites are reachable |
 | ⚠️ | Browser output is marked untrusted; page content never changes policy |
 | ✍️ | Mutations require **both** declared evidence and an exact task-scoped approval |
 | 🔑 | Secret patterns are redacted before terminal output, memory, tasks, or receipts are persisted |

@@ -67,9 +67,19 @@ melra init --client generic
 
 `init` does not overwrite an existing policy.
 
-The generated policy starts with an empty browser-domain allowlist. Add only the
-domains a task needs. To run the browser example, add `"example.com"` to
-`allowedDomains`.
+The generated policy allows any public browser destination
+(`allowedDomains: ["*"]`) and localhost, so browsing works without editing
+anything. That list is a *narrowing* control, not the safety boundary: the
+browser runtime independently refuses non-`http(s)` protocols, URL credentials,
+private and link-local ranges, and cloud metadata (`169.254/16`), and it resolves
+DNS before allowing a navigation so a public name cannot be rebound to a private
+address. To restrict which public sites are reachable, replace `"*"` with the
+domains a task actually needs — `examples/04-browser-inspection/policy.json` is
+a worked example that allows only `example.com`.
+
+Mutations default to `"confirm"`: every non-read operation returns a
+task-scoped approval phrase that must be echoed back before it runs. Set
+`"mutations": "deny"` for a read-only install.
 
 ## MCP clients
 
