@@ -47,6 +47,12 @@ const MAX_FRAMES = 20;
  */
 const MAX_ELEMENTS = 400;
 
+/**
+ * Dialogs recorded per action. A page can raise them in a loop, and the result
+ * is persisted, so the report is bounded even though answering is not.
+ */
+const MAX_DIALOGS = 20;
+
 /** How often `waitForTarget` re-resolves the target across the frame list. */
 const WAIT_POLL_MS = 100;
 
@@ -188,6 +194,14 @@ export class BrowserRuntime {
   private activePage: Page | undefined;
   private connection: BrowserConnection | undefined;
   private routeHandler: ((route: Route) => Promise<void>) | undefined;
+  /**
+   * Dialogs raised by the action currently running, cleared by `execute`.
+   *
+   * One buffer on the runtime rather than one per page because the handler is
+   * registered on the context, and because operations execute one at a time —
+   * a task owns its runtime for the length of one action.
+   */
+  private dialogs: Record<string, unknown>[] = [];
 
   constructor(private readonly options: BrowserRuntimeOptions) {}
 
@@ -263,6 +277,42 @@ export class BrowserRuntime {
       }
     };
     await this.context.route("**/*", this.routeHandler);
+    /**
+     * Answer dialogs instead of letting Playwright discard them.
+     *
+     * With no handler registered Playwright dismisses every dialog, so a button
+     * guarded by `confirm()` reported a successful click while the guarded work
+     * never ran — a false success the verifier cannot catch, because the click
+     * genuinely did succeed. `beforeunload` is the same defect pointed at
+     * navigation and `prompt()` the same pointed at input.
+     *
+     * Accepting is the honest answer: the caller already approved the action
+     * that raised the dialog, and the confirmation is part of that action, not
+     * a second one. What makes it safe is that every dialog is reported back —
+     * a caller is never told a page was changed without also being told what it
+     * was asked. `prompt` accepts its own default rather than inventing a
+     * value, since MELRA has nothing to say on the page's behalf.
+     *
+     * Registered on the context so tabs opened later are covered too.
+     */
+    this.context.on("dialog", (dialog) => {
+      // Bounded because a page can raise dialogs in a loop; recording stops but
+      // answering does not, since an unanswered dialog blocks the page forever.
+      if (this.dialogs.length < MAX_DIALOGS) {
+        this.dialogs.push({
+          type: dialog.type(),
+          message: dialog.message(),
+          accepted: true,
+          ...(dialog.type() === "prompt"
+            ? { defaultValue: dialog.defaultValue() }
+            : {}),
+        });
+      }
+      // The page stays blocked until this settles, and a dialog belonging to a
+      // page that closed first can no longer be answered — a rejection here
+      // must not become the action's error.
+      void dialog.accept().catch(() => undefined);
+    });
     this.context.on("close", () => {
       this.context = undefined;
       this.activePage = undefined;
@@ -537,7 +587,13 @@ export class BrowserRuntime {
     // `result_equals success true` for browser mutations, and a result without
     // it verified as `partial` no matter how well the action went. Failures
     // throw, so reaching a return is what success means here.
-    return { success: true, ...(await this.run(operation)) };
+    this.dialogs = [];
+    const result = { success: true, ...(await this.run(operation)) };
+    // Only present when the page actually asked something, so a caller can test
+    // for the field rather than for an empty array.
+    return this.dialogs.length === 0
+      ? result
+      : { ...result, dialogs: this.dialogs };
   }
 
   private async run(operation: BrowserOperation): Promise<Record<string, unknown>> {
