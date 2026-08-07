@@ -23,6 +23,7 @@ pnpm check                  # versions:check + typecheck + test + python:check â
 pnpm evals                  # 28 deterministic policy/execution scenarios â†’ evals/results/latest.json
 pnpm e2e                    # packages/server/test/e2e.test.ts against a live stdio server
 pnpm pack:check              # npm pack --dry-run for the published CLI
+pnpm readme:check           # typecheck every ```ts block in every package README
 pnpm security:audit          # pnpm audit --prod + scripts/python-audit.mjs
 pnpm melra <cmd>            # run the CLI from source via tsx (doctor | init | serve | run | inspect | policy test)
 ```

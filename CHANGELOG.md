@@ -8,6 +8,11 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Every published package now carries its own README, so the npm page explains
+  what the package is, how to install it, and the invariants that are not obvious
+  from the type signatures. `pnpm readme:check` (part of `pnpm check`) typechecks
+  every TypeScript example in those READMEs against the built output, so a
+  documented API cannot drift from the real one.
 - Unhinged mode. `melra serve --unhinged` or `MELRA_UNHINGED=1` removes every
   guardrail: policy allows all operations, no approval challenge is issued,
   mutations no longer require declared evidence, file and terminal operations are
@@ -37,6 +42,13 @@ All notable changes are documented here. The format follows
   `MELRA_HOME`: the second one is refused with `workflow_lease_held` rather than
   starting duplicate side effects. Long advances renew their own lease while the
   adapters run.
+
+### Changed
+
+- `MelraClient.plan` accepts a task request before schema defaults are applied,
+  matching `planWorkflow`. Callers no longer have to restate `encoding`,
+  `recursive`, `maxSteps`, and the other defaults by hand to satisfy the
+  compiler; the client parses the request itself.
 
 ### Fixed
 

@@ -10,12 +10,13 @@ import {
   WorkflowDefinitionSchema,
   WorkflowIdInputSchema,
   WorkflowRunSchema,
+  TaskRequestSchema,
   type WorkflowAdvanceResult,
   type WorkflowDefinition,
   type WorkflowInput,
   type WorkflowRun,
   type ApprovalResponse,
-  type TaskRequest,
+  type TaskRequestInput,
 } from "@melra/protocol";
 
 export interface MelraClientOptions {
@@ -75,8 +76,16 @@ export class MelraClient {
     return await this.call("melra_capabilities", {});
   }
 
-  async plan(request: TaskRequest): Promise<Record<string, unknown>> {
-    return await this.call("melra_plan", request as unknown as Record<string, unknown>);
+  // Takes the pre-defaults shape and parses, the same way `planWorkflow` does.
+  // `TaskRequest` is what the schema produces, so requiring it would make every
+  // caller restate `encoding`, `recursive`, and `maxSteps` by hand to satisfy
+  // the compiler — defaults the schema already knows.
+  async plan(request: TaskRequestInput): Promise<Record<string, unknown>> {
+    const parsed = TaskRequestSchema.parse(request);
+    return await this.call(
+      "melra_plan",
+      parsed as unknown as Record<string, unknown>,
+    );
   }
 
   async execute(

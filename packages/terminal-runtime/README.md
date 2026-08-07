@@ -1,0 +1,46 @@
+# @melra/terminal-runtime
+
+Bounded process execution for [MELRA](https://github.com/XAGI-Lab/melra):
+one-shot `run`, plus `start`/`status`/`output`/`stop` for longer-lived processes.
+
+```bash
+npm install @melra/terminal-runtime
+```
+
+```ts
+import { TerminalOperationSchema } from "@melra/protocol";
+import { TerminalRuntime } from "@melra/terminal-runtime";
+
+const terminal = await TerminalRuntime.create({ root: workspaceRoot });
+const result = await terminal.execute(
+  TerminalOperationSchema.parse({
+    kind: "terminal",
+    action: "run",
+    command: "git",
+    args: ["status", "--porcelain"],
+  }),
+);
+```
+
+Commands are spawned without a shell. Arguments are passed as an array, never
+interpolated into a command line, so a value containing `;` or `$(...)` is an
+argument rather than a second command. The working directory stays inside
+`root`, and only environment variables you name in `allowedEnvironment` are
+passed through.
+
+Output is captured up to the operation's `maxOutputChars` and flagged
+`truncated` past it, and every process runs under an `AbortSignal` so a duration
+budget actually stops work rather than just reporting a timeout.
+
+`redactTerminalOutput` strips credential-shaped values from captured output
+before it is persisted — tokens, `Authorization` headers, and connection strings
+show up in stdout more often than anyone expects.
+
+Allowlisting decides which commands may run at all, and that lives in
+[`@melra/policy-core`](https://www.npmjs.com/package/@melra/policy-core), not
+here.
+
+Requires Node.js 22 or newer. Full documentation:
+[github.com/XAGI-Lab/melra](https://github.com/XAGI-Lab/melra)
+
+Apache-2.0
