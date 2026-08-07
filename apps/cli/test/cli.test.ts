@@ -44,6 +44,7 @@ describe("melra CLI", () => {
       browserExecutablePath: resolve("/Applications/Google Chrome"),
       browserCdpEndpoint: "http://127.0.0.1:9222/",
       browserCdpContextIndex: -1,
+      unhinged: false,
     });
     expect(
       parseCliEnvironment(
@@ -134,8 +135,35 @@ describe("melra CLI", () => {
     ).toBe(true);
   });
 
-  it("initializes a safe local policy and client configuration", async () => {
+  it("cannot run unhinged without saying so", async () => {
     const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
+    roots.push(root);
+    const env = {
+      ...process.env,
+      MELRA_HOME: join(root, ".melra"),
+      MELRA_WORKSPACE: root,
+      MELRA_UNHINGED: "1",
+    };
+    // The banner goes to stderr, not stdout, so it stays out of the JSON a
+    // caller parses while still being impossible to miss in a terminal.
+    const doctor = await execute(process.execPath, [entry, "doctor"], {
+      cwd: root,
+      env,
+    });
+    expect(doctor.stderr).toContain("NO GUARDRAILS ARE APPLIED");
+    expect(JSON.parse(doctor.stdout).unhinged).toBe(true);
+
+    // And the flag alone is enough — no environment variable needed.
+    const flagged = await execute(
+      process.execPath,
+      [entry, "doctor", "--unhinged"],
+      { cwd: root, env: { ...env, MELRA_UNHINGED: "0" } },
+    );
+    expect(flagged.stderr).toContain("NO GUARDRAILS ARE APPLIED");
+    expect(JSON.parse(flagged.stdout).unhinged).toBe(true);
+  });
+
+  it("initializes a safe local policy and client configuration", async () => {    const root = await mkdtemp(join(tmpdir(), "melra-cli-"));
     roots.push(root);
     const home = join(root, ".melra");
     const result = await execute(

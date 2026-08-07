@@ -22,6 +22,7 @@ import {
 import {
   createMelraRuntime,
   serveStdio,
+  unconfinedRoot,
   type MelraRuntime,
 } from "@melra/server";
 import { detectBrowserExecutable } from "@melra/browser-runtime";
@@ -44,11 +45,45 @@ async function existingPolicyPath(env: CliEnvironment): Promise<string | undefin
   }
 }
 
+/**
+ * The banner unhinged mode prints before it does anything.
+ *
+ * It goes to stderr, which is where it has to go: in `serve` the stdout stream
+ * is the MCP transport and any prose written there corrupts the protocol. stderr
+ * is what MCP clients surface in their server logs, so the operator still sees
+ * it. Ordinary runs get it too — the mode is per-process, not per-command, and a
+ * developer who exported the variable in one shell and forgot deserves the
+ * reminder on every invocation rather than only at startup.
+ */
+function unhingedBanner(root: string): string {
+  return [
+    "",
+    "  ############################################################",
+    "  #  MELRA IS RUNNING UNHINGED. NO GUARDRAILS ARE APPLIED.   #",
+    "  ############################################################",
+    "",
+    "  Disabled for every task this process runs:",
+    "    - policy decisions: nothing is denied, no approval is ever asked for",
+    "    - the command allowlist, including shells and sudo",
+    "    - the evidence requirement on mutations and destructive operations",
+    "    - the browser's block on private, loopback, and cloud-metadata hosts",
+    `    - workspace confinement: files and commands can reach all of ${root}`,
+    "",
+    "  A caller can now delete, overwrite, exfiltrate, or execute anything this",
+    "  OS user can. Receipts are still written, so you will be able to read what",
+    "  happened — after it has happened.",
+    "",
+    "  Turn it off by unsetting MELRA_UNHINGED and dropping --unhinged.",
+    "",
+  ].join("\n");
+}
+
 async function runtime(env: CliEnvironment): Promise<MelraRuntime> {
   const policyPath = await existingPolicyPath(env);
   return await createMelraRuntime({
     workspaceRoot: env.workspaceRoot,
     dataDirectory: env.dataDirectory,
+    unhinged: env.unhinged,
     ...(policyPath === undefined ? {} : { policyPath }),
     ...(env.browserExecutablePath === undefined
       ? {}
@@ -278,6 +313,19 @@ async function doctor(env: CliEnvironment): Promise<{
     status: major >= 22 ? "pass" : "fail",
     detail: process.version,
   });
+  // A `warn`, not a `fail`: the operator asked for this, so `doctor` must still
+  // exit zero. But a machine running with no guardrails should never be able to
+  // report a clean bill of health without saying so.
+  checks.push(
+    env.unhinged
+      ? {
+          name: "guardrails",
+          status: "warn",
+          detail:
+            "UNHINGED: no policy, approval, evidence, confinement, or destination check is applied",
+        }
+      : { name: "guardrails", status: "pass", detail: "enforced" },
+  );
   try {
     await access(env.workspaceRoot, constants.R_OK | constants.W_OK);
     checks.push({
@@ -356,6 +404,9 @@ async function doctor(env: CliEnvironment): Promise<{
       product: "MELRA",
       version: PRODUCT_VERSION,
       ready: !failed,
+      // Alongside the `guardrails` check so a script does not have to read a
+      // detail string to find out whether this machine has any.
+      unhinged: env.unhinged,
       checks,
     },
     failed,
@@ -457,7 +508,12 @@ async function inspectTask(args: string[], env: CliEnvironment): Promise<void> {
 
 async function policyTest(args: string[], env: CliEnvironment): Promise<void> {
   const request = await readTaskRequest(args);
-  const policy = createDefaultPolicy(env.workspaceRoot);
+  // Reports what this process would actually decide, unhinged mode included —
+  // a dry run that disagreed with the server it is previewing is worse than none.
+  const policy = {
+    ...createDefaultPolicy(env.workspaceRoot),
+    unhinged: env.unhinged,
+  };
   const taskId = "00000000-0000-4000-8000-000000000000";
   output(evaluatePolicy(taskId, request, policy));
 }
@@ -482,10 +538,15 @@ Usage:
   melra policy test --request <task.json>
   melra version
 
+Flags:
+  --unhinged       Run with no policy and no guardrails. Everything the OS user
+                   can do, any caller can now do. Same as MELRA_UNHINGED=1.
+
 Environment:
   MELRA_WORKSPACE  Workspace boundary (default: current directory)
   MELRA_HOME       Local database and artifact directory
   MELRA_POLICY     Optional local policy JSON
+  MELRA_UNHINGED   Set to 1 to disable every guardrail (see --unhinged)
   MELRA_BROWSER    Optional Chrome/Chromium/Edge executable
   MELRA_BROWSER_CDP_ENDPOINT       Optional HTTP(S) CDP endpoint
   MELRA_BROWSER_CDP_CONTEXT_INDEX  External context index (-1 is last)
@@ -495,7 +556,20 @@ Environment:
 
 async function main(): Promise<void> {
   const [command = "help", ...args] = process.argv.slice(2);
-  const env = parseCliEnvironment(process.env);
+  const parsed = parseCliEnvironment(process.env);
+  // `--unhinged` is an alias for the variable, not a second setting: one field
+  // carries the answer so no code path can consult the weaker of the two.
+  const env: CliEnvironment = args.includes("--unhinged")
+    ? { ...parsed, unhinged: true }
+    : parsed;
+  // Before the command runs, and for every command including `help` — the mode
+  // is a property of the process, so there is no invocation where staying quiet
+  // about it is right.
+  if (env.unhinged) {
+    process.stderr.write(
+      `${unhingedBanner(unconfinedRoot(env.workspaceRoot))}\n`,
+    );
+  }
   switch (command) {
     case "doctor": {
       const { report, failed } = await doctor(env);

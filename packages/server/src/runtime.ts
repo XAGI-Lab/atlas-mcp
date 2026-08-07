@@ -10,7 +10,7 @@ import {
   release,
   totalmem,
 } from "node:os";
-import { join, resolve } from "node:path";
+import { join, parse, resolve } from "node:path";
 import type { Operation } from "@melra/protocol";
 import { BrowserRuntime } from "@melra/browser-runtime";
 import { ComputerRuntime } from "@melra/computer-runtime";
@@ -36,12 +36,42 @@ export interface MelraRuntimeOptions {
   workspaceRoot: string;
   dataDirectory: string;
   policyPath?: string;
+  /**
+   * Turns off every guardrail. See `LocalPolicy.unhinged`. When omitted, the
+   * value comes from `MELRA_UNHINGED` in `environment`.
+   */
+  unhinged?: boolean;
   browserExecutablePath?: string;
   browserHeadless?: boolean;
   browserCdpEndpoint?: string;
   browserCdpContextIndex?: number;
   browserHarPath?: string;
   environment?: NodeJS.ProcessEnv;
+}
+
+/**
+ * Whether the operator asked for unhinged mode. Only `1`, `true`, `yes`, and
+ * `on` count: a stray `MELRA_UNHINGED=0` or `MELRA_UNHINGED=false` left in a
+ * shell profile must not silently disarm the machine.
+ */
+export function unhingedFromEnvironment(
+  environment: NodeJS.ProcessEnv,
+): boolean {
+  const raw = environment.MELRA_UNHINGED?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
+/**
+ * Where an unconfined runtime is rooted. Unhinged mode lifts workspace
+ * confinement by rooting the file and terminal runtimes at the filesystem root
+ * rather than by adding a bypass branch inside them, so the confinement code
+ * itself keeps exactly one behaviour and stays impossible to accidentally skip.
+ *
+ * On Windows this is the root of the drive MELRA is running from; reaching a
+ * second drive still requires running a second server there.
+ */
+export function unconfinedRoot(from: string): string {
+  return parse(resolve(from)).root;
 }
 
 export class RuntimeRouter implements OperationExecutor {
@@ -116,26 +146,39 @@ export async function createMelraRuntime(
 ): Promise<MelraRuntime> {
   const workspaceRoot = resolve(options.workspaceRoot);
   const dataDirectory = resolve(options.dataDirectory);
-  const policy =
+  const environment = options.environment ?? process.env;
+  const loaded =
     options.policyPath === undefined
       ? createDefaultPolicy(workspaceRoot)
       : await loadPolicy(options.policyPath, workspaceRoot);
-  const key = await loadPayloadKey({
-    dataDirectory,
-    environment: options.environment ?? process.env,
-  });
+  // Either channel is enough to ask for it, and the resolved policy is the one
+  // place that answers "is this server unhinged" — so a policy file that sets
+  // the flag still raises every warning the environment variable does.
+  const unhinged =
+    (options.unhinged ?? unhingedFromEnvironment(environment)) ||
+    loaded.unhinged;
+  const policy: LocalPolicy = { ...loaded, unhinged };
+  // Confinement is lifted by moving the root, not by branching inside the
+  // runtimes. `maxFileBytes` stays as configured: it bounds how much one read
+  // pulls into memory, and an unbounded read is a way to crash the host, not a
+  // guardrail on what the operator is allowed to touch.
+  const runtimeRoot = unhinged
+    ? unconfinedRoot(workspaceRoot)
+    : policy.workspaceRoot;
+  const key = await loadPayloadKey({ dataDirectory, environment });
   const cipher = new PayloadCipher(key);
   const store = new SqliteStore(join(dataDirectory, "melra.sqlite"));
   const files = await FileRuntime.create({
-    root: policy.workspaceRoot,
+    root: runtimeRoot,
     maxFileBytes: policy.maxFileBytes,
   });
-  const terminal = await TerminalRuntime.create({ root: policy.workspaceRoot });
+  const terminal = await TerminalRuntime.create({ root: runtimeRoot });
   const browser = new BrowserRuntime({
     artifactDirectory: join(dataDirectory, "artifacts"),
-    workspaceRoot: policy.workspaceRoot,
+    workspaceRoot: runtimeRoot,
     allowedDomains: policy.allowedDomains,
     allowLocalhost: policy.allowLocalhost,
+    unhinged,
     ...(options.browserExecutablePath === undefined
       ? {}
       : { executablePath: options.browserExecutablePath }),
@@ -161,7 +204,7 @@ export async function createMelraRuntime(
     store,
     policy,
     router,
-    await Verifier.create(policy.workspaceRoot),
+    await Verifier.create(runtimeRoot),
     cipher,
   );
   const workflows = new WorkflowController(store, controller, cipher);

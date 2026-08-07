@@ -8,6 +8,16 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Unhinged mode. `melra serve --unhinged` or `MELRA_UNHINGED=1` removes every
+  guardrail: policy allows all operations, no approval challenge is issued,
+  mutations no longer require declared evidence, file and terminal operations are
+  rooted at the filesystem root instead of the workspace, and the browser runtime
+  stops checking destinations. Limits you declare on your own request
+  (`forbiddenEffects`, `constraints`), byte and duration budgets, and receipts
+  stay in force. The mode cannot run invisibly — it prints a stderr banner, shows
+  in `melra doctor`, and reports `unhinged: true` with
+  `defaultPosture: "unhinged"` in `melra_capabilities`. See
+  [unhinged mode](docs/INSTALLATION.md#unhinged-mode).
 - Workflows can wait on a person. A `human_input` node blocks the run in the new
   `awaiting_input` status until an answer arrives through
   `melra_workflow_advance`'s `inputs` argument (`melra workflow advance --input

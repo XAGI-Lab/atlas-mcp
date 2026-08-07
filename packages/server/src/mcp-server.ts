@@ -110,7 +110,18 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
         policy: {
           version: runtime.policy.version,
           workspaceRoot: runtime.policy.workspaceRoot,
-          defaultPosture: "read-only",
+          // An agent that reads capabilities should be able to tell that nothing
+          // is going to stop it, and a human reading a transcript should see the
+          // same. Reporting the usual read-only posture here while running
+          // unhinged would be the one lie the whole surface cannot afford.
+          defaultPosture: runtime.policy.unhinged ? "unhinged" : "read-only",
+          unhinged: runtime.policy.unhinged,
+          ...(runtime.policy.unhinged
+            ? {
+                unhingedWarning:
+                  "No policy, approval, evidence, confinement, or destination check is applied. Every listed limit below is advisory only.",
+              }
+            : {}),
           mutations: runtime.policy.mutations,
           allowedCommands: runtime.policy.allowedCommands,
           allowedDomains: runtime.policy.allowedDomains,

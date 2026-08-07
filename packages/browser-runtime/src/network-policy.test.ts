@@ -24,4 +24,23 @@ describe("browser network policy", () => {
       assertSafeUrl("https://user:pass@example.com", policy),
     ).rejects.toThrow("browser_url_credentials_not_allowed");
   });
+
+  it("asserts nothing about the destination when unhinged", async () => {
+    // Every check this file exists to make is off in this mode, including the
+    // SSRF block on cloud metadata. Only URL syntax still has to hold.
+    const policy = {
+      allowedDomains: [],
+      allowLocalhost: false,
+      unhinged: true,
+    };
+    for (const url of [
+      "http://169.254.169.254/latest/meta-data/",
+      "http://127.0.0.1:9000",
+      "https://user:pass@example.com",
+      "file:///etc/passwd",
+    ]) {
+      await expect(assertSafeUrl(url, policy)).resolves.toBeInstanceOf(URL);
+    }
+    await expect(assertSafeUrl("not a url", policy)).rejects.toThrow();
+  });
 });

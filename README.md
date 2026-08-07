@@ -456,6 +456,13 @@ pairs *and* its sanitized artifact passes the publication gate.
 See the [threat model](docs/THREAT_MODEL.md) and
 [security policy](SECURITY.md) for residual risks.
 
+Every row above can be turned off at once with `melra serve --unhinged` (or
+`MELRA_UNHINGED=1`): no policy, no approvals, no evidence requirement, no
+workspace confinement, no destination checks. The agent gets exactly the reach
+your OS user has. The mode announces itself on stderr, in `melra doctor`, and in
+`melra_capabilities`, and receipts still record what ran. See
+[unhinged mode](docs/INSTALLATION.md#unhinged-mode) for what stays on and why.
+
 ---
 
 ## Reproduce the scores 🧪

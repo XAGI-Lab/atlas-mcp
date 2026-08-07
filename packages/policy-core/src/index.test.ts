@@ -360,3 +360,75 @@ describe("Windows command spellings", () => {
     expect(plan("npm.cmd", ["install"]).risk).toBe("high");
   });
 });
+
+describe("unhinged mode", () => {
+  const unhinged = { ...createDefaultPolicy(root), unhinged: true };
+  const plan = (request: unknown, policy = unhinged) =>
+    evaluatePolicy(
+      "00000000-0000-4000-8000-000000000000",
+      TaskRequestSchema.parse(request),
+      policy,
+    );
+
+  it("is off unless something explicitly turns it on", () => {
+    expect(createDefaultPolicy(root).unhinged).toBe(false);
+  });
+
+  it("allows a shell, an unlisted command, and evidence-free destruction", () => {
+    for (const operation of [
+      { kind: "terminal", action: "run", command: "bash", args: ["-c", "id"] },
+      { kind: "terminal", action: "run", command: "curl", args: ["example.com"] },
+      { kind: "file", action: "delete", path: "everything" },
+    ]) {
+      const result = plan({ goal: "Do it anyway", operation });
+      expect(result.decision.outcome).toBe("allow");
+      expect(result.decision.reason).toBe("unhinged_mode_no_guardrails");
+      // No challenge means no approval step: nothing to echo back, nothing to
+      // expire. That is the whole point of the mode and the whole danger of it.
+      expect(result.challenge).toBeUndefined();
+    }
+  });
+
+  it("reports the real effect and risk rather than flattening them", () => {
+    // Allowing everything is not the same as pretending everything is harmless:
+    // the receipt still has to say a destructive operation was destructive.
+    const result = plan({
+      goal: "Delete it",
+      operation: { kind: "file", action: "delete", path: "everything" },
+    });
+    expect(result.decision.effect).toBe("destructive");
+    expect(result.decision.risk).toBe("high");
+  });
+
+  it("still honours limits the caller declared on its own request", () => {
+    // `forbiddenEffects` and `constraints` are the caller bounding its own task,
+    // not MELRA imposing a guardrail, so unhinged mode does not overrule them.
+    expect(
+      plan({
+        goal: "Delete it",
+        operation: { kind: "file", action: "delete", path: "everything" },
+        forbiddenEffects: ["destructive"],
+      }).decision.reason,
+    ).toBe("effect_forbidden_by_request");
+    expect(
+      plan({
+        goal: "Delete it",
+        operation: { kind: "file", action: "delete", path: "everything" },
+        constraints: ["be careful"],
+      }).decision.reason,
+    ).toBe("freeform_constraints_not_enforceable");
+  });
+
+  it("changes nothing for a policy that did not ask for it", () => {
+    expect(
+      plan(
+        {
+          goal: "Run a shell",
+          operation: { kind: "terminal", action: "run", command: "bash" },
+          requiredEvidence: [{ type: "exit_code", value: 0 }],
+        },
+        createDefaultPolicy(root),
+      ).decision.reason,
+    ).toBe("command_not_allowlisted");
+  });
+});

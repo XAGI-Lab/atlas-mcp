@@ -81,6 +81,12 @@ function isLoopbackAddress(address: string): boolean {
 export interface NetworkPolicy {
   allowedDomains: string[];
   allowLocalhost: boolean;
+  /**
+   * Lifts every destination check below, including the SSRF block on private
+   * ranges and cloud metadata. Set only when the operator has asked for
+   * unhinged mode; see `LocalPolicy.unhinged` in `@melra/policy-core`.
+   */
+  unhinged?: boolean;
 }
 
 function domainAllowed(host: string, allowed: string[]): boolean {
@@ -97,6 +103,9 @@ export async function assertSafeUrl(
   policy: NetworkPolicy,
 ): Promise<URL> {
   const url = new URL(rawUrl);
+  // Unhinged mode still parses the URL — a value the browser cannot navigate to
+  // is a bug either way — but asserts nothing about where it points.
+  if (policy.unhinged) return url;
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("browser_protocol_not_allowed");
   }

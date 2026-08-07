@@ -25,6 +25,14 @@ The MCP client and task content are potentially hostile. The host operating
 system and the configured local policy are trusted. MELRA is not a security
 boundary against a fully compromised host.
 
+**Unhinged mode is outside this threat model.** `--unhinged` /
+`MELRA_UNHINGED=1` removes the policy, approval, confinement, and
+network-destination boundaries listed above, which means the "potentially
+hostile MCP client" assumption no longer holds: a hostile client in that mode
+has the full authority of the OS user. Nothing in this document applies to a
+process running unhinged. See
+[unhinged mode](INSTALLATION.md#unhinged-mode).
+
 ## Threats and controls
 
 | Threat | Current control | Residual risk |
@@ -95,7 +103,8 @@ specific domains in reviewed policies.
 - browser download scanning hooks;
 - active-window, focus, secure-input, and multi-display verification;
 - post-action desktop observation and task-specific evidence fixtures;
-- cross-process workflow leases and automatic reconciliation for arbitrary
-  non-filesystem mutations;
+- automatic reconciliation for arbitrary non-filesystem mutations (cross-process
+  workflow leases are implemented; reconciliation beyond filesystem effects is
+  not);
 - fuzzing for schemas, paths, receipts, and network policy;
 - independent security review and public remediation record.

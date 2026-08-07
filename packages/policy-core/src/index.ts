@@ -24,6 +24,17 @@ export interface LocalPolicy {
   mutations: "deny" | "confirm";
   approvalTtlMs: number;
   maxFileBytes: number;
+  /**
+   * Switches off every guardrail this policy exists to apply: allowlists,
+   * evidence requirements, approval challenges, and — through the runtimes
+   * constructed from this policy — workspace confinement and the browser's
+   * private-destination block.
+   *
+   * Off unless the operator asks for it twice, once through `MELRA_UNHINGED=1`
+   * or `--unhinged` and once by accepting the banner the CLI prints. Nothing
+   * derives it from another setting.
+   */
+  unhinged: boolean;
 }
 
 export interface PolicyEvaluation {
@@ -119,6 +130,7 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
     mutations: "confirm",
     approvalTtlMs: 5 * 60_000,
     maxFileBytes: 10 * 1024 * 1024,
+    unhinged: false,
   };
 }
 
@@ -387,6 +399,24 @@ export function evaluatePolicy(
         "effect_forbidden_by_request",
         policy.version,
       ),
+    };
+  }
+
+  // Unhinged mode allows everything the operator did not forbid in this very
+  // request. It sits after the `forbiddenEffects` check on purpose: that field
+  // is the caller declaring a limit on its own task, not a guardrail MELRA
+  // imposes, and a caller that asked for no destructive effects should still get
+  // none. Everything below — allowlists, evidence, approval — is MELRA's own
+  // judgement, and unhinged mode is the operator saying they do not want it.
+  if (policy.unhinged) {
+    return {
+      decision: {
+        outcome: "allow",
+        effect: classified.effect,
+        risk: classified.risk,
+        reason: "unhinged_mode_no_guardrails",
+        policyVersion: policy.version,
+      },
     };
   }
 

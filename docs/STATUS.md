@@ -6,7 +6,7 @@ Version: `0.3.0-alpha.4`
 
 ## Engineering Complete
 
-- ✅ **All 231 tests passing** (229 Vitest, 2 Python pytest)
+- ✅ **All 252 tests passing** (250 Vitest, 2 Python pytest)
 - ✅ **Versions consistent** across 17 locations (root, 15 packages, protocol constant, sdk-py)
 - ✅ **Gate green**: `pnpm check`, `pnpm e2e`, `pnpm security:audit` all pass
 - ✅ **Release artifacts published**: GitHub release v0.3.0-alpha.4, container at `ghcr.io/xagi-lab/melra:alpha`
@@ -46,6 +46,9 @@ Documented in docs/VALIDATION.md "Known alpha limitations":
 - Browser sessions non-persistent
 - Computer OCR/accessibility targeting roadmap
 - Node SQLite experimental warning (platform limitation)
+- Unhinged mode (`--unhinged` / `MELRA_UNHINGED=1`) is an explicit opt-out of the
+  entire safety model, not a scope limit. Nothing in this document's safety
+  claims applies to a process running in it.
 
 These are documented boundaries, not defects.
 

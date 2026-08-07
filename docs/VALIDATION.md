@@ -190,6 +190,24 @@ be attached to the immutable release or workflow run.
 - memory reads and deletion remain scope-aware;
 - computer input is classified high-risk and requires scoped approval.
 
+Every item above describes the default posture. Unhinged mode
+(`--unhinged` / `MELRA_UNHINGED=1`) removes rows 1–5 and 7–9 by design; what is
+covered *about* that mode is separate:
+
+- the mode is off unless explicitly enabled, and only `1`/`true`/`yes`/`on`
+  enable it, so a leftover `MELRA_UNHINGED=0` cannot disarm a machine
+  (`packages/server/src/runtime.test.ts`);
+- limits the caller declared on its own request — `forbiddenEffects`,
+  `constraints` — still deny in the mode
+  (`packages/policy-core/src/index.test.ts`);
+- the mode reports the true effect and risk rather than flattening a destructive
+  operation to a harmless one, so receipts do not understate what was permitted
+  (same file);
+- a CLI invocation in the mode cannot stay silent: the stderr banner and the
+  `doctor` flag are asserted (`apps/cli/test/cli.test.ts`);
+- the same run without the mode still refuses a read outside the workspace and
+  still denies a shell (`packages/server/src/runtime.test.ts`).
+
 ## CI evidence
 
 The `0.3.0-alpha.1` tag build ran the full Release workflow to success:
@@ -264,3 +282,6 @@ findings.
   embeddings, and extension loading remain roadmap items.
 - Node’s built-in SQLite API emits an experimental warning on Node 22/24.
 - Alpha database downgrades and migrations are not guaranteed.
+- Unhinged mode is an explicit opt-out of the safety model, not a limitation of
+  it. On Windows it lifts confinement to the root of the drive MELRA runs from;
+  reaching a second drive still needs a second server there.

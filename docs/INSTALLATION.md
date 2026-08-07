@@ -114,6 +114,7 @@ MELRA uses these environment variables:
 | `MELRA_POLICY` | Optional local policy JSON | safe built-in policy |
 | `MELRA_BROWSER` | Chrome, Chromium, or Edge executable | auto-detected |
 | `MELRA_PAYLOAD_KEY` | Optional canonical base64url 256-bit payload key | private `<MELRA_HOME>/payload.key` |
+| `MELRA_UNHINGED` | Set to `1` to remove every guardrail — see below | unset (all guardrails on) |
 
 Back up `payload.key` with the SQLite files. Changing or losing it makes
 persisted task and workflow payloads unreadable. Never place it in a client
@@ -155,6 +156,52 @@ a worked example that allows only `example.com`.
 Mutations default to `"confirm"`: every non-read operation returns a
 task-scoped approval phrase that must be echoed back before it runs. Set
 `"mutations": "deny"` for a read-only install.
+
+## Unhinged mode
+
+`melra serve --unhinged` (or `MELRA_UNHINGED=1`) runs MELRA with no guardrails at
+all. Use it when you want the agent to have exactly the reach your own shell has
+and you accept the consequences. It applies to every command in the process, not
+just `serve`.
+
+What is off, precisely:
+
+- **Policy.** Every operation is allowed. Command allowlists, the unconditional
+  shell and `sudo` deny, and the mutation risk rules do not apply.
+- **Approvals.** No challenge is issued, so nothing has to be echoed back before
+  a destructive operation runs.
+- **Evidence.** A mutation with no `requiredEvidence` is allowed instead of
+  denied. Nothing is verified that you did not ask to be verified.
+- **Workspace confinement.** File and terminal operations are rooted at the
+  filesystem root instead of `MELRA_WORKSPACE`, so any path the OS user can
+  reach is reachable. The verifier is rooted there too.
+- **Browser destinations.** `assertSafeUrl` asserts nothing: localhost, private
+  ranges, cloud metadata endpoints, URL credentials, and non-`http(s)` schemes
+  all pass.
+
+What stays on, and why:
+
+- Limits you declare on your own request. `forbiddenEffects` and `constraints`
+  are your bound on your own task, not MELRA's guardrail, so they still deny.
+- `maxFileBytes` and the duration budget. An unbounded read is a way to crash
+  the host, not a restriction on what you are allowed to touch.
+- Receipts and certificates. A destructive operation is still recorded as
+  destructive; allowing everything is not the same as reporting nothing.
+- Secret redaction before persistence. Raw output still reaches the caller; the
+  database still gets the redacted copy.
+
+The mode cannot run invisibly. Every CLI invocation prints a banner to stderr
+(stdout is the MCP transport, so prose there would corrupt the protocol — MCP
+clients surface stderr in their server logs), `melra doctor` reports
+`"unhinged": true` with a `guardrails` check of `warn`, and `melra_capabilities`
+returns `policy.unhinged: true` with `defaultPosture: "unhinged"` so a connected
+agent can see there is nothing stopping it.
+
+Only `1`, `true`, `yes`, and `on` enable it. A stray `MELRA_UNHINGED=0` left in a
+shell profile will not silently disarm the machine.
+
+Do not use it against a workspace you did not create, with a model or prompt you
+do not control, or on a machine holding credentials you cannot rotate.
 
 ## MCP clients
 

@@ -89,6 +89,18 @@ defaults that trip people up:
 - Browser destinations default to `allowedDomains: ["*"]` with `allowLocalhost: true`, so browsing works without a policy JSON. The allowlist is a narrowing control; `assertSafeUrl` in `browser-runtime` is the actual boundary and independently rejects non-http(s) protocols, URL credentials, private/link-local ranges, and cloud metadata, resolving DNS first so a public name cannot be rebound.
 - Effect/risk classification lives in one place, `classifyOperation`. Adding an action without updating it silently mis-classifies (usually as a mutation).
 
+`policy.unhinged` (from `--unhinged` or `MELRA_UNHINGED=1`) short-circuits
+`evaluatePolicy` to `allow` — but *after* the `forbiddenEffects` and `constraints`
+checks, because those are the caller bounding its own task rather than a guardrail
+MELRA imposes. Confinement is lifted by rooting the file runtime, terminal
+runtime, and verifier at `unconfinedRoot()` instead of the workspace, never by a
+bypass branch inside the confinement code, so that code keeps exactly one
+behaviour. `createMelraRuntime` resolves the flag once and `runtime.policy.unhinged`
+is the only place to read it. A new guardrail needs a deliberate decision about
+this mode: if it belongs to MELRA's judgement it goes above the early return, if
+it protects the host from a crash (like `maxFileBytes`) it stays unconditional.
+- `policy.unhinged` (`--unhinged` / `MELRA_UNHINGED=1`) short-circuits `evaluatePolicy` to `allow` with reason `unhinged_mode_no_guardrails`, *after* the `forbiddenEffects` and `constraints` checks — those are the caller bounding its own request, not a guardrail MELRA imposes. Confinement is lifted in `createMelraRuntime` by rooting the file/terminal runtimes and the verifier at `unconfinedRoot(workspaceRoot)` rather than by branching inside them, so confinement code keeps exactly one behaviour. New guardrails should follow the same shape: either move the boundary or check `policy.unhinged` at the single point that owns the boundary, never scatter bypasses.
+
 ## Making changes
 
 Adding or changing an operation action touches a fixed set of places, in this order:

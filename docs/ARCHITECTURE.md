@@ -29,6 +29,14 @@ Planning never executes an adapter. Task execution re-evaluates policy and
 revalidates an approval against the current action digest immediately before
 the effect.
 
+Unhinged mode removes the `Policy` diamond and the runtimes' confinement, leaving
+the rest of the chain intact: tasks are still planned, executed, verified against
+whatever evidence the caller declared, and receipted. It is implemented by
+short-circuiting `evaluatePolicy` to `allow` and by rooting the file runtime,
+terminal runtime, and verifier at the filesystem root instead of the workspace —
+not by adding bypass branches to the confinement code, which keeps exactly one
+behaviour. See [unhinged mode](INSTALLATION.md#unhinged-mode).
+
 ## Durable storage
 
 MELRA uses `<MELRA_HOME>/melra.sqlite` in WAL mode. Schema migration version
