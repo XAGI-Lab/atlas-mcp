@@ -229,8 +229,21 @@ file writes, terminal checks, scoped memory, and computer capability discovery.
 
 ## Quickstart 🚀
 
-**Requirements:** Node.js 22+, pnpm 9.5, and optionally Chrome, Chromium, or
-Edge for browser work.
+**Fastest:** Pull the container and run the doctor check:
+
+```bash
+docker run --rm ghcr.io/xagi-lab/melra:alpha doctor
+```
+
+**Prebuilt:** Download the latest release tarball from the
+[releases page](https://github.com/XAGI-Lab/melra/releases), extract, and run:
+
+```bash
+tar -xzf melra-node-<version>.tar.gz -C melra
+node melra/dist/index.js doctor
+```
+
+**From source** (for development):
 
 ```bash
 git clone https://github.com/XAGI-Lab/melra.git
@@ -238,20 +251,18 @@ cd melra
 corepack enable
 pnpm install --frozen-lockfile
 pnpm build
-node apps/cli/dist/index.js doctor
+pnpm melra doctor
 pnpm melra init --client generic
-node apps/cli/dist/index.js workflow plan \
-  --definition examples/workflows/restart-safe.json
 ```
 
 <table>
 <tr><th>Goal</th><th>Command</th></tr>
-<tr><td>Start the stdio server</td><td><code>pnpm melra serve</code></td></tr>
-<tr><td>Run a read-only system task</td><td><code>pnpm melra run --request examples/01-system-info/task.json</code></td></tr>
-<tr><td>Run a verified mutation</td><td><code>pnpm melra run --request examples/02-verified-file-write/task.json</code></td></tr>
-<tr><td>Inspect a stored receipt</td><td><code>pnpm melra inspect &lt;task-id&gt;</code></td></tr>
-<tr><td>Advance a durable workflow</td><td><code>pnpm melra workflow advance &lt;workflow-id&gt;</code></td></tr>
-<tr><td>Test a policy file</td><td><code>pnpm melra policy test</code></td></tr>
+<tr><td>Start the stdio server</td><td><code>melra serve</code></td></tr>
+<tr><td>Run a read-only system task</td><td><code>melra run --request examples/01-system-info/task.json</code></td></tr>
+<tr><td>Run a verified mutation</td><td><code>melra run --request examples/02-verified-file-write/task.json</code></td></tr>
+<tr><td>Inspect a stored receipt</td><td><code>melra inspect &lt;task-id&gt;</code></td></tr>
+<tr><td>Advance a durable workflow</td><td><code>melra workflow advance &lt;workflow-id&gt;</code></td></tr>
+<tr><td>Test a policy file</td><td><code>melra policy test</code></td></tr>
 </table>
 
 Mutations pause for an exact, expiring, task-scoped approval phrase. See

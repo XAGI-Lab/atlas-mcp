@@ -3,8 +3,8 @@
 ## Requirements
 
 - Node.js 22 or newer.
-- pnpm 9.5 for source installations.
 - Chrome, Chromium, or Edge for browser tasks.
+- pnpm 9.5 only when building from source.
 - Python 3.11 or newer only when using the Python SDK.
 
 Run the readiness check after installation:
@@ -16,7 +16,38 @@ melra doctor
 The command reports Node, workspace, data-directory, SQLite, browser,
 computer-use adapter, and policy readiness without exposing credentials.
 
-## From source
+## Install
+
+Pick one. The container needs no Node install; the release tarball is a
+prebuilt Node runtime; source is for development.
+
+### Container (fastest)
+
+```bash
+docker run --rm ghcr.io/xagi-lab/melra:alpha doctor
+```
+
+Images are published for `linux/amd64` and `linux/arm64` with build
+provenance and an SBOM attested to the registry. Use `:alpha` for the latest
+alpha or pin an exact tag such as `:v0.3.0-alpha.1`. See
+[Docker](#docker) below for the hardened `serve` invocation an MCP client
+should use.
+
+### Release tarball
+
+Every tagged release attaches a prebuilt Node runtime. Download it from the
+[releases page](https://github.com/XAGI-Lab/melra/releases), verify it against
+the published `SHA256SUMS`, then run it:
+
+```bash
+tar -xzf melra-node-<version>.tar.gz -C melra
+node melra/dist/index.js doctor
+```
+
+Add `melra/dist/index.js` to your `PATH` as `melra`, or use the full path in
+the client configurations below.
+
+### From source
 
 ```bash
 git clone https://github.com/XAGI-Lab/melra.git
