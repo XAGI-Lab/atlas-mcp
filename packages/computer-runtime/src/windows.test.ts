@@ -19,16 +19,20 @@ const onWindows = process.platform === "win32";
 const roots: string[] = [];
 
 /**
- * Vitest's own 5s default killed the two tests below before the 30s budget they
- * pass to the operation ever expired — two clocks, and only one was set.
+ * Two clocks, and both have to clear the same wait: vitest's own default killed
+ * these tests at 5s, and once that was raised the operation's `timeoutMs` cap
+ * killed them at 30s — which is why the schema now allows 120s for a computer
+ * action like every other operation kind.
  *
- * The wait is real, not slack: `powershell.exe` cold-starts in seconds, and the
- * pointer script's `Add-Type -TypeDefinition` runs the C# compiler to build the
- * P/Invoke shim. That cost is per-process, so it is paid on every action, and a
- * caller who leaves `timeoutMs` at its 10s default is closer to the edge on a
- * loaded machine than the number suggests.
+ * The wait is real, not slack. A computer action spawns a whole interpreter:
+ * `powershell.exe` cold-starts in seconds, the pointer script's
+ * `Add-Type -TypeDefinition` runs the C# compiler to build the P/Invoke shim,
+ * and the first such spawn after boot pays for a cold disk on top. That cost is
+ * per-process, so it is paid on every action, and a caller who leaves
+ * `timeoutMs` at its 10s default is closer to the edge on a cold or loaded
+ * machine than the number suggests.
  */
-const POWERSHELL_TEST_TIMEOUT_MS = 60_000;
+const POWERSHELL_TEST_TIMEOUT_MS = 120_000;
 
 afterEach(async () => {
   await Promise.all(
@@ -84,7 +88,7 @@ describe.runIf(onWindows)("Windows computer adapter", () => {
       ComputerOperationSchema.parse({
         kind: "computer",
         action: "screenshot",
-        timeoutMs: 30_000,
+        timeoutMs: 90_000,
       }),
     );
     expect(observed.captured).toBe(true);
@@ -110,7 +114,7 @@ describe.runIf(onWindows)("Windows computer adapter", () => {
         x: 0.5,
         y: 0.5,
         coordinateSpace: "normalized",
-        timeoutMs: 30_000,
+        timeoutMs: 90_000,
       }),
     );
     expect(observed.success).toBe(true);
@@ -118,5 +122,30 @@ describe.runIf(onWindows)("Windows computer adapter", () => {
     // here, so a normalized centre must land somewhere other than the origin.
     expect(observed.x).toBeGreaterThan(0);
     expect(observed.y).toBeGreaterThan(0);
+  }, POWERSHELL_TEST_TIMEOUT_MS);
+
+  it("names a timeout as a timeout instead of echoing the script", async () => {
+    const runtime = new ComputerRuntime({
+      artifactDirectory: await workspace(),
+      adapter: createSystemComputerAdapter(),
+    });
+    /**
+     * This is how the screenshot failure first presented: Node builds the
+     * rejection message from the whole command line, so the caller received
+     * fifteen lines of echoed PowerShell with an empty stderr and no way to
+     * tell a killed helper from a script that failed instantly.
+     *
+     * 100ms is unreachable for a process that has to load the CLR, so this is a
+     * timeout by construction rather than by timing luck.
+     */
+    await expect(
+      runtime.execute(
+        ComputerOperationSchema.parse({
+          kind: "computer",
+          action: "screenshot",
+          timeoutMs: 100,
+        }),
+      ),
+    ).rejects.toThrow(/^computer_helper_timeout:powershell\.exe:100ms$/);
   }, POWERSHELL_TEST_TIMEOUT_MS);
 });

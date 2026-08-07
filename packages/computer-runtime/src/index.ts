@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { access, mkdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { promisify } from "node:util";
 import type { ComputerOperation } from "@melra/protocol";
 
@@ -70,17 +70,49 @@ async function run(
   signal?: AbortSignal,
   env?: Record<string, string>,
 ): Promise<{ stdout: string; stderr: string }> {
-  const result = await execFileAsync(file, args, {
-    timeout: timeoutMs,
-    maxBuffer: 1_000_000,
-    windowsHide: true,
-    ...(signal === undefined ? {} : { signal }),
-    ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
-  });
-  return {
-    stdout: result.stdout,
-    stderr: result.stderr,
-  };
+  try {
+    const result = await execFileAsync(file, args, {
+      timeout: timeoutMs,
+      maxBuffer: 1_000_000,
+      windowsHide: true,
+      ...(signal === undefined ? {} : { signal }),
+      ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+    });
+    return {
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  } catch (cause) {
+    /**
+     * Node builds this rejection's message from the whole command line, which
+     * for an adapter means the entire script: a Windows screenshot failure
+     * arrived as fifteen lines of echoed PowerShell with the actual reason
+     * nowhere in it, and a timeout arrived as the same fifteen lines with an
+     * empty stderr, indistinguishable from a script that failed instantly.
+     *
+     * Report the interpreter's own words instead, and name a timeout as a
+     * timeout — a caller can act on "the helper was killed after 10000ms" and
+     * can act on a permission error, but not on a copy of the script it did
+     * not write.
+     */
+    const error = cause as NodeJS.ErrnoException & {
+      stderr?: string;
+      killed?: boolean;
+    };
+    const program = basename(file);
+    if (error.killed === true || error.code === "ETIMEDOUT") {
+      throw new Error(`computer_helper_timeout:${program}:${timeoutMs}ms`);
+    }
+    if (signal?.aborted === true) throw new Error("task_cancelled");
+    // First line only: interpreters follow the reason with a stack trace naming
+    // the script we generated, which is noise to whoever reads this.
+    const reason = (error.stderr ?? "").trim().split("\n")[0]?.trim();
+    throw new Error(
+      reason === undefined || reason === ""
+        ? `computer_helper_failed:${program}`
+        : `computer_helper_failed:${program}: ${reason}`,
+    );
+  }
 }
 
 function coordinateScript(operation: ComputerOperation): string {

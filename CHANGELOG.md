@@ -94,6 +94,25 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- A failing computer helper reports what went wrong instead of echoing the
+  script. Node builds a failed-process rejection from the whole command line,
+  which for an adapter means the entire script: a Windows screenshot failure
+  arrived as fifteen lines of quoted PowerShell with an empty stderr, and a
+  timeout arrived as the same fifteen lines, indistinguishable from a script
+  that failed instantly. The interpreter's own first line of stderr is reported
+  now, and a killed helper is named as
+  `computer_helper_timeout:<program>:<budget>` — a caller can act on a
+  permission error or a budget, but not on a copy of the script it did not
+  write. This is in the shared runner, so the macOS and Linux adapters gain it
+  too.
+- The computer `timeoutMs` ceiling was 30s while every other operation kind
+  allowed 120s. A computer action spawns a whole interpreter — `powershell.exe`
+  plus the .NET assemblies it loads, `osascript`, `xdotool` — and the first such
+  spawn after boot exceeded 30s on a cold Windows machine, so the maximum itself
+  was unreachable there and no legal value could complete the action. The
+  default stays 10s, since a warm call is fast; a caller who knows it is cold
+  can now ask for more rather than being refused by the schema.
+
 - Browser typing dispatches real key events again. `type` used Playwright's
   `.fill()`, which assigns the value and fires a single `input` event, so
   anything listening for keystrokes never saw the text — React inputs with key
