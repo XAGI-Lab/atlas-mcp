@@ -3,6 +3,13 @@
   "version": "0.3.0-alpha.2",
   "description": "Shell-free supervised terminal runtime for MELRA.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XAGI-Lab/melra.git",
+    "directory": "packages/terminal-runtime"
+  },
+  "homepage": "https://github.com/XAGI-Lab/melra#readme",
+  "bugs": "https://github.com/XAGI-Lab/melra/issues",
   "type": "module",
   "exports": {
     ".": {

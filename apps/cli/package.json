@@ -3,6 +3,13 @@
   "version": "0.3.0-alpha.2",
   "description": "MELRA local execution runtime and command-line interface.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XAGI-Lab/melra.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://github.com/XAGI-Lab/melra#readme",
+  "bugs": "https://github.com/XAGI-Lab/melra/issues",
   "type": "module",
   "bin": {
     "melra": "./dist/index.js"

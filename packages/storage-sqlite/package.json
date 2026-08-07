@@ -3,6 +3,13 @@
   "version": "0.3.0-alpha.2",
   "description": "Transactional SQLite task, workflow, event, payload, and evidence storage for MELRA.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XAGI-Lab/melra.git",
+    "directory": "packages/storage-sqlite"
+  },
+  "homepage": "https://github.com/XAGI-Lab/melra#readme",
+  "bugs": "https://github.com/XAGI-Lab/melra/issues",
   "type": "module",
   "exports": {
     ".": {

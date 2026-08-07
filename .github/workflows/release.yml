@@ -74,6 +74,14 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-checksums: release/SHA256SUMS
+      - name: Verify npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          printf '//registry.npmjs.org/:_authToken=%s\n' "${NODE_AUTH_TOKEN}" >> .npmrc
+          npm whoami --registry=https://registry.npmjs.org/
+          pnpm -r publish --dry-run --tag alpha --no-git-checks --access public
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -89,14 +97,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
-          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
-          if [[ "${GITHUB_REF_NAME}" == *-alpha* ]]; then
-            pnpm -r publish --tag alpha --provenance --no-git-checks --access public
-          elif [[ "${GITHUB_REF_NAME}" == *-beta* ]]; then
-            pnpm -r publish --tag beta --provenance --no-git-checks --access public
-          else
-            pnpm -r publish --provenance --no-git-checks --access public
-          fi
+          case "${GITHUB_REF_NAME}" in
+            *-alpha*) tag=alpha ;;
+            *-beta*)  tag=beta ;;
+            *-rc*)    tag=rc ;;
+            *)        tag=latest ;;
+          esac
+          pnpm -r publish --tag "${tag}" --provenance --no-git-checks --access public
 
   container:
     runs-on: ubuntu-latest
