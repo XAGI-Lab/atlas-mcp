@@ -282,6 +282,20 @@ describe("MELRA over real stdio transport", () => {
       (tool) => tool.name === "melra_plan",
     );
     expect(plan?.inputSchema.additionalProperties).toBe(false);
+
+    // The two rules a caller cannot infer from the types — a non-empty
+    // `constraints` is a deny, and a mutation without evidence is a deny — reach
+    // the model through the schema or not at all.
+    const fields = plan?.inputSchema.properties as Record<
+      string,
+      { description?: string }
+    >;
+    expect(fields.constraints?.description).toContain(
+      "freeform_constraints_not_enforceable",
+    );
+    expect(fields.requiredEvidence?.description).toContain(
+      "mutation_requires_evidence",
+    );
   });
 
   it("rejects the retired tool prefix", async () => {

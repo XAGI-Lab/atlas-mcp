@@ -286,19 +286,40 @@ export const TaskBudgetSchema = z
 
 export const TaskRequestSchema = z
   .object({
-    goal: z.string().min(1).max(10_000),
+    goal: z
+      .string()
+      .min(1)
+      .max(10_000)
+      .describe("Why this task is being run, in one human-readable sentence."),
     operation: OperationSchema,
-    constraints: z.array(z.string().max(2_000)).max(50).default([]),
+    // These three carry the rules callers get wrong, and a description is the
+    // only channel that reaches a model reading the tool's JSON Schema.
+    constraints: z
+      .array(z.string().max(2_000))
+      .max(50)
+      .default([])
+      .describe(
+        "Leave empty. Freeform prose cannot be enforced, so a non-empty array is denied with freeform_constraints_not_enforceable. Express real limits as forbiddenEffects, budget, or requiredEvidence.",
+      ),
     forbiddenEffects: z
       .array(z.enum(["read", "mutate", "destructive"]))
       .max(3)
-      .default([]),
+      .default([])
+      .describe(
+        "Effects this task must never take. Denied before the adapter runs, and honoured even in unhinged mode.",
+      ),
     budget: TaskBudgetSchema.default({
       maxSteps: 10,
       maxDurationMs: 120_000,
       maxRetries: 2,
     }),
-    requiredEvidence: z.array(EvidencePredicateSchema).max(20).default([]),
+    requiredEvidence: z
+      .array(EvidencePredicateSchema)
+      .max(20)
+      .default([])
+      .describe(
+        "Predicates that must hold after execution for the task to be verified_success. Required for any non-read operation: a mutation with none is denied with mutation_requires_evidence. An adapter that succeeded while a predicate failed is partial, never success.",
+      ),
   })
   .strict();
 

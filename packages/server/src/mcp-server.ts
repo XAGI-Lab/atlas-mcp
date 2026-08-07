@@ -135,7 +135,9 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
     {
       title: "Plan a MELRA task",
       description:
-        "Persist a bounded task, evaluate policy, and return any scoped approval challenge without executing.",
+        "Persist a bounded task, evaluate policy, and return any scoped approval challenge without executing. " +
+        "Nothing runs until melra_execute. A policy denial comes back as a normal result with status policy_blocked and a reason, not as an error. " +
+        "Any operation that is not a read needs requiredEvidence, and constraints must stay empty.",
       inputSchema: MelraPlanInputSchema,
       annotations: {
         readOnlyHint: true,
@@ -152,7 +154,9 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
     {
       title: "Execute a planned MELRA task",
       description:
-        "Execute one previously planned task through policy, runtime, verification, and receipt generation.",
+        "Execute one previously planned task through policy, runtime, verification, and receipt generation. " +
+        "If melra_plan returned an approval challenge, pass its id and its exact phrase; the phrase is scoped to that one task and expires. " +
+        "Policy is re-evaluated here, so a plan made under a looser policy is still refused. Only reads are retried.",
       inputSchema: MelraExecuteInputSchema,
       annotations: {
         readOnlyHint: false,

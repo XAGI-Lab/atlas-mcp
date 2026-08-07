@@ -58,6 +58,13 @@ All notable changes are documented here. The format follows
   matching `planWorkflow`. Callers no longer have to restate `encoding`,
   `recursive`, `maxSteps`, and the other defaults by hand to satisfy the
   compiler; the client parses the request itself.
+- MCP tool schemas now document the rules a caller cannot infer from the types.
+  `constraints` says that any non-empty value is denied and what to use instead,
+  `requiredEvidence` says that a non-read operation without it is denied and that
+  failing evidence makes a task `partial` rather than successful, and the
+  `melra_plan` and `melra_execute` descriptions state that planning never
+  executes, that a denial arrives as a normal `policy_blocked` result rather than
+  an error, and that an approval phrase is scoped to one task and expires.
 - `MelraClient.planWorkflow` does the same for workflow definitions, taking the
   new `WorkflowDefinitionInput` type. Writing a definition in TypeScript no
   longer means spelling out `dependsOn: []`, `requiredEvidence: []`, and
