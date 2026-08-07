@@ -28,6 +28,7 @@ import { createDefaultPolicy, evaluatePolicy } from "@melra/policy-core";
 import {
   type CliEnvironment,
   parseCliEnvironment,
+  serverLaunch,
 } from "./environment.js";
 
 async function existingPolicyPath(env: CliEnvironment): Promise<string | undefined> {
@@ -216,7 +217,10 @@ async function durableCoreDemo(env: CliEnvironment): Promise<number> {
   }
 }
 
-async function doctor(env: CliEnvironment): Promise<number> {
+async function doctor(env: CliEnvironment): Promise<{
+  report: Record<string, unknown>;
+  failed: boolean;
+}> {
   const checks: Array<{
     name: string;
     status: "pass" | "warn" | "fail";
@@ -300,16 +304,22 @@ async function doctor(env: CliEnvironment): Promise<number> {
       detail: error instanceof Error ? error.message : String(error),
     });
   }
-  output({
-    product: "MELRA",
-    version: PRODUCT_VERSION,
-    ready: !checks.some((check) => check.status === "fail"),
-    checks,
-  });
-  return checks.some((check) => check.status === "fail") ? 1 : 0;
+  const failed = checks.some((check) => check.status === "fail");
+  return {
+    report: {
+      product: "MELRA",
+      version: PRODUCT_VERSION,
+      ready: !failed,
+      checks,
+    },
+    failed,
+  };
 }
 
-async function init(args: string[], env: CliEnvironment): Promise<void> {
+async function init(
+  args: string[],
+  env: CliEnvironment,
+): Promise<Record<string, unknown>> {
   await mkdir(env.dataDirectory, { recursive: true });
   const policyPath = join(env.dataDirectory, "policy.json");
   try {
@@ -325,8 +335,7 @@ async function init(args: string[], env: CliEnvironment): Promise<void> {
   const config = {
     mcpServers: {
       melra: {
-        command: "melra",
-        args: ["serve"],
+        ...serverLaunch(import.meta.dirname, PRODUCT_VERSION),
         env: {
           MELRA_WORKSPACE: env.workspaceRoot,
           MELRA_HOME: env.dataDirectory,
@@ -335,13 +344,22 @@ async function init(args: string[], env: CliEnvironment): Promise<void> {
       },
     },
   };
-  output({
+  return {
     initialized: true,
     client,
     policyPath,
     config,
     note: `Add the mcpServers.melra entry to ${client}'s MCP configuration.`,
-  });
+  };
+}
+
+// One command for the whole local setup: write the policy, emit a working
+// client config, and verify the machine can actually run it.
+async function setup(args: string[], env: CliEnvironment): Promise<number> {
+  const initialized = await init(args, env);
+  const { report, failed } = await doctor(env);
+  output({ ...initialized, ...report });
+  return failed ? 1 : 0;
 }
 
 async function runTask(args: string[], env: CliEnvironment): Promise<number> {
@@ -402,6 +420,7 @@ function help(): void {
   process.stdout.write(`MELRA ${PRODUCT_VERSION}
 
 Usage:
+  melra setup [--client <claude|cursor|vscode|codex|generic>]
   melra doctor
   melra init --client <claude|cursor|vscode|codex|generic>
   melra serve
@@ -430,11 +449,17 @@ async function main(): Promise<void> {
   const [command = "help", ...args] = process.argv.slice(2);
   const env = parseCliEnvironment(process.env);
   switch (command) {
-    case "doctor":
-      process.exitCode = await doctor(env);
+    case "doctor": {
+      const { report, failed } = await doctor(env);
+      output(report);
+      process.exitCode = failed ? 1 : 0;
       return;
+    }
     case "init":
-      await init(args, env);
+      output(await init(args, env));
+      return;
+    case "setup":
+      process.exitCode = await setup(args, env);
       return;
     case "serve": {
       const melra = await runtime(env);

@@ -1,6 +1,6 @@
 {
   "name": "@melra/computer-runtime",
-  "version": "0.3.0-alpha.3",
+  "version": "0.3.0-alpha.4",
   "description": "Policy-governed local computer-use runtime for MELRA.",
   "license": "Apache-2.0",
   "repository": {

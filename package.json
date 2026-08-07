@@ -1,6 +1,6 @@
 {
   "name": "melra",
-  "version": "0.3.0-alpha.3",
+  "version": "0.3.0-alpha.4",
   "private": true,
   "description": "Modular Execution Layer for Reliable Autonomy: durable, policy-governed execution with independently verified outcomes.",
   "license": "Apache-2.0",

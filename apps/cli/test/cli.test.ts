@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
-import { parseCliEnvironment } from "../src/environment.js";
+import { parseCliEnvironment, serverLaunch } from "../src/environment.js";
 
 const execute = promisify(execFile);
 const roots: string[] = [];
@@ -90,9 +90,22 @@ describe("melra CLI", () => {
     ).toThrow("browser_cdp_cannot_start_har_recording");
   });
 
+  it("names a launch command the client can actually spawn", () => {
+    // An npx install leaves nothing on PATH, so a config saying `melra` would
+    // fail to start for the users who took the shortest install path.
+    expect(
+      serverLaunch("/home/u/.npm/_npx/9f2/node_modules/@melra/cli/dist", "1.2.3"),
+    ).toEqual({ command: "npx", args: ["-y", "@melra/cli@1.2.3", "serve"] });
+    expect(
+      serverLaunch("C:\\Users\\u\\AppData\\npm-cache\\_npx\\9f2\\dist", "1.2.3"),
+    ).toEqual({ command: "npx", args: ["-y", "@melra/cli@1.2.3", "serve"] });
+    expect(serverLaunch("/usr/local/lib/node_modules/@melra/cli/dist", "1.2.3"))
+      .toEqual({ command: "melra", args: ["serve"] });
+  });
+
   it("prints the product version", async () => {
     const result = await execute(process.execPath, [entry, "version"]);
-    expect(result.stdout.trim()).toBe("0.3.0-alpha.3");
+    expect(result.stdout.trim()).toBe("0.3.0-alpha.4");
   });
 
   it("reports local readiness through doctor", async () => {
@@ -156,6 +169,38 @@ describe("melra CLI", () => {
     expect(policy.mutations).toBe("confirm");
     expect(policy.allowLocalhost).toBe(true);
     expect(policy.allowedDomains).toContain("*");
+  });
+
+  it("prepares policy, config, and readiness in one setup command", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-cli-setup-"));
+    roots.push(root);
+    const result = await execute(
+      process.execPath,
+      [entry, "setup", "--client", "cursor"],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          MELRA_HOME: join(root, ".melra"),
+          MELRA_WORKSPACE: root,
+        },
+      },
+    );
+    const report = JSON.parse(result.stdout) as {
+      initialized: boolean;
+      client: string;
+      policyPath: string;
+      config: { mcpServers: { melra: { command: string } } };
+      ready: boolean;
+      checks: Array<{ name: string; status: string }>;
+    };
+    expect(report.initialized).toBe(true);
+    expect(report.client).toBe("cursor");
+    expect(report.ready).toBe(true);
+    expect(report.checks.some((check) => check.name === "sqlite")).toBe(true);
+    expect(JSON.parse(await readFile(report.policyPath, "utf8"))).toMatchObject({
+      mutations: "confirm",
+    });
   });
 
   it("plans, advances, inspects, and cancels a durable workflow", async () => {

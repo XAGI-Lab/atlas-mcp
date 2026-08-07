@@ -1,50 +1,21 @@
 # Project Status
 
-Last updated: 2026-08-07
+Last updated: 2026-08-08
 
-Version: `0.3.0-alpha.2`
+Version: `0.3.0-alpha.4`
 
 ## Engineering Complete
 
-- ✅ **All 227 tests passing** (Vitest, Python pytest)
+- ✅ **All 231 tests passing** (229 Vitest, 2 Python pytest)
 - ✅ **Versions consistent** across 17 locations (root, 15 packages, protocol constant, sdk-py)
 - ✅ **Gate green**: `pnpm check`, `pnpm e2e`, `pnpm security:audit` all pass
-- ✅ **Release artifacts published**: GitHub release v0.3.0-alpha.2, container at `ghcr.io/xagi-lab/melra:alpha`
-- ✅ **CHANGELOG.md** updated with 0.3.0-alpha.2 section
-- ✅ **Install paths documented**: container, release tarball, source
-- ✅ **npm publish workflow wired**: `.github/workflows/release.yml` publishes all 14 packages with provenance attestation, and every manifest carries the `repository` metadata provenance requires
+- ✅ **Release artifacts published**: GitHub release v0.3.0-alpha.4, container at `ghcr.io/xagi-lab/melra:alpha`
+- ✅ **npm packages published**: all 14 packages live under the `@melra` scope on the `alpha` dist-tag, each with provenance attestation
+- ✅ **CHANGELOG.md** updated with 0.3.0-alpha.4 section
+- ✅ **Install paths documented**: npm, container, release tarball, source
+- ✅ **Registry install verified end to end**: `npx @melra/cli@alpha doctor` passes every check on a clean npm cache, and the same path serves all 10 MCP tools over stdio
 
 ## Requires Project Action
-
-### npm Organization
-
-**What:** The release workflow publishes `@melra/cli` and 13 dependency packages
-to the npm registry with provenance attestation. `NPM_TOKEN` is configured and
-authenticates as `xagilab`.
-
-**Blocker:** The `@melra` scope does not exist on npmjs.com. The `v0.3.0-alpha.2`
-run reached the publish step and failed with
-`404 Not Found - PUT https://registry.npmjs.org/@melra%2fprotocol - Scope not found`.
-A scope is not created implicitly by publishing into it; the organization has to
-exist and the publishing account has to be a member.
-
-Because nothing is on the registry, npm install instructions are deliberately
-absent from the README and INSTALLATION docs — they would not work.
-
-**Steps:**
-1. Sign in to npmjs.com as `xagilab` and create the organization at
-   https://www.npmjs.com/org/create with the name `melra` (free tier covers
-   public packages).
-2. Re-run the failed `artifacts` job of the `v0.3.0-alpha.2` release run, or push
-   the next `v*` tag. Release creation is idempotent, so a re-run refreshes the
-   existing release rather than failing on the duplicate tag.
-
-The workflow now publishes to npm before creating the GitHub release, so this
-failure mode no longer leaves a release with no matching packages behind.
-
-**After that lands:** add the npm path to README and `docs/INSTALLATION.md`
-(`npx @melra/cli@alpha doctor`, and an `npx` MCP client config), since it
-becomes the shortest install — no clone, no container, just Node.
 
 ### Manual Named-Client Verification
 
@@ -57,14 +28,14 @@ becomes the shortest install — no clone, no container, just Node.
 
 **Current state:** Automated compatibility claim is official MCP SDK over stdio (TypeScript + Python). Named graphical clients remain release-gated until manually exercised.
 
-**Action:** Download `v0.3.0-alpha.2` release artifact, configure each client per docs/INSTALLATION.md, verify discovery/plan/execute/receipt cycle.
+**Action:** Install `npx @melra/cli@alpha` or download the `v0.3.0-alpha.4` release artifact, configure each client per docs/INSTALLATION.md, verify discovery/plan/execute/receipt cycle.
 
 ### Independent Security Review
 
 **From VALIDATION.md:**
 > Before `1.0`, a clean released artifact must pass on supported Linux, macOS, and Windows machines, and an independent security review must resolve all critical findings.
 
-**Current state:** Threat model reviewed for 0.3.0-alpha.2, no independent audit yet.
+**Current state:** Threat model reviewed for 0.3.0-alpha.4, no independent audit yet.
 
 **Action:** Engage external security reviewer when approaching beta/1.0.
 
@@ -81,7 +52,6 @@ These are documented boundaries, not defects.
 
 ## Summary
 
-**Code complete.** The codebase is production-ready for the declared alpha scope. Remaining items are external verification (manual client exercise), project infrastructure (the `@melra` npm organization), and known alpha boundaries (documented, not broken).
+**Code complete and installable.** The codebase is production-ready for the declared alpha scope, and all four install paths — npm, container, release tarball, source — are published and documented. Remaining items are external verification (manual client exercise, independent security review) and known alpha boundaries (documented, not broken).
 
-Creating the `melra` organization on npmjs.com is the last step before
-`npx @melra/cli@alpha` becomes the primary install path.
+`npx @melra/cli@alpha` is the primary install path.

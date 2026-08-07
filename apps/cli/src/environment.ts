@@ -19,6 +19,20 @@ export interface CliEnvironmentDefaults {
   home: string;
 }
 
+// A generated client config has to name a command the client can actually
+// spawn. `npx` runs the CLI out of its own cache and leaves nothing on PATH,
+// so `melra` would fail to start for exactly the users who took the shortest
+// install path. Pin the version that wrote the config, so the client keeps
+// launching the same server until someone changes it.
+export function serverLaunch(
+  moduleDirectory: string,
+  version: string,
+): { command: string; args: string[] } {
+  return /[\\/]_npx[\\/]/.test(moduleDirectory)
+    ? { command: "npx", args: ["-y", `@melra/cli@${version}`, "serve"] }
+    : { command: "melra", args: ["serve"] };
+}
+
 function cdpEndpoint(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
   let parsed: URL;

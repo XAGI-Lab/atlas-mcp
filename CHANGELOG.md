@@ -6,6 +6,25 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-alpha.4] - 2026-08-08
+
+### Added
+
+- `melra setup` does the whole local setup in one command: writes a safe
+  starter policy, prints an MCP client configuration, and runs every readiness
+  check, exiting non-zero if one fails. `npx @melra/cli@alpha setup` takes a
+  machine with nothing installed to a pasteable client configuration in a single
+  step. `doctor` and `init` remain available for the individual halves.
+
+### Fixed
+
+- A generated client configuration always names a command the client can
+  actually spawn. `init` previously always emitted `"command": "melra"`, which
+  does not exist on `PATH` after an `npx` install — the shortest install path
+  produced a configuration that could not start the server. When the CLI is
+  running from the npx cache, the configuration now launches through `npx` at
+  the exact version that wrote it.
+
 ## [0.3.0-alpha.3] - 2026-08-07
 
 ### Added
@@ -13,6 +32,11 @@ All notable changes are documented here. The format follows
 - First release published to the npm registry. `@melra/cli` and the thirteen
   library packages install from npm, so trying MELRA no longer requires Docker,
   a tarball download, or a source build.
+- npm is documented as the primary install path in the README and
+  `docs/INSTALLATION.md`, including an `npx`-based MCP client configuration that
+  needs no prior install step. Because this is the first version on the registry,
+  npm points `latest` at it as well as `alpha`; plain `npm install @melra/cli`
+  resolves to the alpha until a stable release exists.
 
 ### Fixed
 
@@ -427,7 +451,8 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.3...HEAD
+[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.4...HEAD
+[0.3.0-alpha.4]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.3...v0.3.0-alpha.4
 [0.3.0-alpha.3]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.2...v0.3.0-alpha.3
 [0.3.0-alpha.2]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.1...v0.3.0-alpha.2
 [0.3.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.0...v0.3.0-alpha.1

@@ -22,7 +22,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 <!-- Evidence -->
 <img src="https://img.shields.io/badge/evals-28_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="28 deterministic evaluation scenarios passing" />
-<img src="https://img.shields.io/badge/tests-227_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="227 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/tests-229_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="229 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-12_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="12 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 
@@ -67,7 +67,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 > end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
 > and command allowlists narrow, and review every consequential approval.
 
-### Durable Core Alpha — `0.3.0-alpha.2`
+### Durable Core Alpha — `0.3.0-alpha.4`
 
 | Shipped in this source release | Evidence |
 |---|---|
@@ -229,6 +229,17 @@ file writes, terminal checks, scoped memory, and computer capability discovery.
 
 ## Quickstart 🚀
 
+**npm (fastest — needs Node 22+):**
+
+```bash
+npx @melra/cli@alpha setup
+```
+
+One command: writes a safe local policy, prints a ready-to-paste MCP client
+config, and runs every readiness check. Add `--client claude|cursor|vscode|codex`
+to label the config for a specific client. Use `doctor` alone to check readiness
+without writing anything.
+
 **Container (no Node install needed):**
 
 ```bash
@@ -250,12 +261,12 @@ cd melra
 corepack enable
 pnpm install --frozen-lockfile
 pnpm build
-pnpm melra doctor
-pnpm melra init --client generic
+pnpm melra setup
 ```
 
 <table>
 <tr><th>Goal</th><th>Command</th></tr>
+<tr><td>Set up policy, client config, and readiness at once</td><td><code>melra setup</code></td></tr>
 <tr><td>Start the stdio server</td><td><code>melra serve</code></td></tr>
 <tr><td>Run a read-only system task</td><td><code>melra run --request examples/01-system-info/task.json</code></td></tr>
 <tr><td>Run a verified mutation</td><td><code>melra run --request examples/02-verified-file-write/task.json</code></td></tr>
@@ -274,8 +285,10 @@ makes persisted executable payloads unreadable. Never commit the key or place
 it directly in a shared client configuration.
 
 > [!CAUTION]
-> The npm package `melra` and the PyPI package `melra` are **unrelated
-> third-party projects**. Install only from this repository or from official
+> The **unscoped** npm package `melra` and the PyPI package `melra` are
+> **unrelated third-party projects**. This project publishes only under the
+> `@melra/` npm scope — `@melra/cli` is the CLI. Install from that scope, from
+> this repository, or from official
 > [XAGI-Lab releases](https://github.com/XAGI-Lab/melra/releases).
 
 ---
