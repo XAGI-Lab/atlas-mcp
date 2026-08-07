@@ -6,6 +6,24 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-alpha.3] - 2026-08-07
+
+### Added
+
+- First release published to the npm registry. `@melra/cli` and the thirteen
+  library packages install from npm, so trying MELRA no longer requires Docker,
+  a tarball download, or a source build.
+
+### Fixed
+
+- `0.3.0-alpha.2` shipped a GitHub release with no matching npm packages: the
+  `@melra` scope did not exist, and `PUT` returned `404 Scope not found` after
+  the release had already been created. The scope now exists, and the publish
+  ordering fix below means a failure can no longer leave that mismatch behind.
+  `0.3.0-alpha.2` remains available as a container and a release tarball; it was
+  never on npm and is not published retroactively, because its artifacts are
+  already public under checksums that a rebuild would change.
+
 ## [0.3.0-alpha.2] - 2026-08-07
 
 ### Added
@@ -14,15 +32,13 @@ All notable changes are documented here. The format follows
   registry, so installing MELRA no longer requires Docker, a tarball download,
   or a source build. Prereleases go to a dist-tag matching the channel in the
   tag name (`alpha`, `beta`), which keeps `npm install @melra/cli` from
-  resolving to a prerelease once a stable line exists. Publishing runs after
-  the GitHub release is created and uses `pnpm -r publish` rather than
-  publishing the deploy output, because the CLI depends on six workspace
-  siblings whose `workspace:*` specifiers only resolve when the whole
-  workspace is published together.
+  resolving to a prerelease once a stable line exists. Publishing uses
+  `pnpm -r publish` rather than publishing the deploy output, because the CLI
+  depends on six workspace siblings whose `workspace:*` specifiers only resolve
+  when the whole workspace is published together.
 - Published packages carry npm provenance attestation, generated from the
   workflow's OIDC identity, so the registry records which repository, commit,
   and workflow produced each tarball.
-
 - Every published manifest carries `repository`, `homepage`, and `bugs`, so the
   registry links each package back to its source directory. npm refuses to
   generate a provenance attestation for a package without `repository`, so this
@@ -411,7 +427,8 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.2...HEAD
+[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.3...HEAD
+[0.3.0-alpha.3]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.2...v0.3.0-alpha.3
 [0.3.0-alpha.2]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.1...v0.3.0-alpha.2
 [0.3.0-alpha.1]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.0...v0.3.0-alpha.1
 [0.3.0-alpha.0]: https://github.com/XAGI-Lab/melra/compare/v0.2.0-alpha.1...v0.3.0-alpha.0
