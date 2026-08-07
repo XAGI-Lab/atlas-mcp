@@ -137,7 +137,6 @@ match every `apps/*` and `packages/*` manifest, the `PRODUCT_VERSION` constant i
 ## Contribution conventions
 
 - Commits are signed off (DCO); `scripts/check-dco.mjs` and `.github/workflows/dco.yml` enforce it. Commit subjects follow `type(scope): summary`, e.g. `bench(browser): add paired evaluator`.
-- Architecture changes require an ADR in `docs/decisions/`. Design specs and implementation plans live in `docs/superpowers/specs/` and `docs/superpowers/plans/`.
 - User-visible changes get a `CHANGELOG.md` entry under `## [Unreleased]` (Keep a Changelog sections).
 - CI runs `pnpm check` on ubuntu/macos/windows × Node 22/24, so avoid platform-specific paths and shell assumptions.
 

@@ -29,7 +29,6 @@ Keep changes focused. A pull request should include:
 - documentation for public contracts.
 
 Protocol, policy, storage, and release changes require maintainer review.
-Architecture changes require an ADR under `docs/decisions/`.
 
 Do not contribute customer data, credentials, deployment identifiers, private
 prompts, billing records, or code you do not have the right to license.

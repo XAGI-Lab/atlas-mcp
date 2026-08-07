@@ -578,7 +578,7 @@ threat analysis are all welcome.
 
 Software and documentation are licensed under the
 [Apache License 2.0](LICENSE). The official logo and hero artwork are licensed
-under [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt); see [BRAND.md](BRAND.md).
+under [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt).
 Third-party benchmark datasets retain their own licenses and are not included
 in this repository.
 
