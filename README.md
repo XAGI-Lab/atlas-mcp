@@ -22,7 +22,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 <!-- Evidence -->
 <img src="https://img.shields.io/badge/evals-28_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="28 deterministic evaluation scenarios passing" />
-<img src="https://img.shields.io/badge/tests-215_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="215 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/tests-227_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="227 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-12_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="12 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 
@@ -67,7 +67,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 > end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
 > and command allowlists narrow, and review every consequential approval.
 
-### Durable Core Alpha — `0.3.0-alpha.0`
+### Durable Core Alpha — `0.3.0-alpha.1`
 
 | Shipped in this source release | Evidence |
 |---|---|

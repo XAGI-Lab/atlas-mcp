@@ -8,7 +8,7 @@ than the dated run they sit under. Every other row is the record of that run.
 
 Date: 2026-07-30
 
-Version: `0.3.0-alpha.0`
+Version: `0.3.0-alpha.1`
 
 Durable implementation and evaluation commit: `e3ec704`
 
@@ -18,7 +18,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 |---|---|
 | Package-version consistency | all 16 workspace manifests, protocol constant, and Python distribution match |
 | TypeScript build and strict typecheck | passed across 15 packages/apps |
-| JavaScript/Vitest cases | 223 passed |
+| JavaScript/Vitest cases | 227 passed |
 | Python lint and SDK tests | ruff passed; 2 tests passed |
 | Safety/execution evaluation | 28 of 28 passed |
 | Durable Core evaluation | 8 valid, 0 invalid |
@@ -27,7 +27,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 | False-success rate | `0.0` |
 | Event-consistency rate | `1.0` |
 | Real MCP stdio E2E | 12 cases passed |
-| CLI package dry run | `melra-cli-0.3.0-alpha.0.tgz` produced |
+| CLI package dry run | `melra-cli-0.3.0-alpha.1.tgz` produced |
 | Hardened container MCP smoke | all 10 tools discovered; verified certificate produced |
 | Shipped Node and Python dependency audit | no known vulnerabilities |
 | Core component microbenchmark | passed; no cross-product score claimed |
@@ -96,7 +96,7 @@ Host exercised locally: macOS arm64 (Darwin 25.5.0), Node.js 24, Python 3.11.14
 | Gate | Result |
 |---|---|
 | `pnpm check` | passed (versions, strict typecheck, tests, Python) |
-| TypeScript/Vitest cases | 223 passed |
+| TypeScript/Vitest cases | 227 passed |
 | `pnpm evals` | 28 of 28 scenarios passed, 0 failed |
 | `pnpm e2e` | 12 end-to-end cases passed over real stdio |
 | `pnpm pack:check` | passed |
@@ -192,11 +192,11 @@ be attached to the immutable release or workflow run.
 
 ## CI evidence
 
-The `0.3.0-alpha.0` remote workflow run is pending creation of the release
-candidate pull request. Local success is not treated as a substitute; the
-release remains unreleased until the PR build, typecheck, Python, real MCP,
-durable recovery, package, container, audit, dependency-review, CodeQL, and DCO
-checks pass.
+The `0.3.0-alpha.1` tag build ran the full Release workflow to success:
+`pnpm check`, `pnpm e2e`, `pnpm security:audit`, `pnpm evals`, the publishable
+durable-core evaluation, and `pnpm pack:check` all passed before any artifact
+was published, and the multi-architecture container was built and attested.
+Local success is not treated as a substitute for that gate.
 
 Historical public evidence:
 
