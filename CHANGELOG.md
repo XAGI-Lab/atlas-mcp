@@ -6,6 +6,15 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows checkouts no longer produce CRLF source. Git for Windows converts on
+  checkout by default, and `pnpm check` failed the whole Windows job because the
+  README example checker matches fenced blocks on `\n` and found none. A
+  `.gitattributes` normalizes every text file to LF on all platforms, and the
+  checker tolerates CRLF regardless so an older clone still gets its examples
+  typechecked.
+
 ## [0.3.0-alpha.5] - 2026-08-08
 
 ### Added

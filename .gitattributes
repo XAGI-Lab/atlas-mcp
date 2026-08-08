@@ -1,0 +1,6 @@
+# Git for Windows checks out with CRLF by default, which is what GitHub's
+# windows-latest runners do. Source in this repo is read as text by scripts that
+# match on "\n" — `check-readme-examples.mjs` found zero fenced blocks there and
+# failed the whole Windows CI job. Normalize on checkout so every platform sees
+# the same bytes; binary files are detected and left alone by `text=auto`.
+* text=auto eol=lf

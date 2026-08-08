@@ -36,7 +36,9 @@ const readmes = globSync("{apps,packages}/*/README.md", { cwd: root }).sort();
 const snippets = [];
 
 for (const readme of readmes) {
-  const text = readFileSync(join(root, readme), "utf8");
+  // `.gitattributes` normalizes checkouts to LF, but a clone made before it
+  // existed still has CRLF, and a fence there would silently go unchecked.
+  const text = readFileSync(join(root, readme), "utf8").replaceAll("\r\n", "\n");
   let index = 0;
   for (const [, body] of text.matchAll(/```ts\n([\s\S]*?)```/g)) {
     snippets.push({ readme, index: index++, body });
@@ -44,7 +46,9 @@ for (const readme of readmes) {
 }
 
 if (snippets.length === 0) {
-  console.error("no ```ts blocks found — check the glob");
+  // Which half failed matters: zero READMEs is a glob problem, READMEs with no
+  // fences is a parsing problem. The old message guessed, and guessed wrong.
+  console.error(`no \`\`\`ts blocks found in ${readmes.length} README files`);
   process.exit(1);
 }
 
