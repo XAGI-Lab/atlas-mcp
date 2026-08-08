@@ -278,7 +278,8 @@ findings.
 - Multiple server processes may share one `MELRA_HOME`; workflow advances take
   an expiring SQLite lease, so a second process is refused rather than starting
   duplicate effects.
-- Browser sessions are isolated and non-persistent.
+- Browser sessions are isolated and, unless `MELRA_BROWSER_PROFILE` names a
+  directory to keep, thrown away when the run ends.
 - Computer screenshot and input adapters are alpha; OCR/visual targeting,
   accessibility targeting, focus verification, interactive PTY, semantic
   embeddings, and extension loading remain roadmap items.

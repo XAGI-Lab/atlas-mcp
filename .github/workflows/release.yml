@@ -94,6 +94,22 @@ jobs:
           # token cannot read, existing or not. The publish itself is the only
           # honest check, so it runs first and a failure leaves no release behind.
           pnpm -r publish --tag "${tag}" --provenance --no-git-checks --access public
+      - name: Point latest at this prerelease
+        if: ${{ contains(github.ref_name, '-') }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          # No stable release exists yet, so `latest` — what a bare
+          # `npm install @melra/cli` resolves — otherwise stays on whichever
+          # prerelease happened to publish untagged, and an end user following the
+          # most obvious command installs a build several releases behind. Delete
+          # this step at 1.0, where `latest` has to mean the stable line.
+          version="$(node -p "require('./package.json').version")"
+          node -e 'const fs=require("node:fs");for(const p of fs.globSync("{apps,packages}/*/package.json")){const m=JSON.parse(fs.readFileSync(p,"utf8"));if(!m.private)console.log(m.name)}' \
+            | while read -r name; do
+                npm dist-tag add "${name}@${version}" latest
+              done
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

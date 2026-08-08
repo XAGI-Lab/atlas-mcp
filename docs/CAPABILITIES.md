@@ -1,6 +1,6 @@
 # Capabilities and limits
 
-This document describes `0.3.0-alpha.5`.
+This document describes `0.3.0-alpha.6`.
 
 ## MCP tools
 
@@ -196,6 +196,27 @@ URL queries, and common secret formats are not retained there.
 Free-form task constraints fail closed because they cannot be enforced
 deterministically. `forbiddenEffects` accepts only `read`, `mutate`, and
 `destructive` and is enforced during planning and again during execution.
+
+## Identity and capability grants
+
+A request may declare `identity: { principal, onBehalfOf }` — the immediate
+caller plus the delegation chain behind it, outermost first. A request that
+declares none is the local principal, `agent:local`. The chain is recorded on the
+task and on every receipt, so a receipt answers who authorised an effect rather
+than only what ran. MELRA does not authenticate any of it: each link is a claim
+the layer above makes and is worth what that layer's own boundary is worth.
+
+`policy.capabilities` issues bounded authority — a capability pattern, the
+effects allowed under it, a target pattern, the holder, and optional `validUntil`
+and `policyVersion`. The list is empty by default and changes nothing when it is.
+A non-empty list is a closed world: an effect with no matching grant is denied
+`capability_not_granted` before any allowlist is consulted. See
+docs/INSTALLATION.md for the file format.
+
+`melra_plan` returns the effect contract beside the task record — identity,
+capability, operation, effect, risk, target, traits, postconditions, budget,
+idempotency key, policy decision, and authorization in one object. It is derived
+from the persisted task and cannot be supplied.
 
 ## Task budgets
 
