@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-alpha.8] - 2026-08-08
+
 ### Added
 
 - **Ordinary tool names over the same pipeline**, behind `MELRA_HARNESS_TOOLS=1`.
@@ -20,6 +22,18 @@ All notable changes are documented here. The format follows
   that was approved, which is why the approving call does not re-plan. Off by
   default; a client showing twenty-four tools at once buys confusion rather than
   convenience.
+
+### Fixed
+
+- **A version bump no longer breaks the next release.** `uv.lock` records the
+  local project's own version, so moving `sdk-py/pyproject.toml` left the lock
+  stale and the first `uv run` rewrote it — surfacing mid-release as
+  `publishable_evaluation_requires_clean_worktree`, three steps after the edit
+  that caused it. `v0.3.0-alpha.7` failed there and published nothing, so the
+  npm packages and the GitHub release for that tag do not exist; its container
+  image does. `pnpm versions:set` now moves the locked version with everything
+  else, and `pnpm versions:check` fails on the mismatch locally instead of
+  leaving it for a tag push to discover.
 
 ## [0.3.0-alpha.7] - 2026-08-08
 

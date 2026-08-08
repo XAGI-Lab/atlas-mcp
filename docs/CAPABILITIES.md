@@ -1,6 +1,6 @@
 # Capabilities and limits
 
-This document describes `0.3.0-alpha.7`.
+This document describes `0.3.0-alpha.8`.
 
 ## MCP tools
 
@@ -16,11 +16,31 @@ This document describes `0.3.0-alpha.7`.
 | `melra_workflow_advance` | depends on ready workflow nodes | scoped per mutation |
 | `melra_workflow_status` | none | no |
 | `melra_workflow_cancel` | cancels nonterminal workflow work | no |
+| `melra_workflow_control` | pauses, resumes, or suspends a run | no |
+
+With `MELRA_HARNESS_TOOLS=1`, thirteen more appear alongside these, carrying the
+names a harness already knows. Each builds an ordinary task and runs the same
+pipeline, so the approval column below says exactly what it says above:
+
+| Tool | Side effect | Approval |
+|---|---:|---|
+| `read_file`, `list_files` | none | no |
+| `write_file`, `move_file`, `delete_file` | writes the workspace | scoped |
+| `run_command` | runs one allowlisted executable | scoped |
+| `browse`, `browser_click`, `browser_type` | drives the browser | scoped |
+| `browser_read` | none | no |
+| `remember` | stores one operational fact | scoped |
+| `recall` | none | no |
+| `approve` | runs the task a phrase was issued for | is the approval |
+
+A tool needing approval returns the phrase rather than failing; `approve` takes
+that task id and phrase and runs the operation that was approved. A policy
+denial comes back as a result with `status: "blocked"` and a reason.
 
 ## Durable workflows
 
-Node types: `operation`, `approval`, `condition`, `parallel`,
-`bounded_loop`, `checkpoint`, and `compensation`.
+Node types: `operation`, `approval`, `condition`, `parallel`, `bounded_loop`,
+`checkpoint`, `compensation`, `human_input`, and `delegation`.
 
 - Exact definitions and task payloads survive restart in encrypted envelopes.
 - Each advance executes one deterministic ready wave.

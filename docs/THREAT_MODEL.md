@@ -1,6 +1,6 @@
 # Threat model
 
-Status: reviewed for `0.3.0-alpha.7`; independent review pending.
+Status: reviewed for `0.3.0-alpha.8`; independent review pending.
 
 ## Assets
 

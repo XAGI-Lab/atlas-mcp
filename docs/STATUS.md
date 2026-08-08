@@ -2,18 +2,23 @@
 
 Last updated: 2026-08-08
 
-Version: `0.3.0-alpha.7`
+Version: `0.3.0-alpha.8`
 
 ## Engineering Complete
 
-- ✅ **All 308 tests passing** (306 Vitest, 2 Python pytest)
-- ✅ **Versions consistent** across the root manifest, every `apps/*` and `packages/*` manifest, the protocol constant, and sdk-py (`pnpm versions:check`)
+- ✅ **All 313 tests passing** (311 Vitest, 2 Python pytest)
+- ✅ **Versions consistent** across the root manifest, every `apps/*` and `packages/*` manifest, the protocol constant, sdk-py, and both uv locks (`pnpm versions:check`)
 - ✅ **Gate green**: `pnpm check`, `pnpm e2e`, `pnpm security:audit` all pass
-- ✅ **Release artifacts published**: GitHub release v0.3.0-alpha.7, container at `ghcr.io/xagi-lab/melra:alpha`
-- ✅ **npm packages published**: all 14 packages live under the `@melra` scope on the `alpha` dist-tag, each with provenance attestation
-- ✅ **CHANGELOG.md** updated with 0.3.0-alpha.7 section
 - ✅ **Install paths documented**: npm, container, release tarball, source
 - ✅ **Registry install verified end to end**: `npx @melra/cli@alpha doctor` passes every check on a clean npm cache, and the same path serves all 11 MCP tools over stdio
+
+The most recent fully published release is `0.3.0-alpha.6`: all 14 npm packages
+on the `alpha` and `latest` dist-tags with provenance attestation, a GitHub
+release with 6 assets, and a container image. `0.3.0-alpha.7` published its
+container image only — its `artifacts` job failed on a stale `uv.lock` before
+reaching the registry, which is the defect `0.3.0-alpha.8` fixes. Treat the
+published-artifact rows above as pending until the `0.3.0-alpha.8` Release run
+reports green.
 
 ## Requires Project Action
 
@@ -28,14 +33,14 @@ Version: `0.3.0-alpha.7`
 
 **Current state:** Automated compatibility claim is official MCP SDK over stdio (TypeScript + Python). Named graphical clients remain release-gated until manually exercised.
 
-**Action:** Install `npx @melra/cli@alpha` or download the `v0.3.0-alpha.7` release artifact, configure each client per docs/INSTALLATION.md, verify discovery/plan/execute/receipt cycle.
+**Action:** Install `npx @melra/cli@alpha` or download the `v0.3.0-alpha.8` release artifact, configure each client per docs/INSTALLATION.md, verify discovery/plan/execute/receipt cycle.
 
 ### Independent Security Review
 
 **From VALIDATION.md:**
 > Before `1.0`, a clean released artifact must pass on supported Linux, macOS, and Windows machines, and an independent security review must resolve all critical findings.
 
-**Current state:** Threat model reviewed for 0.3.0-alpha.7, no independent audit yet.
+**Current state:** Threat model reviewed for 0.3.0-alpha.8, no independent audit yet.
 
 **Action:** Engage external security reviewer when approaching beta/1.0.
 

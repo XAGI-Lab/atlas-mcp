@@ -71,7 +71,7 @@ shouldn't have to.**
 > end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
 > and command allowlists narrow, and review every consequential approval.
 
-### Durable Core Alpha — `0.3.0-alpha.7`
+### Durable Core Alpha — `0.3.0-alpha.8`
 
 | Shipped in this source release | Evidence |
 |---|---|
@@ -504,6 +504,13 @@ operations — this list is the kernel contract, not an MCP-specific API:
 Workflow definitions compose operation, approval, condition, parallel,
 bounded-loop, checkpoint, compensation, human-input, and delegation nodes while
 every effect still travels through the task policy and evidence pipeline.
+
+If you would rather your model saw the tool names it already knows, set
+`MELRA_HARNESS_TOOLS=1` and thirteen more appear alongside these — `read_file`,
+`write_file`, `run_command`, `browser_click`, `approve`, and the rest. They are
+not a second path: each one builds an ordinary task and runs the same pipeline,
+and a mutation still stops on its approval phrase. See
+[INSTALLATION.md](docs/INSTALLATION.md#ordinary-tool-names).
 
 ---
 
