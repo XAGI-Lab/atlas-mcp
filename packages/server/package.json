@@ -1,7 +1,7 @@
 {
   "name": "@melra/server",
   "version": "0.3.0-alpha.5",
-  "description": "Official local Model Context Protocol server and workflow runtime for MELRA.",
+  "description": "MELRA autonomy kernel with MCP and loopback HTTP interfaces.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

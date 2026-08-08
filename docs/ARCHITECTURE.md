@@ -1,8 +1,55 @@
 # Architecture
 
-MELRA is a local-first execution system. MCP, CLI, and SDK callers use the
-same task and workflow services; no interface bypasses schema validation,
-policy, approval, budgets, verification, or durable evidence.
+MELRA is a local-first autonomy kernel: the layer an agent asks to change the
+world through, rather than a layer that decides what to change. MCP, CLI, SDK,
+and loopback HTTP callers use the same task and workflow services; no interface
+bypasses schema validation, policy, approval, budgets, verification, or durable
+evidence.
+
+## Responsibility boundary
+
+The dividing line is *reasoning* against *effects*.
+
+| The agent above owns | MELRA owns |
+|---|---|
+| Model choice, prompts, conversation | Whether an effect is permitted |
+| Planning strategy, subagents, skills | Whether it already happened |
+| Semantic memory about the user | Durable state across a crash |
+| Deciding *what* to attempt | Proving whether it actually worked |
+
+MELRA deliberately has no model client, planner, or reasoning loop. Adding one
+would put it in competition with the agents it is supposed to serve, and would
+make the guarantees below depend on a model's judgement.
+
+The consequence for code: nothing in `packages/` may call an LLM, and no
+decision in the execution path may depend on model output. Evidence predicates
+are deterministic by construction for exactly this reason — see
+[verification levels](#verification-strength).
+
+## Effect lifecycle
+
+Every effect, from any interface, walks the same stages. Stages in **bold** can
+refuse; the rest can only record.
+
+```text
+REQUEST      a caller submits a strict, bounded operation schema
+NORMALIZE    schema validation, path resolution, classification
+PREFLIGHT    capability discovery and cheap feasibility checks
+RECORD       durable TaskRecord written before anything runs
+CAPABILITY   what this principal may reach at all
+POLICY       allow · deny · confirm, on effect and risk
+APPROVAL     exact task-scoped phrase bound to the action digest
+IDEMPOTENCY  logical attempt key; a committed attempt is not re-run
+EXECUTION    the adapter runs under an AbortSignal and a budget
+OBSERVATION  raw adapter result, redacted before persistence
+VERIFICATION independent predicates decide success, not the adapter
+COMMIT       terminal status, events, projection, certificate
+RECEIPT      redacted, hash-linked evidence retained locally
+```
+
+`melra_plan` stops after `APPROVAL` and returns the challenge.
+`melra_execute` **re-runs** `CAPABILITY` and `POLICY` before `EXECUTION`, so a
+plan cannot ride a policy that has since been tightened.
 
 ## Execution boundaries
 
@@ -161,7 +208,20 @@ refused with `workflow_lease_held` rather than starting duplicate side effects.
 
 ## Public interfaces
 
-The stdio MCP server exposes exactly eleven tools:
+MCP is one way into the kernel, not the definition of it. Every interface
+below enters the same runtime, takes the same policy decision, and writes the
+same durable record; none of them is a shortcut past a stage of the lifecycle.
+
+| Interface | Transport | Intended caller |
+|---|---|---|
+| MCP | stdio | An MCP client spawning the server as a subprocess |
+| MCP | Streamable HTTP on loopback | A client that cannot spawn processes |
+| CLI | argv | Humans, scripts, CI |
+| TypeScript SDK | stdio subprocess | Node applications and custom harnesses |
+| Python SDK | stdio subprocess | Python applications and custom harnesses |
+| JSON API | loopback HTTP, read-only | Consoles and dashboards |
+
+The MCP surface is exactly eleven tools:
 
 | Task tools | Workflow tools |
 |---|---|
@@ -179,29 +239,57 @@ tools and do not implement a second execution engine.
 
 ## Packages
 
-| Package | Responsibility |
+Kernel services own the guarantees. Reference effect adapters are replaceable
+implementations that must pass through those services to reach anything.
+
+| Kernel service | Responsibility |
 |---|---|
 | `@melra/protocol` | Strict task, workflow, event, approval, and MCP contracts |
 | `@melra/runtime-core` | Task execution, workflow transitions, recovery, and replay |
 | `@melra/policy-core` | Allow/deny/confirm policy and approval validation |
-| `@melra/server` | Runtime composition and MCP stdio transport |
 | `@melra/storage-sqlite` | Transactional local authority |
+| `@melra/verifier-core` | Deterministic evidence evaluation |
+| `@melra/receipt-schema` | Canonical receipts, certificates, hashes, and redaction |
+| `@melra/memory` | Operational memory: scoped local retrieval, lifecycle, redaction |
+| `@melra/server` | Runtime composition and the MCP/HTTP transports |
+
+| Reference effect adapter | Effects it can perform |
+|---|---|
 | `@melra/file-runtime` | Root-confined filesystem operations |
 | `@melra/terminal-runtime` | Shell-free process and background-job control |
 | `@melra/browser-runtime` | Isolated Playwright browser execution |
 | `@melra/computer-runtime` | Typed local computer-use adapters |
-| `@melra/memory` | Scoped local retrieval, lifecycle, and redaction |
-| `@melra/verifier-core` | Deterministic evidence evaluation |
-| `@melra/receipt-schema` | Canonical receipts, certificates, hashes, and redaction |
-| `@melra/sdk` | TypeScript MCP client |
+
+`@melra/sdk` is a client of the kernel rather than a part of it.
+
+`@melra/memory` is operational memory — what MELRA knows about its own
+effects. Semantic memory about the *user* (preferences, project context,
+conversation) belongs to the agent above and is deliberately out of scope.
+
+## Verification strength
+
+Success is decided by evidence, never by the adapter's own report. How much a
+piece of evidence is worth depends on where it came from, and MELRA states that
+rather than flattening it into a boolean:
+
+| Level | Source | Example | Shipped |
+|:--:|---|---|:--:|
+| 0 | Execution evidence — the adapter's own report | exit code, no exception | ✓ |
+| 1 | State evidence — MELRA re-reads the target itself | `file_exists`, `file_hash` re-reading the workspace | ✓ |
+| 2 | Independent-channel evidence — a different path to the same fact | provider API confirming a UI action | roadmap |
+| 3 | Semantic evidence — a judgement about meaning | "the summary is accurate" | roadmap, and **probabilistic** |
+
+Level 3 will be labelled probabilistic wherever it appears. A verifier that
+guesses is useful; a verifier that guesses while presenting itself as proof is
+worse than none.
 
 ## Verification boundary
 
-Filesystem predicates independently re-read the workspace. Result, terminal,
-URL, and page predicates currently evaluate adapter-returned observations.
-Predicates are caller-authored, so a weak predicate can prove too little.
-Models and adapters cannot approve actions or mark a workflow complete, but
-MELRA is not yet an independent semantic judge of arbitrary goals.
+Filesystem predicates independently re-read the workspace (level 1). Result,
+terminal, URL, and page predicates currently evaluate adapter-returned
+observations (level 0). Predicates are caller-authored, so a weak predicate can
+prove too little. Models and adapters cannot approve actions or mark a workflow
+complete, but MELRA is not yet an independent semantic judge of arbitrary goals.
 
 See [THREAT_MODEL.md](THREAT_MODEL.md) and
 [COMPATIBILITY.md](COMPATIBILITY.md) for residual risks and alpha guarantees.

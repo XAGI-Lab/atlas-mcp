@@ -1,8 +1,22 @@
 # Roadmap
 
-MELRA is an open-source product for governed and verifiable MCP execution.
-Checked items are implemented on the current alpha branch; they are not a
-promise of stable API compatibility.
+MELRA is an open-source **autonomy kernel**: the layer an agent asks to change
+the world through. Checked items are implemented on the current alpha branch;
+they are not a promise of stable API compatibility.
+
+Two kinds of work appear below, and the distinction is the point:
+
+- **Kernel services** — type, classify, authorise, gate on approval, record
+  durably, deduplicate, run under a budget, verify against evidence, receipt.
+  Those nine are the guarantees, and they must hold no matter which agent is
+  above or which adapter is below.
+- **Reference effect adapters** — files, terminal, browser, computer, and later
+  HTTP/API. Replaceable implementations that reach the world *through* the kernel
+  services. An adapter that could skip them would not be an adapter.
+
+Work that is not one of those nine jobs, or an adapter serving them, does not
+belong on this roadmap — reasoning, planning, model selection, and semantic
+memory stay with the agent above.
 
 ## v0.1 — local execution alpha
 
@@ -131,15 +145,88 @@ promise of stable API compatibility.
 
 ### Remaining workflow work
 
-- [ ] PostgreSQL event and projection provider.
+- [ ] PostgreSQL event and projection provider — deliberately deferred to
+      [P5](#p5--beyond-one-machine); SQLite is the local authority until there is
+      a second machine to share state with.
 - [x] HTTP API, event stream, and Community console.
+
+## Kernel direction
+
+The work below is ordered by what unblocks what, not by how interesting it is.
+Nothing here adds reasoning to MELRA.
+
+### P0 — define the category
+
+- [x] Position MELRA as an agent-independent autonomy kernel across README,
+      architecture docs, and this roadmap.
+- [x] State the responsibility boundary explicitly: the agent owns reasoning,
+      MELRA owns effects.
+- [x] Document the canonical effect lifecycle as one named sequence
+      (`REQUEST → … → RECEIPT`) rather than prose scattered across docs.
+- [ ] **Effect Contract** as a first-class protocol concept: principal,
+      capability, operation, target, arguments, preconditions, expected
+      postconditions, idempotency identity, budget, approval policy,
+      verification policy, metadata. Today these exist as separate fields on a
+      task request; the contract names them as one object with one schema.
+- [ ] **Principal identity** with an explicit delegation chain — organization →
+      human → agent → session → parent agent → model. Every effect record and
+      receipt carries who asked, on whose behalf.
+- [ ] **Capability model**: resource, effect, scope, principal, `valid_until`,
+      `max_operations`, `policy_version` — and provider-shaped capabilities
+      (provider, effect, account, `amount_max`, `daily_max`) for effects that
+      spend or commit something.
+
+### P1 — prove agent independence
+
+- [ ] Agent adapter packages so a harness calls `write_file()` and the adapter
+      runs plan → approve → execute → verify → receipt underneath.
+- [ ] At least two reference integrations against different harnesses, with the
+      same policy, durable state, and receipts surviving the swap. This is the
+      claim that distinguishes a kernel from a server; it is not yet proven.
+- [ ] Agent compatibility suite a harness can run to demonstrate it does not
+      bypass the kernel.
+
+### P2 — hard capability boundary
+
+- [ ] Two deployment modes: developer mode (today's behaviour) and enforced
+      mode, where the boundary is not a policy file the caller can edit.
+- [ ] Rename `--unhinged` to something boring and descriptive
+      (`--unsafe-local`), keeping the current flag as a deprecated alias, and
+      refuse it outright in enforced mode.
+
+### P3 — verification framework
+
+- [ ] Verification strength levels 0–3 surfaced on every evidence item, so a
+      caller can tell state evidence from the adapter's own word.
+- [ ] Independent-channel verification (level 2): confirm a UI effect through a
+      provider API rather than through the page that performed it.
+- [ ] Pluggable verifiers — file, process, HTTP, database, browser, cloud,
+      SaaS, webhook — behind one predicate interface.
+- [ ] Semantic verification (level 3), labelled probabilistic everywhere it
+      appears, and never the sole evidence for a destructive effect.
+
+### P4 — credentials and API effects
+
+- [ ] Credential broker: agents receive capabilities, not secrets. The kernel
+      holds the credential and performs the effect.
+- [ ] HTTP/API effect adapter with per-provider effect semantics —
+      `at-most-once`, `at-least-once`, `exactly-once-where-provider-allows`,
+      `reconciliation-required` — declared rather than assumed.
+- [ ] Reconciliation for effects whose provider cannot promise exactly-once.
+- [ ] Compensation as a first-class saga across providers, not only within one
+      workflow.
+
+### P5 — beyond one machine
+
+- [ ] PostgreSQL event and projection provider.
+- [ ] Distributed workers without weakening local policy semantics.
+- [ ] Fleet-level operator view across many kernels.
 
 ## v0.4 and later
 
 - [ ] Extension SDK and compatibility testkit.
 - [ ] Sandboxed WASM or process-isolated third-party adapters.
 - [ ] Additional SDKs selected by contributor and platform demand.
-- [ ] Distributed workers without weakening local policy semantics.
 - [ ] Stable protocol, migration, and deprecation guarantees.
 
 ## Stable release gate

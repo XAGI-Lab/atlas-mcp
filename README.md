@@ -4,13 +4,14 @@
 
 # MELRA
 
-### Modular Execution Layer for Reliable Autonomy
+### The open-source autonomy kernel
 
-### Safe execution · Durable memory · Verified outcomes
+### Your agent decides. MELRA owns the effect.
 
-An open-source execution system for durable, policy-governed autonomous
-workflows across files, terminal, browser, memory, and computer use—with MCP,
-CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
+An agent-independent execution kernel that turns AI decisions into governed,
+durable, verifiable real-world effects — with capability policy, authorization,
+recovery, independent verification, and hash-linked evidence underneath any
+agent, over MCP, CLI, SDK, or loopback HTTP.
 
 <br />
 
@@ -22,7 +23,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 <!-- Evidence -->
 <img src="https://img.shields.io/badge/evals-31_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="31 deterministic evaluation scenarios passing" />
-<img src="https://img.shields.io/badge/tests-266_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="266 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/tests-287_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="287 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-13_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="13 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 
@@ -83,19 +84,46 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 | | | |
 |---|---|---|
-| [Why MELRA](#why-melra) | [Execution layers](#one-runtime-five-execution-layers-) | [Where to use it](#where-you-can-use-melra-) |
-| [Quickstart](#quickstart-) | [MCP tool surface](#a-deliberately-small-mcp-surface-) | [How execution works](#how-execution-works-) |
-| [Evidence](#evidence-not-leaderboard-theatre-) | [Safe defaults](#safe-defaults-) | [Reproduce the scores](#reproduce-the-scores-) |
-| [SDKs](#sdks-and-implementation-languages-) | [Repository map](#repository-map-) | [Documentation](#documentation-) |
+| [Why MELRA](#why-melra) | [Where it sits](#where-it-sits-) | [Quickstart](#quickstart-) |
+| [Reference effect adapters](#reference-effect-adapters-) | [Where to use it](#where-you-can-use-melra-) | [MCP tool surface](#a-deliberately-small-mcp-surface-) |
+| [How execution works](#how-execution-works-) | [Safe defaults](#safe-defaults-) | [Evidence](#evidence-not-leaderboard-theatre-) |
+| [Reproduce the scores](#reproduce-the-scores-) | [SDKs](#sdks-and-implementation-languages-) | [Repository map](#repository-map-) |
+| [Documentation](#documentation-) | [Contributing](#contributing-) | [Roadmap](ROADMAP.md) |
 
 ---
 
 ## Why MELRA
 
-Most MCP servers hand a model a tool and hope for the best. A command runs, a
-click lands, a file is written — and "it returned without an error" is treated
-as success.
+An agent decides *what* to do. Something still has to decide whether it is
+allowed, run it exactly once, prove it worked, and survive a crash in the
+middle. Today that machinery is rebuilt inside every agent harness, in a way
+that dies with the harness.
 
+MELRA is that machinery, factored out and made agent-independent:
+
+> **The agent owns reasoning. MELRA owns effects.**
+
+An **effect** is anything that changes or observes the world outside the
+model — write a file, run a command, click Submit, call an API, deploy a
+service. MELRA does exactly nine things to every one of them, and nothing else:
+
+| | MELRA does | Which answers |
+|:--:|---|---|
+| 1 | **Types** the effect against a strict, bounded schema | *Exactly what may change?* |
+| 2 | **Classifies** it as read, mutation, or destructive | *How much does this matter?* |
+| 3 | **Authorises** it against policy, re-checked at execution | *Is this allowed, still?* |
+| 4 | **Gates** it on an exact human approval phrase | *Does a person decide?* |
+| 5 | **Records** it durably before anything runs | *What was in flight?* |
+| 6 | **Deduplicates** it by idempotency key | *Has this already happened?* |
+| 7 | **Runs** it under a budget and a cancel signal | *When does it stop?* |
+| 8 | **Verifies** it against declared evidence | *What proves it worked?* |
+| 9 | **Receipts** it, redacted and hash-linked | *What can be audited later?* |
+
+That list is the whole job. Everything upstream of it — what to attempt, in what
+order, and why — stays with the agent.
+
+Most tool servers hand a model a tool and hope. A command runs, a click lands,
+a file is written — and "it returned without an error" is treated as success.
 MELRA separates **the action succeeded** from **the goal was achieved**.
 
 <table>
@@ -112,6 +140,7 @@ MELRA separates **the action succeeded** from **the goal was achieved**.
 - Mutations are indistinguishable from reads
 - Output is trusted
 - No durable record
+- Rules live inside one agent
 
 </td>
 <td>
@@ -122,6 +151,7 @@ MELRA separates **the action succeeded** from **the goal was achieved**.
 - Mutations need evidence **and** an exact approval phrase
 - Page content is explicitly marked untrusted
 - Redacted receipt + SHA-256 execution certificate
+- Rules outlive the agent that used them
 
 </td>
 </tr>
@@ -130,22 +160,89 @@ MELRA separates **the action succeeded** from **the goal was achieved**.
 If a mutation succeeds but its required evidence is missing or false, the task
 is `partial` — **never** `verified_success`.
 
+**Agents should be replaceable. The infrastructure that owns consequences
+should not be.** Swap the harness on Friday; the policies, approvals,
+credentials, workflow history, idempotency records, and receipts are still
+there on Monday.
+
+Next to the two layers it is most often mistaken for:
+
+|  | Agent harness | MCP server | MELRA |
+|---|:---:|:---:|:---:|
+| Model loop and reasoning | ✓ | ✗ | ✗ |
+| Tools | ✓ | ✓ | via adapters |
+| Execution | ✓ | ✓ | ✓ |
+| Agent-independent policy | usually ✗ | possible | **core** |
+| Durable effect state | sometimes | rarely | **core** |
+| Idempotency across restarts | varies | rare | **core** |
+| Crash recovery without replay | varies | rare | **core** |
+| Independent verification | uncommon | possible | **core** |
+| Evidence receipts | uncommon | possible | **core** |
+| Works across agents | ✗ | ✓ | ✓ |
+| Credential isolation | varies | varies | *target* |
+| Hard capability boundary | varies | usually ✗ | *target* |
+
+Plenty of MCP servers *can* do these things — this is not a claim that none of
+them do. The difference is that in MELRA they are the execution contract rather
+than a per-tool option. Items marked *target* are designed and on the
+[roadmap](ROADMAP.md); they are **not shipped today**.
+
 ---
 
-## One runtime, five execution layers 🧭
+## Where it sits 🧭
 
-MELRA turns a tool call into a durable, inspectable task:
+```text
+        ┌─────────────────────────────────────────────┐
+        │  AGENT   reasoning · model · planning ·     │
+        │          conversation · skills · subagents  │
+        │  Claude Code · any MCP client · your harness│
+        └──────────────────────┬──────────────────────┘
+                               │  effect request
+                               ▼
+        ╔══════════════════════╧══════════════════════╗
+        ║  MELRA — autonomy kernel                    ║
+        ║                                             ║
+        ║  identity · capability · policy · approval  ║
+        ║  durable state · idempotency · recovery     ║
+        ║  execution · verification · evidence        ║
+        ╚══════════════════════╤══════════════════════╝
+                               │
+                               ▼
+        ┌──────────────────────┴──────────────────────┐
+        │  REFERENCE EFFECT ADAPTERS                  │
+        │  files · terminal · browser · computer      │
+        └──────────────────────┬──────────────────────┘
+                               ▼
+              Linux · macOS · Windows · the web
+```
 
-| | Layer | What is implemented |
+MCP is *one* way to reach the kernel, not what the kernel is. MCP, CLI, SDK,
+and loopback HTTP all enter the same runtime, take the same policy decision,
+and write the same durable record.
+
+---
+
+## Reference effect adapters 🔌
+
+The kernel is the contract; these are its shipped implementations of it. Every
+one passes through the same policy, approval, budget, verification, receipt,
+and certificate pipeline — an adapter that skipped it would not be an adapter.
+
+| | Adapter | What is implemented |
 |:--:|---|---|
 | 🗂️ | **Files** | Root-confined read, hash, atomic write, move, mkdir, and delete with symlink-escape defenses |
-| 💻 | **Terminal** | Shell-free foreground and supervised background processes with allowlists, timeouts, cancellation, and redaction |
-| 🌐 | **Browser** | Isolated Playwright sessions, semantic DOM targets, bounded artifacts, network policy, and condition-based post-action settling |
-| 🧠 | **Memory** | Scoped SQLite memory with hybrid lexical ranking, episode context, speaker matching, confidence, freshness, diversity, expiry, supersession, provenance, and redaction |
+| 💻 | **Terminal** | Shell-free foreground and supervised background processes with allowlists, traits, timeouts, interactive input, cancellation, and redaction |
+| 🌐 | **Browser** | Isolated Playwright sessions, semantic DOM targets, bounded artifacts, network policy, popup policy, opt-in profiles, and condition-based post-action settling |
 | 🖥️ | **Computer** | Capability discovery plus governed screenshot, pointer, keyboard, and scroll adapters on macOS and supported Linux/X11 setups |
 
-Every layer passes through the same policy, approval, budget, verification,
-receipt, and certificate pipeline.
+**Operational memory** is a kernel service rather than an adapter: what MELRA
+knows about its own effects — which operation changed what, which attempt was
+already committed, what a previous run observed. Scoped SQLite storage with
+hybrid lexical ranking, episode context, confidence, freshness, expiry,
+supersession, provenance, and redaction. Semantic memory about the *user* —
+preferences, project context, conversation history — belongs to the agent
+above, not here.
+
 
 ---
 
@@ -333,8 +430,9 @@ same `MELRA_HOME` resumes the persisted workflow.
 
 ## A deliberately small MCP surface ✨
 
-Eleven tools in front of five capability runtimes and one durable workflow
-controller:
+Eleven tools in front of the reference effect adapters and one durable workflow
+controller. The CLI, both SDKs, and loopback HTTP reach the same eleven
+operations — this list is the kernel contract, not an MCP-specific API:
 
 | MCP tool | Purpose |
 |---|---|
@@ -559,18 +657,24 @@ platform integration without fragmenting the public contracts.
 
 ```text
 apps/cli/                   CLI and stdio entrypoint
+
+kernel services
 packages/protocol/          strict task, workflow, event, and operation schemas
 packages/runtime-core/      task/workflow lifecycle, events, recovery
 packages/policy-core/       local policy and scoped approvals
-packages/server/            ten-tool MCP server and runtime router
+packages/storage-sqlite/    transactional tasks, workflows, events, evidence
+packages/verifier-core/     deterministic evidence predicates
+packages/receipt-schema/    receipts and execution certificates
+packages/memory/            operational memory: scoped retrieval and lifecycle
+packages/server/            runtime composition, MCP and loopback HTTP
+
+reference effect adapters
 packages/file-runtime/      confined filesystem operations
 packages/terminal-runtime/  shell-free process supervision
 packages/browser-runtime/   isolated browser automation and stable-DOM wait
 packages/computer-runtime/  governed local computer-use adapters
-packages/memory/            scoped hybrid retrieval and lifecycle controls
-packages/storage-sqlite/    transactional tasks, workflows, events, evidence
-packages/verifier-core/     deterministic evidence predicates
-packages/receipt-schema/    receipts and execution certificates
+
+clients and evidence
 packages/sdk-ts/            TypeScript client SDK
 sdk-py/                     Python client SDK
 benchmarks/browser-agent/   pre-registered browser-agent evaluation harness

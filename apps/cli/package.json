@@ -1,7 +1,7 @@
 {
   "name": "@melra/cli",
   "version": "0.3.0-alpha.5",
-  "description": "MELRA local execution runtime and command-line interface.",
+  "description": "MELRA autonomy kernel and command-line interface.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

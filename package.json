@@ -2,7 +2,7 @@
   "name": "melra",
   "version": "0.3.0-alpha.5",
   "private": true,
-  "description": "Modular Execution Layer for Reliable Autonomy: durable, policy-governed execution with independently verified outcomes.",
+  "description": "MELRA: an agent-independent autonomy kernel that turns AI decisions into governed, durable, verifiable real-world effects.",
   "license": "Apache-2.0",
   "type": "module",
   "packageManager": "pnpm@9.5.0",

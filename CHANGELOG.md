@@ -6,6 +6,23 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- MELRA is now described as an agent-independent **autonomy kernel** rather than
+  an MCP server. The behaviour is unchanged; the framing is not. The kernel owns
+  effects — typing, classification, authorisation, approval, durable record,
+  idempotency, bounded execution, verification, and receipts — and never owns
+  reasoning, so it ships no model client, planner, prompt library, or semantic
+  memory about the user. Files, terminal, browser, and computer use are now
+  described as *reference effect adapters* rather than capability layers, memory
+  as *operational memory* about MELRA's own effects, and MCP as one of several
+  interfaces (MCP stdio, MCP over loopback HTTP, CLI, TypeScript SDK, Python
+  SDK) onto the same runtime rather than the definition of the product. README,
+  ROADMAP, `docs/ARCHITECTURE.md`, `CLAUDE.md`, and the package `description`
+  fields were rewritten accordingly; `docs/ARCHITECTURE.md` now also states the
+  responsibility boundary, the canonical effect lifecycle, and verification
+  strength levels 0–3 with today's predicates mapped onto them.
+
 ### Added
 
 - Persistent opt-in browser profiles. Set `MELRA_BROWSER_PROFILE` to an absolute

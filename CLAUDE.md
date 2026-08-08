@@ -4,13 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MELRA is a local-only MCP server (stdio transport) that turns one tool call into a
-governed, verified, receipted task. Eleven MCP tools sit in front of five capability
-runtimes (files, terminal, browser, memory, computer): six task tools
-(`melra_capabilities`, `melra_plan`, `melra_execute`, `melra_task_status`,
-`melra_task_cancel`, `melra_receipt`) and five durable-workflow tools
-(`melra_workflow_plan`, `melra_workflow_advance`, `melra_workflow_status`,
-`melra_workflow_cancel`, `melra_workflow_control`). pnpm workspace of TypeScript packages (Node 22+, ESM,
+MELRA is an agent-independent **autonomy kernel**: the layer an agent asks to
+change the world through. It owns effects, never reasoning — nothing in
+`packages/` may call a model, and no decision in the execution path may depend
+on model output.
+
+For every effect it does exactly nine things and nothing else: type it against a
+strict schema, classify it, authorise it against policy, gate it on an exact
+approval phrase, record it durably before anything runs, deduplicate it by
+idempotency key, run it under a budget and cancel signal, verify it against
+declared evidence, and receipt it. Work that is not one of those nine jobs — a
+model router, a planner, a prompt library, semantic memory about the user —
+belongs to the agent above and does not go in this repo.
+
+MCP over stdio is one of several interfaces onto the same runtime (MCP stdio,
+MCP over loopback HTTP, CLI, TypeScript SDK, Python SDK, read-only JSON API);
+none of them is a shortcut past a stage of the pipeline. Eleven MCP tools sit in
+front of four reference effect adapters (files, terminal, browser, computer) plus
+operational memory as a kernel service: six task tools (`melra_capabilities`,
+`melra_plan`, `melra_execute`, `melra_task_status`, `melra_task_cancel`,
+`melra_receipt`) and five durable-workflow tools (`melra_workflow_plan`,
+`melra_workflow_advance`, `melra_workflow_status`, `melra_workflow_cancel`,
+`melra_workflow_control`). pnpm workspace of TypeScript packages (Node 22+, ESM,
 strict tsc), plus two Python projects managed by `uv` (`sdk-py`,
 `benchmarks/browser-agent`).
 
