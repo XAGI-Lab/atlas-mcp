@@ -26,6 +26,20 @@ if (!python.includes(`version = "${pythonExpected}"`)) {
   failures.push(`sdk-py/pyproject.toml: expected ${pythonExpected}`);
 }
 
+// The locks record the local project's version too, and uv rewrites them on its
+// next run when it disagrees. A stale lock therefore does not fail here — it
+// fails during a release, as an unexplained dirty worktree three steps later.
+for (const lock of ["sdk-py/uv.lock", "benchmarks/browser-agent/uv.lock"]) {
+  const text = await readFile(lock, "utf8");
+  if (
+    !text.includes(
+      `[[package]]\nname = "melra"\nversion = "${pythonExpected}"`,
+    )
+  ) {
+    failures.push(`${lock}: melra entry is not ${pythonExpected} (run pnpm versions:set)`);
+  }
+}
+
 if (failures.length > 0) {
   process.stderr.write(`${failures.join("\n")}\n`);
   process.exitCode = 1;

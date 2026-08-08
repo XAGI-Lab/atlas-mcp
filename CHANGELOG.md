@@ -6,6 +6,21 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Ordinary tool names over the same pipeline**, behind `MELRA_HARNESS_TOOLS=1`.
+  `read_file`, `list_files`, `write_file`, `move_file`, `delete_file`,
+  `run_command`, `browse`, `browser_read`, `browser_click`, `browser_type`,
+  `remember`, `recall`, and `approve` sit alongside the eleven `melra_*` tools
+  rather than replacing them, so a harness that already knows how to call a file
+  tool does not spend a turn on plan/execute ceremony for every small read. Each
+  call builds an ordinary task and hands it to the same `TaskController`: policy,
+  evidence, verification, and receipts are unchanged. A mutation still stops on
+  its approval phrase — the tool reports the phrase and `approve` runs the task
+  that was approved, which is why the approving call does not re-plan. Off by
+  default; a client showing twenty-four tools at once buys confusion rather than
+  convenience.
+
 ## [0.3.0-alpha.7] - 2026-08-08
 
 ### Security

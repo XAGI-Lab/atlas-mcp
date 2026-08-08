@@ -184,7 +184,7 @@ but not in the shape the protocol should eventually name.
 | Verification framework | partial | Execution and state levels ship; independent and semantic do not ([P3](#p3--verification-framework)) |
 | Evidence system | ✓ | Redacted receipts and SHA-256 certificates |
 | Effect adapters | partial | Files, terminal, browser, computer; HTTP, database, cloud, SaaS pending ([P4](#p4--credentials-and-api-effects)) |
-| Harness adapters | ✗ | [P1](#p1--prove-agent-independence) |
+| Harness adapters | partial | Ordinary tool names over the same pipeline (`MELRA_HARNESS_TOOLS=1`); reference integrations pending ([P1](#p1--prove-agent-independence)) |
 | Sandbox and boundary | ✗ | Developer mode only ([P2](#p2--hard-capability-boundary)) |
 | Workflow engine | ✓ | Nine node types, events, projections, leases |
 | Compatibility suite | ✗ | [P1](#p1--prove-agent-independence) |
@@ -220,13 +220,15 @@ but not in the shape the protocol should eventually name.
 
 ### P1 — prove agent independence
 
-- [ ] Harness adapters that make MELRA mostly invisible. A model should see
+- [x] Harness adapters that make MELRA mostly invisible. A model should see
       `read_file`, `write_file`, `run_command`, `browser_click` — not
       `melra_plan`, `melra_execute`, and `melra_receipt` for every small
       operation. The adapter translates ordinary tool semantics into Effect
       Contracts and runs plan → approve → execute → verify → receipt
       underneath. The goal is boring infrastructure: install the adapter,
-      configure policy, run the agent normally.
+      configure policy, run the agent normally. Opt-in with
+      `MELRA_HARNESS_TOOLS=1` so a client that only knows the kernel
+      vocabulary sees the same eleven tools it always did.
 - [ ] At least two reference integrations against different harnesses, with the
       same policy, durable state, and receipts surviving the swap. This is the
       claim that distinguishes a kernel from a server; it is not yet proven.

@@ -453,6 +453,47 @@ The repository’s automated compatibility claim is the official MCP SDK over
 stdio. Named graphical clients remain release-gated until their current
 versions have been manually exercised; see [VALIDATION.md](VALIDATION.md).
 
+## Ordinary tool names
+
+The eleven `melra_*` tools are the kernel’s own vocabulary. A model asked to
+plan, read back an approval challenge, and execute for every small read spends
+most of its turn on ceremony, so there is a second surface with the names a
+harness already knows:
+
+```json
+{ "env": { "MELRA_HARNESS_TOOLS": "1" } }
+```
+
+That adds thirteen tools alongside the eleven: `read_file`, `list_files`,
+`write_file`, `move_file`, `delete_file`, `run_command`, `browse`,
+`browser_read`, `browser_click`, `browser_type`, `remember`, `recall`, and
+`approve`. It is off by default — a client showing all twenty-four at once buys
+confusion rather than convenience.
+
+Nothing here is a shortcut past a stage. Each call builds an ordinary task and
+hands it to the same controller, so policy, evidence, verification, and receipts
+apply exactly as they do to `melra_plan`. What changes is how a mutation is
+reported: instead of failing, the tool comes back with the phrase.
+
+```json
+{
+  "status": "approval_required",
+  "taskId": "0f0e…",
+  "phrase": "APPROVE 3d81c0a2f4b7",
+  "expiresAt": "2026-08-08T20:44:11.204Z",
+  "next": "Show the phrase to the person who has to authorise this, then call `approve` with this taskId and the phrase they confirm."
+}
+```
+
+`approve` takes that task id and that phrase and runs the operation that was
+approved. It cannot change anything about it — the phrase is a hash of the task
+id and the operation together, so approved arguments cannot be swapped for
+others afterwards. A policy denial comes back the same way, as a result with
+`status: "blocked"` and a reason, rather than an error.
+
+Everything else stays reachable: the task id in every response is what
+`melra_receipt` takes, so the evidence and the certificate are one call away.
+
 ## Docker
 
 Build and check the image:

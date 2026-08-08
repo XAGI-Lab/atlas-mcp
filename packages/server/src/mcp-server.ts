@@ -21,6 +21,18 @@ import {
   WorkflowPlanInputSchema,
 } from "@melra/protocol";
 import type { MelraRuntime } from "./runtime.js";
+import { HARNESS_TOOLS, registerHarnessTools } from "./harness-tools.js";
+
+/**
+ * Whether to also expose the ordinary tool names a harness already knows.
+ * Opt-in, because a client that shows all twenty-four tools at once buys
+ * confusion rather than convenience: the kernel vocabulary is the default, and
+ * `MELRA_HARNESS_TOOLS=1` adds the adapter surface on top.
+ */
+export function harnessToolsEnabled(environment: NodeJS.ProcessEnv): boolean {
+  const raw = environment.MELRA_HARNESS_TOOLS?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
 
 function toolResult(value: unknown) {
   return {
@@ -39,11 +51,14 @@ function toolResult(value: unknown) {
  * posture they are operating under.
  */
 export function capabilitiesPayload(runtime: MelraRuntime): unknown {
+  const harnessTools = harnessToolsEnabled(process.env);
   return {
         product: "MELRA",
         version: PRODUCT_VERSION,
         protocolVersion: PROTOCOL_VERSION,
-        tools: TOOL_NAMES,
+        tools: harnessTools
+          ? [...TOOL_NAMES, ...Object.keys(HARNESS_TOOLS), "approve"]
+          : TOOL_NAMES,
         operations: {
           file: ["list", "read", "stat", "hash", "write", "move", "delete", "mkdir"],
           terminal: ["run", "start", "status", "output", "send", "stop"],
@@ -381,6 +396,7 @@ export function createMcpServer(runtime: MelraRuntime): McpServer {
       );
     },
   );
+  if (harnessToolsEnabled(process.env)) registerHarnessTools(server, runtime);
   return server;
 }
 

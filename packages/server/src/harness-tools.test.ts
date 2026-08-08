@@ -1,0 +1,114 @@
+// Copyright 2026 XAGI Labs Private Limited
+// SPDX-License-Identifier: Apache-2.0
+
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { harnessToolsEnabled } from "./mcp-server.js";
+import { registerHarnessTools } from "./harness-tools.js";
+import { createMelraRuntime, type MelraRuntime } from "./runtime.js";
+
+type Handler = (args: Record<string, unknown>) => Promise<{
+  content: { type: "text"; text: string }[];
+}>;
+
+/** Enough of an `McpServer` to collect handlers; the transport proves nothing here. */
+function collect(runtime: MelraRuntime): Map<string, Handler> {
+  const handlers = new Map<string, Handler>();
+  registerHarnessTools(
+    {
+      registerTool: (name: string, _config: unknown, handler: Handler) =>
+        handlers.set(name, handler),
+    } as never,
+    runtime,
+  );
+  return handlers;
+}
+
+async function call(
+  handlers: Map<string, Handler>,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const handler = handlers.get(name);
+  if (handler === undefined) throw new Error(`no tool named ${name}`);
+  const result = await handler(args);
+  return JSON.parse(result.content[0]!.text) as Record<string, unknown>;
+}
+
+describe("harnessToolsEnabled", () => {
+  it("takes only the affirmative spellings", () => {
+    expect(harnessToolsEnabled({ MELRA_HARNESS_TOOLS: "1" })).toBe(true);
+    expect(harnessToolsEnabled({ MELRA_HARNESS_TOOLS: "0" })).toBe(false);
+    expect(harnessToolsEnabled({})).toBe(false);
+  });
+});
+
+describe("harness tools", () => {
+  let base: string;
+  let workspace: string;
+  let runtime: MelraRuntime;
+  let tools: Map<string, Handler>;
+
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), "melra-harness-"));
+    workspace = join(base, "workspace");
+    await mkdir(workspace, { recursive: true });
+    await writeFile(join(workspace, "note.txt"), "hello", "utf8");
+    runtime = await createMelraRuntime({
+      workspaceRoot: workspace,
+      dataDirectory: join(base, "data"),
+      environment: {},
+    });
+    tools = collect(runtime);
+  });
+
+  afterEach(async () => {
+    await runtime.close();
+    await rm(base, { recursive: true, force: true });
+  });
+
+  it("runs a read straight through", async () => {
+    const result = await call(tools, "read_file", { path: "note.txt" });
+    expect(result.status).toBe("verified_success");
+    expect((result.result as { content: string }).content).toBe("hello");
+  });
+
+  it("holds a mutation on the approval phrase and runs it once approved", async () => {
+    const held = await call(tools, "write_file", {
+      path: "written.txt",
+      content: "from the harness",
+    });
+    expect(held.status).toBe("approval_required");
+    // Nothing ran: an approval that could be skipped by ignoring the answer
+    // would make the whole surface a bypass.
+    await expect(readFile(join(workspace, "written.txt"), "utf8")).rejects.toThrow();
+
+    const done = await call(tools, "approve", {
+      taskId: held.taskId,
+      phrase: held.phrase,
+    });
+    expect(done.status).toBe("verified_success");
+    expect(await readFile(join(workspace, "written.txt"), "utf8")).toBe(
+      "from the harness",
+    );
+  });
+
+  it("refuses a wrong phrase", async () => {
+    const held = await call(tools, "write_file", {
+      path: "nope.txt",
+      content: "x",
+    });
+    await expect(
+      call(tools, "approve", { taskId: held.taskId, phrase: "APPROVE whatever" }),
+    ).rejects.toThrow("approval_phrase_mismatch");
+    await expect(readFile(join(workspace, "nope.txt"), "utf8")).rejects.toThrow();
+  });
+
+  it("reports a policy denial as a result rather than an error", async () => {
+    const result = await call(tools, "run_command", { command: "sh", args: ["-c", "true"] });
+    expect(result.status).toBe("blocked");
+    expect(result.reason).toBe("command_not_allowlisted");
+  });
+});

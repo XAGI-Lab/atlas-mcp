@@ -46,5 +46,19 @@ await edit("sdk-py/pyproject.toml", (text) =>
     `version = "${next.replace("-alpha.", "a")}"`,
   ),
 );
+// A uv lock records the local project's own version, and `uv` rewrites the file
+// the first time it runs against a changed `pyproject.toml`. Left behind, that
+// rewrite lands mid-release: `pnpm check` runs pytest through uv, the worktree
+// goes dirty, and the next step refuses to publish from it. Cheaper to move the
+// recorded version with everything else than to explain the failure later.
+const pythonVersion = next.replace("-alpha.", "a");
+for (const lock of ["sdk-py/uv.lock", "benchmarks/browser-agent/uv.lock"]) {
+  await edit(lock, (text) =>
+    text.replace(
+      /(\[\[package\]\]\nname = "melra"\nversion = )"[^"]*"/,
+      `$1"${pythonVersion}"`,
+    ),
+  );
+}
 
 process.stdout.write(`${next}\n${written.map((p) => `  ${p}`).join("\n")}\n`);
