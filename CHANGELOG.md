@@ -6,8 +6,47 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `pnpm build` and `pnpm typecheck` no longer fan out unbounded. Only `pnpm test`
+  was capped; the other two ran at pnpm's default four packages in flight, and a
+  `tsc` process holds a whole program graph, so `pnpm check` could take several
+  GiB before a test started. `scripts/run-tests.mjs` is now
+  `scripts/run-recursive.mjs <script>` and sizes any recursive script against RAM
+  and core count from one place.
+
+## [0.3.0-alpha.6] - 2026-08-08
+
 ### Added
 
+- **Effect Contract.** The fields the lifecycle already read one at a time now
+  have a name and one schema: identity, capability, operation, effect, risk,
+  target, traits, postconditions, budget, idempotency key, policy decision, and
+  authorization. `melra_plan` returns the contract next to the record it was
+  derived from, so what an approver reads before echoing a phrase is the same
+  object the execution path loads. It is derived from the persisted task and can
+  never be supplied — a second input path able to describe an effect differently
+  from the one about to run would be a way around the approval, not a
+  convenience.
+- **Principal identity and delegation.** A request may declare
+  `identity: { principal, onBehalfOf }` — the immediate caller plus the chain
+  behind it, outermost first, so organization → human → harness → agent survives
+  into the record. A request that declares none is the local principal,
+  `agent:local`, which is what every existing caller becomes. Receipts carry the
+  chain as one line, so a receipt answers who authorised an effect rather than
+  only what ran. MELRA does not authenticate any of it: a link is a claim the
+  layer above makes, and in developer mode it is worth what that layer's own
+  boundary is worth.
+- **Capability grants.** `policy.capabilities` issues bounded authority: a
+  capability pattern, the effects allowed under it, a target pattern, the holder,
+  and optional `validUntil` and `policyVersion`. The list is empty by default and
+  changes nothing when it is. A non-empty list is a closed world — any effect
+  with no matching grant is denied `capability_not_granted` before an allowlist
+  is consulted, because the allowlists describe what a grant holder may do, not
+  whether they hold one. An expired grant is `capability_expired` and one issued
+  against a superseded policy version is `capability_policy_version_mismatch`,
+  both refusals rather than reinterpretations. Unhinged mode lifts grants along
+  with the rest of MELRA's judgement.
 - Computer use gained two actions. `inspect` is a read that reports what the
   desktop actually looks like — frontmost application, window title, display
   geometry, and whether another process holds secure keyboard input — so a task
@@ -698,7 +737,8 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.5...HEAD
+[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.6...HEAD
+[0.3.0-alpha.6]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.5...v0.3.0-alpha.6
 [0.3.0-alpha.5]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.4...v0.3.0-alpha.5
 [0.3.0-alpha.4]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.3...v0.3.0-alpha.4
 [0.3.0-alpha.3]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.2...v0.3.0-alpha.3

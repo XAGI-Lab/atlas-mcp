@@ -4,7 +4,7 @@
 import { z } from "zod";
 
 export const PROTOCOL_VERSION = "2025-11-25";
-export const PRODUCT_VERSION = "0.3.0-alpha.5";
+export const PRODUCT_VERSION = "0.3.0-alpha.6";
 
 const boundedPath = z.string().min(1).max(4096);
 const boundedText = z.string().max(200_000);
@@ -297,6 +297,60 @@ export const EvidencePredicateSchema = z.discriminatedUnion("type", [
 
 export type EvidencePredicate = z.infer<typeof EvidencePredicateSchema>;
 
+export const PrincipalKindSchema = z.enum([
+  "organization",
+  "human",
+  "harness",
+  "agent",
+  "session",
+  "subagent",
+  "service",
+]);
+
+export const PrincipalSchema = z
+  .object({
+    kind: PrincipalKindSchema,
+    id: z.string().min(1).max(200),
+  })
+  .strict();
+
+/**
+ * Who is asking, and on whose behalf.
+ *
+ * `principal` is the immediate caller — the agent or session that dispatched
+ * this effect. `onBehalfOf` is the delegation chain behind it, outermost first
+ * (organization → human → harness → parent agent), so a receipt answers "who
+ * authorised this" rather than only "what ran". MELRA does not authenticate any
+ * of it; a link is a claim the layer above makes, and it is worth exactly as
+ * much as that layer's own boundary.
+ */
+export const IdentitySchema = z
+  .object({
+    principal: PrincipalSchema,
+    onBehalfOf: z.array(PrincipalSchema).max(7).default([]),
+  })
+  .strict();
+
+export type Principal = z.infer<typeof PrincipalSchema>;
+export type Identity = z.infer<typeof IdentitySchema>;
+
+/** The one principal assumed when a caller declares none. */
+export const LOCAL_IDENTITY: Identity = {
+  principal: { kind: "agent", id: "local" },
+  onBehalfOf: [],
+};
+
+export function principalRef(principal: Principal): string {
+  return `${principal.kind}:${principal.id}`;
+}
+
+/** The delegation chain as one line, outermost first. */
+export function delegationChain(identity: Identity): string {
+  return [...identity.onBehalfOf, identity.principal]
+    .map(principalRef)
+    .join("/");
+}
+
 export const TaskBudgetSchema = z
   .object({
     maxSteps: z.number().int().min(1).max(100).default(10),
@@ -341,6 +395,9 @@ export const TaskRequestSchema = z
       .describe(
         "Predicates that must hold after execution for the task to be verified_success. Required for any non-read operation: a mutation with none is denied with mutation_requires_evidence. An adapter that succeeded while a predicate failed is partial, never success.",
       ),
+    identity: IdentitySchema.optional().describe(
+      "Who is asking, and on whose behalf. Recorded on the task and every receipt, and matched against policy.capabilities when the operator has issued grants. Omitted means the implicit local principal.",
+    ),
   })
   .strict();
 
@@ -402,6 +459,66 @@ export const ApprovalResponseSchema = z
   .strict();
 
 export type ApprovalResponse = z.infer<typeof ApprovalResponseSchema>;
+
+/**
+ * Bounded authority to take one kind of effect, issued to a principal by the
+ * operator rather than derived from a credential.
+ *
+ * `capability` and `target` are matched against what `classifyOperation`
+ * reports, with `*` standing for any run of characters, so `file.*` over
+ * `/repo/build/*` grants file work inside one directory and nothing else. An
+ * empty grant list means no capability narrowing is configured — the rest of
+ * policy still applies. A non-empty list is a closed world: an effect with no
+ * matching grant is denied before any allowlist is consulted.
+ */
+export const CapabilityGrantSchema = z
+  .object({
+    id: z.string().min(1).max(200),
+    capability: z.string().min(1).max(200),
+    effects: z.array(EffectSchema).min(1).max(3),
+    target: z.string().min(1).max(4096).default("*"),
+    /** `kind:id` of the holder, matched against the immediate principal. */
+    principal: z.string().min(1).max(200).default("*"),
+    validUntil: z.string().datetime().optional(),
+    /**
+     * Policy version this grant was issued against. A grant that names a
+     * version the running policy no longer has is refused rather than silently
+     * reinterpreted under different rules.
+     */
+    policyVersion: z.string().max(64).optional(),
+  })
+  .strict();
+
+export type CapabilityGrant = z.infer<typeof CapabilityGrantSchema>;
+
+/**
+ * One bounded effect, named as a single object.
+ *
+ * Every field here already governed execution; the contract is what they are
+ * called together. It is derived from a persisted task rather than supplied,
+ * so there is no second input path that could describe an effect differently
+ * from the one that will run.
+ */
+export interface EffectContract {
+  contractVersion: string;
+  taskId: string;
+  identity: Identity;
+  capability: string;
+  operation: Operation;
+  effect: Effect;
+  risk: Risk;
+  target: string;
+  traits: CapabilityTrait[];
+  /** Effects this request refuses for itself, honoured even in unhinged mode. */
+  forbiddenEffects: Effect[];
+  /** What must hold afterwards for the effect to count as a success. */
+  postconditions: EvidencePredicate[];
+  budget: TaskBudget;
+  idempotencyKey?: string;
+  policy: PolicyDecision;
+  authorization?: ApprovalChallenge;
+  metadata: { goal: string };
+}
 
 export const WorkflowNodeIdSchema = z
   .string()
@@ -713,6 +830,39 @@ export interface TaskRecord {
   certificateId?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Assemble the contract for a planned task.
+ *
+ * `classification` comes from `classifyOperation`, which lives in the policy
+ * package; passing it in keeps this file free of dependencies and keeps one
+ * classifier authoritative instead of a second copy that could disagree.
+ */
+export function effectContract(
+  task: TaskRecord,
+  classification: { capability: string; target: string },
+): EffectContract {
+  return {
+    contractVersion: PROTOCOL_VERSION,
+    taskId: task.id,
+    identity: task.request.identity ?? LOCAL_IDENTITY,
+    capability: classification.capability,
+    operation: task.request.operation,
+    effect: task.policyDecision.effect,
+    risk: task.policyDecision.risk,
+    target: classification.target,
+    traits: task.policyDecision.traits,
+    forbiddenEffects: task.request.forbiddenEffects,
+    postconditions: task.request.requiredEvidence,
+    budget: task.request.budget,
+    ...(task.idempotencyKey === undefined
+      ? {}
+      : { idempotencyKey: task.idempotencyKey }),
+    policy: task.policyDecision,
+    ...(task.approval === undefined ? {} : { authorization: task.approval }),
+    metadata: { goal: task.request.goal },
+  };
 }
 
 export const MelraCapabilitiesInputSchema = z.object({}).strict();

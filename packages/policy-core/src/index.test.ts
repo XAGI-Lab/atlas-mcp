@@ -580,3 +580,83 @@ describe("capability traits", () => {
     ).toBe("unhinged_mode_no_guardrails");
   });
 });
+
+describe("capability grants", () => {
+  const taskId = "4c5a0130-71a5-4c48-b22d-c7901f12688f";
+  const identity = {
+    principal: { kind: "agent", id: "claude-code" },
+    onBehalfOf: [
+      { kind: "organization", id: "acme" },
+      { kind: "human", id: "dheeraj" },
+    ],
+  };
+  const read = (extra: Record<string, unknown> = {}) =>
+    TaskRequestSchema.parse({
+      goal: "Read the changelog",
+      operation: { kind: "file", action: "read", path: "CHANGELOG.md" },
+      ...extra,
+    });
+  const grant = (overrides: Record<string, unknown> = {}) => ({
+    id: "g1",
+    capability: "file.*",
+    effects: ["read"],
+    target: "*",
+    principal: "agent:claude-code",
+    ...overrides,
+  });
+  const decide = (
+    request: ReturnType<typeof read>,
+    capabilities: ReturnType<typeof grant>[],
+  ) =>
+    evaluatePolicy(taskId, request, {
+      ...createDefaultPolicy(root),
+      capabilities: capabilities as never,
+    }).decision;
+
+  it("leaves policy alone when no grants are issued", () => {
+    expect(decide(read({ identity }), []).outcome).toBe("allow");
+  });
+
+  it("denies an effect no grant covers", () => {
+    expect(decide(read({ identity }), [grant({ capability: "browser.*" })])).toMatchObject({
+      outcome: "deny",
+      reason: "capability_not_granted:file.read",
+    });
+  });
+
+  it("matches the capability, effect, target, and holder", () => {
+    expect(decide(read({ identity }), [grant()]).outcome).toBe("allow");
+    // Same grant, different holder.
+    expect(
+      decide(read({ identity }), [grant({ principal: "agent:other" })]).reason,
+    ).toBe("capability_not_granted:file.read");
+    // Same holder, target outside the grant.
+    expect(decide(read({ identity }), [grant({ target: "/elsewhere/*" })]).reason).toBe(
+      "capability_not_granted:file.read",
+    );
+  });
+
+  it("refuses a grant that has expired or names another policy version", () => {
+    expect(
+      decide(read({ identity }), [grant({ validUntil: "2020-01-01T00:00:00.000Z" })]),
+    ).toMatchObject({ outcome: "deny", reason: "capability_expired:g1" });
+    expect(
+      decide(read({ identity }), [grant({ policyVersion: "99" })]).reason,
+    ).toBe("capability_policy_version_mismatch:g1");
+  });
+
+  it("falls back to the local principal when the caller declares none", () => {
+    expect(decide(read(), [grant({ principal: "agent:local" })]).outcome).toBe("allow");
+    expect(decide(read(), [grant()]).reason).toBe("capability_not_granted:file.read");
+  });
+
+  it("grants nothing when there are no guardrails at all", () => {
+    expect(
+      evaluatePolicy(taskId, read({ identity }), {
+        ...createDefaultPolicy(root),
+        unhinged: true,
+        capabilities: [grant({ capability: "browser.*" })] as never,
+      }).decision.reason,
+    ).toBe("unhinged_mode_no_guardrails");
+  });
+});

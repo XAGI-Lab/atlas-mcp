@@ -7,13 +7,20 @@ import { createHash, randomUUID } from "node:crypto";
 import type {
   ApprovalChallenge,
   ApprovalResponse,
+  CapabilityGrant,
   CapabilityTrait,
   Effect,
   EvidencePredicate,
+  Identity,
   Operation,
   PolicyDecision,
   Risk,
   TaskRequest,
+} from "@melra/protocol";
+import {
+  CapabilityGrantSchema,
+  LOCAL_IDENTITY,
+  principalRef,
 } from "@melra/protocol";
 
 export interface LocalPolicy {
@@ -57,6 +64,16 @@ export interface LocalPolicy {
    * included.
    */
   deniedTraits: CapabilityTrait[];
+  /**
+   * Bounded authority the operator has issued, matched against the effect and
+   * the immediate principal before any allowlist is consulted.
+   *
+   * Empty by default, which means no capability narrowing: policy behaves as it
+   * always has. A non-empty list is a closed world — an effect with no matching
+   * grant is denied with `capability_not_granted`. This is how a caller ends up
+   * holding authority over one directory rather than over the whole workspace.
+   */
+  capabilities: CapabilityGrant[];
   /**
    * Stops a task from re-running an operation whose target keeps failing.
    *
@@ -377,6 +394,7 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
     maxFileBytes: 10 * 1024 * 1024,
     memoryRetention: { maxAgeDays: 30, maxPerScope: 0 },
     deniedTraits: [],
+    capabilities: [],
     circuitBreaker: { threshold: 3, cooldownMs: 60_000 },
     unhinged: false,
   };
@@ -400,6 +418,13 @@ export async function loadPolicy(
     memoryRetention: { ...defaults.memoryRetention, ...parsed.memoryRetention },
     circuitBreaker: { ...defaults.circuitBreaker, ...parsed.circuitBreaker },
     deniedTraits: parsed.deniedTraits ?? defaults.deniedTraits,
+    // Parsed, not spread: a grant is the file claiming authority exists, so a
+    // malformed one has to fail loudly rather than land as an object that
+    // matches nothing or — worse — everything.
+    capabilities:
+      parsed.capabilities === undefined
+        ? defaults.capabilities
+        : CapabilityGrantSchema.array().max(200).parse(parsed.capabilities),
   };
 }
 
@@ -652,6 +677,57 @@ function domainAllowed(operation: Operation, policy: LocalPolicy): boolean {
   );
 }
 
+/**
+ * `*` stands for any run of characters; everything else is literal. Enough for
+ * `file.*` and `/repo/build/*`, and small enough that a policy author can
+ * predict what it matches.
+ */
+function patternMatches(pattern: string, value: string): boolean {
+  if (pattern === "*") return true;
+  const escaped = pattern
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replaceAll("\\*", ".*");
+  return new RegExp(`^${escaped}$`).test(value);
+}
+
+/**
+ * Why the issued capabilities do not cover this effect, or `undefined` if they
+ * do. An empty grant list is not a closed world — it means the operator has not
+ * issued grants at all, and the rest of policy decides on its own.
+ */
+export function capabilityRefusal(
+  classified: { effect: Effect; capability: string; target: string },
+  identity: Identity,
+  policy: LocalPolicy,
+): string | undefined {
+  if (policy.capabilities.length === 0) return undefined;
+  const holder = principalRef(identity.principal);
+  const matching = policy.capabilities.filter(
+    (grant) =>
+      patternMatches(grant.capability, classified.capability) &&
+      grant.effects.includes(classified.effect) &&
+      patternMatches(grant.target, classified.target) &&
+      patternMatches(grant.principal, holder),
+  );
+  if (matching.length === 0) {
+    return `capability_not_granted:${classified.capability}`;
+  }
+  const usable = matching.filter(
+    (grant) =>
+      (grant.validUntil === undefined ||
+        Date.parse(grant.validUntil) > Date.now()) &&
+      (grant.policyVersion === undefined ||
+        grant.policyVersion === policy.version),
+  );
+  if (usable.length > 0) return undefined;
+  // Every candidate matched the effect and was refused for a reason the holder
+  // can act on, so name it rather than reporting a missing grant.
+  const stale = matching.find((grant) => grant.policyVersion !== policy.version);
+  return stale?.policyVersion !== undefined
+    ? `capability_policy_version_mismatch:${stale.id}`
+    : `capability_expired:${matching[0]?.id ?? classified.capability}`;
+}
+
 export function evaluatePolicy(
   taskId: string,
   request: TaskRequest,
@@ -694,10 +770,21 @@ export function evaluatePolicy(
     return { decision: decide("allow", "unhinged_mode_no_guardrails") };
   }
 
+  // Authority before rules: a caller that was never granted this effect is
+  // refused without consulting the allowlists, which describe what the grant
+  // holder may do, not whether they hold one.
+  const ungranted = capabilityRefusal(
+    classified,
+    request.identity ?? LOCAL_IDENTITY,
+    policy,
+  );
+  if (ungranted !== undefined) {
+    return { decision: decide("deny", ungranted, "critical") };
+  }
+
   const deniedTrait = classified.traits.find((trait) =>
     policy.deniedTraits.includes(trait),
-  );
-  if (deniedTrait !== undefined) {
+  );  if (deniedTrait !== undefined) {
     return { decision: decide("deny", `trait_denied:${deniedTrait}`) };
   }
 

@@ -362,6 +362,62 @@ export const scenarios: EvaluationScenario[] = [
     expectedPlan: "policy_blocked",
   },
   {
+    // Authority, not rules: the file read is allowed by every other setting and
+    // still refused, because the grants issued cover the browser and nothing
+    // else. Denied before the allowlists are even consulted.
+    id: "capability-not-granted",
+    category: "policy",
+    policy: {
+      capabilities: [
+        {
+          id: "browsing-only",
+          capability: "browser.*",
+          effects: ["read"],
+          target: "*",
+          principal: "*",
+        },
+      ],
+    },
+    request: {
+      goal: "Read a file outside the issued grants",
+      operation: { kind: "file", action: "read", path: "README.md" },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 10_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "policy_blocked",
+  },
+  {
+    // The same closed world, this time with a grant that covers the effect,
+    // the target, and the principal asking.
+    id: "capability-granted-to-principal",
+    category: "policy",
+    policy: {
+      capabilities: [
+        {
+          id: "reads-for-the-agent",
+          capability: "file.read",
+          effects: ["read"],
+          target: "*",
+          principal: "agent:evals",
+        },
+      ],
+    },
+    fixtures: [{ path: "granted.txt", content: "inside the grant" }],
+    request: {
+      goal: "Read a file the grant covers",
+      operation: { kind: "file", action: "read", path: "granted.txt" },
+      identity: { principal: { kind: "agent", id: "evals" }, onBehalfOf: [] },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 10_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "planned",
+    expectedFinal: "verified_success",
+  },
+  {
     id: "terminal-command-not-allowlisted",
     category: "policy",
     request: {

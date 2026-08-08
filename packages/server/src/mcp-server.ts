@@ -114,6 +114,14 @@ export function capabilitiesPayload(runtime: MelraRuntime): unknown {
           // terminal posture, and it is not: `npm` on the allowlist with
           // `package-install` denied permits `npm test` and refuses `npm i`.
           deniedTraits: runtime.policy.deniedTraits,
+          // A caller cannot tell from a denial alone whether it is missing one
+          // grant or living in a closed world, so say which one this is up
+          // front. The grants themselves are the operator's to know.
+          capabilityGrants: runtime.policy.capabilities.length,
+          capabilityMode:
+            runtime.policy.capabilities.length === 0
+              ? "ungranted"
+              : "granted-only",
           // Worth knowing before a caller plans a retry loop: after this many
           // consecutive failures against one target, the next task touching it
           // is refused outright rather than run.

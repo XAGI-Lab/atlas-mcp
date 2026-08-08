@@ -60,14 +60,67 @@ RESULT       returned to the caller
 `melra_execute` **re-runs** `CAPABILITY` and `POLICY` before `EXECUTION`, so a
 plan cannot ride a policy that has since been tightened.
 
-Two stages are named but not yet separable in code. `IDENTITY` and `CAPABILITY`
-are today collapsed into the policy evaluation — there is one implicit local
-principal and capabilities are expressed as policy fields rather than as issued
-grants. `CREDENTIALS` is a no-op: adapters use the ambient process environment,
-so an agent that can reach the kernel can reach whatever the kernel's process
-can. Both are [P0](../ROADMAP.md#p0--define-the-category) and
+`IDENTITY` and `CAPABILITY` are real stages but weak ones: the principal is a
+claim the caller makes rather than something MELRA authenticates, and grants are
+checked only where an operator has issued them. `CREDENTIALS` is still a no-op —
+adapters use the ambient process environment, so an agent that can reach the
+kernel can reach whatever the kernel's process can. Closing those two is
+[P2](../ROADMAP.md#p2--hard-capability-boundary) and
 [P4](../ROADMAP.md#p4--credentials-and-api-effects) work, listed here because
 the lifecycle is the contract even where the implementation is still one step.
+
+## Effect contract
+
+The stages above each read a field of one object. `EffectContract` is what those
+fields are called together:
+
+```ts
+interface EffectContract {
+  contractVersion: string;
+  taskId: string;
+  identity: Identity;          // who asked, on whose behalf
+  capability: string;          // file.write, terminal.run, browser.click
+  operation: Operation;        // the strict, bounded schema
+  effect: Effect;              // read · mutate · destructive
+  risk: Risk;
+  target: string;
+  traits: CapabilityTrait[];   // package-install, network
+  forbiddenEffects: Effect[];  // limits the caller placed on itself
+  postconditions: EvidencePredicate[];
+  budget: TaskBudget;
+  idempotencyKey?: string;
+  policy: PolicyDecision;
+  authorization?: ApprovalChallenge;
+  metadata: { goal: string };
+}
+```
+
+It is **derived from a persisted task, never supplied**. `melra_plan` returns it
+alongside the record it was derived from, so what a caller reads before echoing
+an approval phrase is the same object the execution path will load. A second
+input path that could describe an effect differently from the one about to run
+would be a way around the approval, not a convenience.
+
+## Identity and capability grants
+
+`identity` is optional on a request: `{ principal, onBehalfOf }`, where
+`principal` is the immediate caller and `onBehalfOf` is the chain behind it,
+outermost first — organization → human → harness → parent agent. A request that
+declares none is the local principal, `agent:local`. Every receipt records the
+chain as one line (`organization:acme/human:dheeraj/agent:claude-code`), so a
+receipt answers *who authorised this*, not only *what ran*.
+
+MELRA does not authenticate any of it. A link is a claim the layer above makes
+and is worth exactly what that layer's own boundary is worth — which in developer
+mode is nothing. Enforced mode ([P2](../ROADMAP.md#p2--hard-capability-boundary))
+is where a principal becomes a fact rather than a claim.
+
+`policy.capabilities` turns that identity into bounded authority. Each grant
+names a capability pattern, the effects allowed under it, a target pattern, the
+holder, and optionally `validUntil` and `policyVersion`. An empty list — the
+default — means no narrowing. A non-empty list is a closed world, checked before
+any allowlist: authority comes first, because the allowlists describe what a
+grant holder may do, not whether they hold one.
 
 ## Execution boundaries
 

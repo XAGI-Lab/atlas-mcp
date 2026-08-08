@@ -144,7 +144,10 @@ describe("SqliteStore", () => {
 
   it("compacts only memories no read path can return", () => {
     store = new SqliteStore(":memory:");
-    const now = new Date("2026-08-08T12:00:00.000Z");
+    // `supersedeMemory` stamps `updated_at` from the real clock, so `now` has to
+    // come from the same clock — a pinned instant made the test pass or fail on
+    // the time of day it happened to run at.
+    const now = new Date(Date.now() + 1_000);
     const old = new Date("2026-01-01T00:00:00.000Z").toISOString();
     const base = {
       scope: "workspace" as const,

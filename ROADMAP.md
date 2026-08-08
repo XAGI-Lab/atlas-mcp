@@ -171,10 +171,10 @@ but not in the shape the protocol should eventually name.
 
 | System | Status | Where it is |
 |---|:--:|---|
-| Effect protocol | partial | Strict per-operation schemas; not yet one named Effect Contract ([P0](#p0--define-the-category)) |
-| Principal identity | ✗ | One implicit local principal ([P0](#p0--define-the-category)) |
-| Delegation chain | ✗ | [P0](#p0--define-the-category) |
-| Capability engine | partial | Expressed as policy fields, not issued grants ([P0](#p0--define-the-category)) |
+| Effect protocol | ✓ | `EffectContract`, derived from the persisted task |
+| Principal identity | partial | Declared and recorded, not authenticated ([P2](#p2--hard-capability-boundary)) |
+| Delegation chain | ✓ | `identity.onBehalfOf`, stamped on every receipt |
+| Capability engine | ✓ | Issued grants in `policy.capabilities`, checked before allowlists |
 | Policy engine | ✓ | `@melra/policy-core`, re-evaluated at execution |
 | Authorization | ✓ | Exact, expiring, task-scoped approval phrases |
 | Credential broker | ✗ | Adapters use the ambient environment ([P4](#p4--credentials-and-api-effects)) |
@@ -197,18 +197,26 @@ but not in the shape the protocol should eventually name.
       MELRA owns effects.
 - [x] Document the canonical effect lifecycle as one named sequence
       (`REQUEST → … → RECEIPT`) rather than prose scattered across docs.
-- [ ] **Effect Contract** as a first-class protocol concept: principal,
-      capability, operation, target, arguments, preconditions, expected
-      postconditions, idempotency identity, budget, approval policy,
-      verification policy, metadata. Today these exist as separate fields on a
-      task request; the contract names them as one object with one schema.
-- [ ] **Principal identity** with an explicit delegation chain — organization →
-      human → agent → session → parent agent → model. Every effect record and
-      receipt carries who asked, on whose behalf.
-- [ ] **Capability model**: resource, effect, scope, principal, `valid_until`,
-      `max_operations`, `policy_version` — and provider-shaped capabilities
+- [x] **Effect Contract** as a first-class protocol concept: principal,
+      capability, operation, target, effect, risk, traits, postconditions,
+      idempotency identity, budget, policy decision, authorization, metadata.
+      Derived from the persisted task and returned with every plan, so there is
+      no second input path that could describe an effect differently from the
+      one about to run.
+- [x] **Principal identity** with an explicit delegation chain — organization →
+      human → harness → agent → session → subagent. Optional on a request,
+      defaulting to `agent:local`; every receipt carries the chain that asked.
+      Declared, not authenticated — making a principal a fact rather than a
+      claim is [P2](#p2--hard-capability-boundary).
+- [x] **Capability model**: `policy.capabilities` grants naming capability and
+      target patterns, allowed effects, holder, `validUntil`, and
+      `policyVersion`. Empty means no narrowing; non-empty is a closed world
+      checked before any allowlist.
+- [ ] Usage-bounded and provider-shaped grants — `max_operations`, and
       (provider, effect, account, `amount_max`, `daily_max`) for effects that
-      spend or commit something.
+      spend or commit something. Deferred to
+      [P4](#p4--credentials-and-api-effects): metering a grant needs something
+      to meter, and that arrives with the credential broker and API effects.
 
 ### P1 — prove agent independence
 

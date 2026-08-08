@@ -35,6 +35,12 @@ export interface ActionReceipt {
   receiptId: string;
   taskId: string;
   capability: string;
+  /**
+   * The delegation chain that asked for this effect, outermost first. Optional
+   * only because receipts written before principals existed do not carry one;
+   * every receipt written now does.
+   */
+  principal?: string;
   effect: "read" | "mutate" | "destructive";
   policyDecision: {
     outcome: "allow" | "deny" | "confirm";

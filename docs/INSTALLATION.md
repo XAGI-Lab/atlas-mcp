@@ -210,6 +210,43 @@ echo '{"goal":"install","operation":{"kind":"terminal","action":"run","command":
   | melra policy test
 ```
 
+### Capability grants
+
+`deniedTraits` and the allowlists describe what a caller may do. `capabilities`
+describes whether it holds any authority at all, and is checked first. It is
+empty by default, which means no narrowing — policy behaves exactly as above. A
+non-empty list is a closed world: any effect with no matching grant is denied
+with `capability_not_granted`, before any allowlist is consulted.
+
+```json
+{
+  "capabilities": [
+    {
+      "id": "build-writes",
+      "capability": "file.*",
+      "effects": ["read", "mutate"],
+      "target": "*/build/*",
+      "principal": "agent:ci-runner",
+      "validUntil": "2026-12-31T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+`capability` and `target` are matched against what MELRA classified the
+operation as — `file.write`, `terminal.run`, `browser.click` — with `*` standing
+for any run of characters. `principal` is matched against the immediate caller
+in the request's `identity`, written `kind:id`; a request that declares no
+identity is the local principal, `agent:local`. Add `policyVersion` to a grant
+to have it refused rather than reinterpreted after the policy changes under it.
+
+Identity is a claim the layer above makes, not something MELRA authenticates.
+Grants are worth what the boundary around your harness is worth, which is why
+[the threat model](THREAT_MODEL.md) treats developer mode as convenience rather
+than containment. What they buy today is that a receipt records who asked and on
+whose behalf, and that one agent's authority can be narrower than the policy
+as a whole.
+
 Memories are reclaimed on the next `melra_execute` that writes to the same
 scope. `memoryRetention.maxAgeDays` (default `30`) is how long an expired or
 superseded record is kept after it stops being readable — no search or list can

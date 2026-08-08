@@ -4,13 +4,19 @@
 import { randomUUID } from "node:crypto";
 import type {
   ApprovalResponse,
+  EffectContract,
   EvidencePredicate,
   Operation,
   PolicyDecision,
   TaskRecord,
   TaskRequest,
 } from "@melra/protocol";
-import { TaskRequestSchema } from "@melra/protocol";
+import {
+  delegationChain,
+  effectContract,
+  LOCAL_IDENTITY,
+  TaskRequestSchema,
+} from "@melra/protocol";
 import {
   classifyOperation,
   defaultEvidenceFor,
@@ -119,7 +125,7 @@ export class TaskController {
   plan(
     request: TaskRequest,
     options: TaskPlanOptions = {},
-  ): TaskRecord {
+  ): TaskRecord & { contract: EffectContract } {
     const parsedRequest = withDefaultEvidence(TaskRequestSchema.parse(request));
     if (
       options.idempotencyKey !== undefined &&
@@ -166,7 +172,14 @@ export class TaskController {
         timestamp,
       );
     }
-    return { ...task, request: parsedRequest };
+    // The plaintext request goes back to the caller with the contract derived
+    // from it, so what a caller reads before approving is the same object the
+    // execution path will load.
+    const planned = { ...task, request: parsedRequest };
+    return {
+      ...planned,
+      contract: effectContract(planned, classifyOperation(parsedRequest.operation)),
+    };
   }
 
   preflight(request: TaskRequest): PolicyDecision {
@@ -556,6 +569,7 @@ export class TaskController {
       receiptId: createReceiptId(),
       taskId: task.id,
       capability,
+      principal: delegationChain(request.identity ?? LOCAL_IDENTITY),
       effect,
       policyDecision: {
         outcome: task.policyDecision.outcome,

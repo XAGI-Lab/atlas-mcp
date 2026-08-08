@@ -595,3 +595,41 @@ describe("TaskController", () => {
     expect(execution.task.status).toBe("verified_success");
   });
 });
+
+describe("effect contract and principal", () => {
+  it("returns the contract with the plan and stamps the chain on the receipt", async () => {
+    const { controller } = await setup();
+    const identity = {
+      principal: { kind: "agent" as const, id: "claude-code" },
+      onBehalfOf: [{ kind: "human" as const, id: "dheeraj" }],
+    };
+    const task = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Read a file",
+        operation: { kind: "file", action: "read", path: "notes.txt" },
+        identity,
+      }),
+    );
+    expect(task.contract).toMatchObject({
+      taskId: task.id,
+      capability: "file.read",
+      effect: "read",
+      identity,
+      metadata: { goal: "Read a file" },
+    });
+    const execution = await controller.execute(task.id);
+    expect(execution.receipt?.principal).toBe("human:dheeraj/agent:claude-code");
+  });
+
+  it("records the local principal when the caller declares none", async () => {
+    const { controller } = await setup();
+    const task = controller.plan(
+      TaskRequestSchema.parse({
+        goal: "Read a file",
+        operation: { kind: "file", action: "read", path: "notes.txt" },
+      }),
+    );
+    const execution = await controller.execute(task.id);
+    expect(execution.receipt?.principal).toBe("agent:local");
+  });
+});

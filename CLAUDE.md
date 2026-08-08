@@ -44,7 +44,7 @@ strict tsc), plus two Python projects managed by `uv` (`sdk-py`,
 pnpm install --frozen-lockfile
 pnpm build                  # tsc -p per package; required before tests (see below)
 pnpm check                  # versions:check + typecheck + test + python:check — the CI gate
-pnpm evals                  # 33 deterministic policy/execution scenarios → evals/results/latest.json
+pnpm evals                  # 35 deterministic policy/execution scenarios → evals/results/latest.json
 pnpm e2e                    # packages/server/test/e2e.test.ts against a live stdio server
 pnpm pack:check              # npm pack --dry-run for the published CLI
 pnpm readme:check           # typecheck every ```ts block in every package README
@@ -78,14 +78,17 @@ pnpm benchmark:browser:verify-upstream
 run before `pnpm test`** (this is why `typecheck` and `benchmark:*` scripts build first). A
 test failing with an unresolved `@melra/*` import means a stale or missing `dist`.
 
-`pnpm test` goes through `scripts/run-tests.mjs` rather than calling `pnpm -r test` directly.
-There is no vitest config in the repo, so every package defaults to a fork pool of `cores−1`;
-multiplied by pnpm's default workspace-concurrency of 4 that is roughly `4 × (cores−1)` Node
-processes, each with its own V8 heap — enough to exhaust memory on a 16 GiB machine. The
-script sizes both fan-outs against RAM and core count and passes them down as
-`--workspace-concurrency` and `VITEST_MAX_FORKS`/`VITEST_MAX_THREADS`. Run
-`pnpm test:peak-rss` to measure peak resident memory before and after changing anything about
-how tests are spawned.
+`build`, `typecheck`, and `test` go through `scripts/run-recursive.mjs` rather than calling
+`pnpm -r <script>` directly, because every recursive fan-out here multiplies. There is no
+vitest config in the repo, so every package defaults to a fork pool of `cores−1`; multiplied
+by pnpm's default workspace-concurrency of 4 that is roughly `4 × (cores−1)` Node processes,
+each with its own V8 heap. `tsc` has one level instead of two but holds a whole program graph
+per process, so four builds in flight is several GiB on its own. Either one is enough to
+exhaust memory on a 16 GiB machine. The script sizes the fan-out against RAM and core count
+(≈0.4 GiB per test fork, ≈1.5 GiB per `tsc`) and passes it down as `--workspace-concurrency`
+plus `VITEST_MAX_FORKS`/`VITEST_MAX_THREADS`. Run `pnpm test:peak-rss` to measure peak
+resident memory before and after changing anything about how these are spawned. New recursive
+scripts should route through the same runner, not add a second cap.
 
 There is no ESLint/Prettier for TypeScript — `tsc --strict` is the only static gate. Python
 uses ruff (line-length 100, py311).
