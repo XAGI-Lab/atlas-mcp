@@ -8,6 +8,23 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Persistent opt-in browser profiles. Set `MELRA_BROWSER_PROFILE` to an absolute
+  directory and cookies, storage, and profile state survive between runs, so a
+  site logged into once stays logged in instead of being logged into again on
+  every task. Absent, the previous behaviour stands: a fresh throwaway profile
+  per run. Treat the directory as a credential store — it holds live session
+  cookies. It cannot be combined with `MELRA_BROWSER_CDP_ENDPOINT`, which is
+  refused at startup rather than silently ignored.
+- Popup and multi-window policy. A window a page opened by itself used to appear
+  in the context unannounced, and a caller reading the page it asked for had no
+  way to know one existed. `policy.popups` now governs it: the default `"block"`
+  closes the window and reports it on the action that provoked it, as
+  `popups: [{ url, blocked: true }]` in the result; `"allow"` keeps it as an
+  addressable tab. Reporting is unconditional — the setting decides whether the
+  window survives, not whether the caller is told. A tab opened deliberately
+  through `tab_new` is never mistaken for a popup, and unhinged mode allows
+  them, because closing one is MELRA's judgement about what the caller should be
+  looking at.
 - A circuit breaker shared across related tasks. `budget.maxRetries` covers a
   blip inside one task and nothing carried further, so a workflow whose node kept
   failing against the same unreachable host spent every remaining step

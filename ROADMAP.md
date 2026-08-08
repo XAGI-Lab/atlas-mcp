@@ -32,7 +32,7 @@ promise of stable API compatibility.
 - [x] Screenshots, uploads, downloads, and artifact hashing.
 - [x] SSRF, cloud-metadata, redirect, and repeated DNS-address checks.
 - [ ] Resolver pinning or a browser proxy for complete DNS-rebinding defense.
-- [ ] Persistent opt-in browser profiles.
+- [x] Persistent opt-in browser profiles (`MELRA_BROWSER_PROFILE`).
 - [ ] Deterministic browser recording and replay.
 - [x] Opt-in Chrome DevTools Protocol attachment for shared benchmark sessions.
 
@@ -89,7 +89,7 @@ promise of stable API compatibility.
 
 - [x] Mutation-driven stable-DOM quiet-window with timeout evidence.
 - [ ] Visual targeting fallback with explicit confidence.
-- [ ] Popup and multi-window policy.
+- [x] Popup and multi-window policy (`policy.popups`).
 - [x] Interactive terminal input (`interactive` + `send`). A real pseudo-TTY is
   still open: stdin is piped, so a program that checks `isatty` and refuses
   unless it owns a terminal is out of reach without a native PTY dependency.

@@ -131,6 +131,31 @@ unset for normal use, which keeps the default isolated browser behavior:
 | `MELRA_BROWSER_CDP_CONTEXT_INDEX` | Which existing browser context to use, or `-1` for the default context. Requires `MELRA_BROWSER_CDP_ENDPOINT`. | unset |
 | `MELRA_BROWSER_HAR_PATH` | Absolute path for an HTTP archive recording of the session. | unset (no recording) |
 
+A browser profile is separate, and useful outside benchmarks:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `MELRA_BROWSER_PROFILE` | Absolute directory keeping cookies, storage, and profile state between runs, so a site logged into once stays logged in. | unset (a fresh throwaway profile per run) |
+
+Treat that directory as a credential store: it holds live session cookies for
+every site the browser visited. It cannot be combined with
+`MELRA_BROWSER_CDP_ENDPOINT` — an attached browser already has the profile it
+was started with, so a second one would silently do nothing.
+
+A window the page opens by itself is governed by policy, not by the caller:
+
+```json
+{ "popups": "block" }
+```
+
+`"block"` is the default: the window is closed and reported on the action that
+provoked it, as `popups: [{ "url": "...", "blocked": true }]` in the result.
+`"allow"` keeps it as an addressable tab. Either way the caller is told — the
+setting governs whether the window survives, not whether it is reported, and
+`assertSafeUrl` still decides where it may load from. Unhinged mode allows
+popups, because closing one is MELRA's judgement about what the caller should be
+looking at.
+
 Attaching over CDP and recording a HAR are mutually exclusive; setting both
 fails at startup. A HAR captures full request and response data, including
 cookies, headers, and form bodies — treat the file as a secret and never commit

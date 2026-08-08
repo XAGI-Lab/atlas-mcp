@@ -14,6 +14,7 @@ export interface CliEnvironment {
   browserCdpEndpoint?: string;
   browserCdpContextIndex?: number;
   browserHarPath?: string;
+  browserProfileDir?: string;
 }
 
 export interface CliEnvironmentDefaults {
@@ -87,6 +88,15 @@ export function parseCliEnvironment(
     source.MELRA_BROWSER_CDP_CONTEXT_INDEX,
   );
   const recordHarPath = harPath(source.MELRA_BROWSER_HAR_PATH);
+  const profileDir = source.MELRA_BROWSER_PROFILE;
+  if (profileDir !== undefined && !isAbsolute(profileDir)) {
+    throw new Error("browser_profile_must_be_absolute");
+  }
+  if (endpoint !== undefined && profileDir !== undefined) {
+    // An attached browser already has whatever profile it was started with;
+    // pointing at a second one would silently do nothing.
+    throw new Error("browser_cdp_cannot_use_profile");
+  }
   if (endpoint !== undefined && recordHarPath !== undefined) {
     throw new Error("browser_cdp_cannot_start_har_recording");
   }
@@ -112,5 +122,8 @@ export function parseCliEnvironment(
       ? {}
       : { browserCdpContextIndex: contextIndex }),
     ...(recordHarPath === undefined ? {} : { browserHarPath: recordHarPath }),
+    ...(profileDir === undefined
+      ? {}
+      : { browserProfileDir: resolve(profileDir) }),
   };
 }

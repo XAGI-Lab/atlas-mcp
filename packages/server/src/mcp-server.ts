@@ -118,6 +118,10 @@ export function capabilitiesPayload(runtime: MelraRuntime): unknown {
           circuitBreaker: runtime.policy.circuitBreaker,
           allowedDomains: runtime.policy.allowedDomains,
           allowLocalhost: runtime.policy.allowLocalhost,
+          // A blocked popup is reported on the action that provoked it, so a
+          // caller knows in advance whether a window it did not open will still
+          // be there to address.
+          popups: runtime.policy.popups,
           telemetry: "off",
         },
   };

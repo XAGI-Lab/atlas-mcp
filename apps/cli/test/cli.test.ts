@@ -103,6 +103,18 @@ describe("melra CLI", () => {
         defaults,
       ),
     ).toThrow("browser_cdp_cannot_start_har_recording");
+    expect(() =>
+      parseCliEnvironment({ MELRA_BROWSER_PROFILE: "profile" }, defaults),
+    ).toThrow("browser_profile_must_be_absolute");
+    expect(() =>
+      parseCliEnvironment(
+        {
+          MELRA_BROWSER_CDP_ENDPOINT: "http://127.0.0.1:9222",
+          MELRA_BROWSER_PROFILE: "/tmp/melra-profile",
+        },
+        defaults,
+      ),
+    ).toThrow("browser_cdp_cannot_use_profile");
   });
 
   it("names a launch command the client can actually spawn", () => {

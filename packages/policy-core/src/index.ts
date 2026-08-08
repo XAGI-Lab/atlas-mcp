@@ -22,6 +22,17 @@ export interface LocalPolicy {
   allowedCommands: string[];
   allowedDomains: string[];
   allowLocalhost: boolean;
+  /**
+   * What to do with a window a page opens by itself.
+   *
+   * `"block"` closes it and reports it on the action that provoked it, which is
+   * the honest default for an unattended agent: a popup nobody asked for is the
+   * page deciding what the caller looks at next. `"allow"` keeps it as an
+   * addressable tab. Either way it is reported — this governs whether it stays,
+   * not whether the caller is told. `assertSafeUrl` still governs where it may
+   * load from.
+   */
+  popups: "allow" | "block";
   mutations: "deny" | "confirm";
   approvalTtlMs: number;
   maxFileBytes: number;
@@ -360,6 +371,7 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
     ],
     allowedDomains: ["*"],
     allowLocalhost: true,
+    popups: "block",
     mutations: "confirm",
     approvalTtlMs: 5 * 60_000,
     maxFileBytes: 10 * 1024 * 1024,

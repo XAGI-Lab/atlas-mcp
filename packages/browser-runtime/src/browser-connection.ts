@@ -32,6 +32,7 @@ export interface BrowserConnectionOptions {
   cdpEndpoint?: string;
   cdpContextIndex?: number;
   recordHarPath?: string;
+  userDataDir?: string;
 }
 
 export interface BrowserConnection {
@@ -90,24 +91,39 @@ export async function connectBrowser(
       "browser_not_found: install Chrome, Chromium, or Edge and rerun melra doctor",
     );
   }
-  const browser = await chromium.launch({
-    executablePath,
-    headless: options.headless,
-  });
-  const context = await browser.newContext({
+  const contextOptions = {
     acceptDownloads: true,
     viewport: { width: 1280, height: 800 },
-    serviceWorkers: "block",
+    serviceWorkers: "block" as const,
     ...(options.recordHarPath === undefined
       ? {}
       : {
           recordHar: {
             path: options.recordHarPath,
-            mode: "full",
-            content: "omit",
+            mode: "full" as const,
+            content: "omit" as const,
           },
         }),
+  };
+  if (options.userDataDir !== undefined) {
+    // A persistent profile is a browser, not a context inside one: Chromium
+    // locks the directory, so the only way to keep cookies across runs is to
+    // launch against it directly. `context.browser()` is what the rest of the
+    // runtime closes, and it is the same process either way.
+    const context = await chromium.launchPersistentContext(options.userDataDir, {
+      executablePath,
+      headless: options.headless,
+      ...contextOptions,
+    });
+    const browser = context.browser();
+    if (browser === null) throw new Error("browser_persistent_profile_unavailable");
+    return { browser, context, ownsBrowser: true, ownsContext: true };
+  }
+  const browser = await chromium.launch({
+    executablePath,
+    headless: options.headless,
   });
+  const context = await browser.newContext(contextOptions);
   return {
     browser,
     context,

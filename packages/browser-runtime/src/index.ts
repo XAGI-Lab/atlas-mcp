@@ -32,6 +32,21 @@ export interface BrowserRuntimeOptions extends NetworkPolicy {
   cdpEndpoint?: string;
   cdpContextIndex?: number;
   recordHarPath?: string;
+  /**
+   * Directory holding cookies, storage, and profile state between runs.
+   *
+   * Absent means a fresh throwaway profile per run, which is the safe default
+   * and also why a logged-in site had to be logged into again on every task.
+   */
+  userDataDir?: string;
+  /**
+   * What to do with a window the page opens itself.
+   *
+   * `"block"` closes it and reports it, which is the honest default for an
+   * unattended agent: a popup that steals focus is a page deciding what the
+   * caller looks at next. `"allow"` keeps it as an addressable tab.
+   */
+  popups?: "allow" | "block";
 }
 
 /**
@@ -52,6 +67,13 @@ const MAX_ELEMENTS = 400;
  * is persisted, so the report is bounded even though answering is not.
  */
 const MAX_DIALOGS = 20;
+
+/**
+ * Popups recorded per action, bounded for the same reason as dialogs: a page
+ * can open them in a loop and the report is persisted. Blocking still closes
+ * every one of them, whether or not it fit in the report.
+ */
+const MAX_POPUPS = 20;
 
 /** How often `waitForTarget` re-resolves the target across the frame list. */
 const WAIT_POLL_MS = 100;
@@ -202,6 +224,15 @@ export class BrowserRuntime {
    * a task owns its runtime for the length of one action.
    */
   private dialogs: Record<string, unknown>[] = [];
+  /**
+   * Windows the page opened during the action currently running, same lifetime
+   * as `dialogs` and reported the same way.
+   */
+  private popups: Record<string, unknown>[] = [];
+  /** Pending closes of blocked popups, awaited before the action reports. */
+  private closing: Promise<unknown>[] = [];
+  /** True only while `tab_new` is opening the tab the caller asked for. */
+  private openingTab = false;
 
   constructor(private readonly options: BrowserRuntimeOptions) {}
 
@@ -255,6 +286,9 @@ export class BrowserRuntime {
       ...(this.options.recordHarPath === undefined
         ? {}
         : { recordHarPath: this.options.recordHarPath }),
+      ...(this.options.userDataDir === undefined
+        ? {}
+        : { userDataDir: this.options.userDataDir }),
     });
     this.connection = connection;
     this.browser = connection.browser;
@@ -317,7 +351,47 @@ export class BrowserRuntime {
       this.context = undefined;
       this.activePage = undefined;
     });
+    /**
+     * Report every window the page opened itself, and by default close it.
+     *
+     * Playwright keeps a popup as a live page nobody mentioned, so a click that
+     * spawned an ad window returned plain success while a second window sat
+     * there holding focus and a session. Reporting it is the point: a caller is
+     * never told an action finished without also being told what the page opened
+     * behind it. `assertSafeUrl` already governs where a popup may load from —
+     * this governs whether it stays.
+     */
+    this.context.on("page", (opened) => {
+      if (opened === this.activePage || this.openingTab) return;
+      // Closing a window the page opened is MELRA's judgement about what the
+      // caller should be looking at, so unhinged mode drops it. Reporting it is
+      // not a judgement — that stays on, like every other receipt.
+      const allowed = this.options.popups === "allow" || this.options.unhinged === true;
+      if (this.popups.length < MAX_POPUPS) {
+        this.popups.push({ url: opened.url(), blocked: !allowed });
+      }
+      if (allowed) return;
+      // A popup that closed on its own, or whose opener navigated away first,
+      // must not turn into the action's error.
+      this.closing.push(opened.close().catch(() => undefined));
+    });
     return this.context;
+  }
+
+  /**
+   * Opens a page MELRA asked for, not one the site opened by itself.
+   *
+   * The popup handler cannot tell the two apart — both arrive as a `page`
+   * event — so this flag is the difference, and it is held across exactly the
+   * await that emits the event.
+   */
+  private async openPage(context: BrowserContext): Promise<Page> {
+    this.openingTab = true;
+    try {
+      return await context.newPage();
+    } finally {
+      this.openingTab = false;
+    }
   }
 
   private async page(): Promise<Page> {
@@ -325,7 +399,7 @@ export class BrowserRuntime {
     if (this.activePage !== undefined && !this.activePage.isClosed()) {
       return this.activePage;
     }
-    this.activePage = context.pages()[0] ?? (await context.newPage());
+    this.activePage = context.pages()[0] ?? (await this.openPage(context));
     return this.activePage;
   }
 
@@ -588,12 +662,20 @@ export class BrowserRuntime {
     // it verified as `partial` no matter how well the action went. Failures
     // throw, so reaching a return is what success means here.
     this.dialogs = [];
-    const result = { success: true, ...(await this.run(operation)) };
+    this.popups = [];
+    const ran = await this.run(operation);
+    // A blocked popup is closed from an event handler, which has no way to join
+    // the action that provoked it. Waiting here is what stops the next action
+    // from seeing a tab this one already reported as closed.
+    await Promise.all(this.closing.splice(0));
+    const result = { success: true, ...ran };
     // Only present when the page actually asked something, so a caller can test
     // for the field rather than for an empty array.
-    return this.dialogs.length === 0
-      ? result
-      : { ...result, dialogs: this.dialogs };
+    return {
+      ...result,
+      ...(this.dialogs.length === 0 ? {} : { dialogs: this.dialogs }),
+      ...(this.popups.length === 0 ? {} : { popups: this.popups }),
+    };
   }
 
   private async run(operation: BrowserOperation): Promise<Record<string, unknown>> {
@@ -856,7 +938,7 @@ export class BrowserRuntime {
       }
       case "tab_new": {
         const context = await this.ensureContext();
-        const opened = await context.newPage();
+        const opened = await this.openPage(context);
         this.activePage = opened;
         if (operation.url !== undefined) {
           await assertSafeUrl(operation.url, this.options);

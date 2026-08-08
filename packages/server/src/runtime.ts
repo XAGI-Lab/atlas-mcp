@@ -46,6 +46,12 @@ export interface MelraRuntimeOptions {
   browserCdpEndpoint?: string;
   browserCdpContextIndex?: number;
   browserHarPath?: string;
+  /**
+   * Directory holding browser cookies and profile state between runs. Opt-in:
+   * absent means a fresh throwaway profile, which is why a logged-in site has
+   * to be logged into again on the next task. From `MELRA_BROWSER_PROFILE`.
+   */
+  browserProfileDir?: string;
   environment?: NodeJS.ProcessEnv;
 }
 
@@ -178,6 +184,7 @@ export async function createMelraRuntime(
     workspaceRoot: runtimeRoot,
     allowedDomains: policy.allowedDomains,
     allowLocalhost: policy.allowLocalhost,
+    popups: policy.popups,
     unhinged,
     ...(options.browserExecutablePath === undefined
       ? {}
@@ -194,6 +201,9 @@ export async function createMelraRuntime(
     ...(options.browserHarPath === undefined
       ? {}
       : { recordHarPath: options.browserHarPath }),
+    ...(options.browserProfileDir === undefined
+      ? {}
+      : { userDataDir: options.browserProfileDir }),
   });
   const memory = new LocalMemory(store, policy.memoryRetention);
   const computer = new ComputerRuntime({
