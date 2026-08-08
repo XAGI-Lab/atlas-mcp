@@ -8,23 +8,29 @@ evidence.
 
 ## Responsibility boundary
 
-The dividing line is *reasoning* against *effects*.
+There are three layers, and the dividing line is *reasoning* against *effects*.
 
-| The agent above owns | MELRA owns |
+| Layer | Owns |
 |---|---|
-| Model choice, prompts, conversation | Whether an effect is permitted |
-| Planning strategy, subagents, skills | Whether it already happened |
-| Semantic memory about the user | Durable state across a crash |
-| Deciding *what* to attempt | Proving whether it actually worked |
+| **LLM** | Reasoning, tool selection, planning |
+| **Agent harness** | Conversation, prompt construction, model routing, semantic memory, agent personality, subagent reasoning |
+| **MELRA** | Effect authorization, effect execution, durable effect state, recovery, verification, evidence, credentials and capabilities |
 
-MELRA deliberately has no model client, planner, or reasoning loop. Adding one
-would put it in competition with the agents it is supposed to serve, and would
-make the guarantees below depend on a model's judgement.
+MELRA begins where the tool call leaves the model loop. It deliberately has no
+model client, planner, or reasoning loop. Adding one would put it in competition
+with the harnesses it is supposed to serve, and would make the guarantees below
+depend on a model's judgement.
 
 The consequence for code: nothing in `packages/` may call an LLM, and no
 decision in the execution path may depend on model output. Evidence predicates
 are deterministic by construction for exactly this reason — see
 [verification levels](#verification-strength).
+
+A corollary that decides most scope questions: MELRA never receives a goal.
+"Fix the production server" requires judgement about what is broken; the model
+resolves it to a bounded operation — effect `terminal.execute`, command
+`systemctl restart api`, environment `production` — and that is what arrives at
+the kernel.
 
 ## Effect lifecycle
 
@@ -34,22 +40,34 @@ refuse; the rest can only record.
 ```text
 REQUEST      a caller submits a strict, bounded operation schema
 NORMALIZE    schema validation, path resolution, classification
-PREFLIGHT    capability discovery and cheap feasibility checks
-RECORD       durable TaskRecord written before anything runs
+IDENTITY     which principal asked, on whose behalf
 CAPABILITY   what this principal may reach at all
+PREFLIGHT    adapter capability discovery and cheap feasibility checks
+RECORD       durable TaskRecord written before anything runs
 POLICY       allow · deny · confirm, on effect and risk
 APPROVAL     exact task-scoped phrase bound to the action digest
+CREDENTIALS  the kernel acquires what the effect needs; the caller never sees it
 IDEMPOTENCY  logical attempt key; a committed attempt is not re-run
 EXECUTION    the adapter runs under an AbortSignal and a budget
 OBSERVATION  raw adapter result, redacted before persistence
 VERIFICATION independent predicates decide success, not the adapter
 COMMIT       terminal status, events, projection, certificate
 RECEIPT      redacted, hash-linked evidence retained locally
+RESULT       returned to the caller
 ```
 
 `melra_plan` stops after `APPROVAL` and returns the challenge.
 `melra_execute` **re-runs** `CAPABILITY` and `POLICY` before `EXECUTION`, so a
 plan cannot ride a policy that has since been tightened.
+
+Two stages are named but not yet separable in code. `IDENTITY` and `CAPABILITY`
+are today collapsed into the policy evaluation — there is one implicit local
+principal and capabilities are expressed as policy fields rather than as issued
+grants. `CREDENTIALS` is a no-op: adapters use the ambient process environment,
+so an agent that can reach the kernel can reach whatever the kernel's process
+can. Both are [P0](../ROADMAP.md#p0--define-the-category) and
+[P4](../ROADMAP.md#p4--credentials-and-api-effects) work, listed here because
+the lifecycle is the contract even where the implementation is still one step.
 
 ## Execution boundaries
 
@@ -146,12 +164,16 @@ before the workflow is accepted.
 | `bounded_loop` | Executes 1–50 body requests for at most 100 iterations and may stop on a persisted predicate |
 | `checkpoint` | Emits `workflow.checkpoint_saved` and stores a validated snapshot |
 | `compensation` | Runs a governed compensating request after its verified target is followed by failure |
+| `human_input` | Blocks in `awaiting_input` until `advance` supplies a value within `maxLength` and, where declared, within `choices` |
+| `delegation` | Blocks in `awaiting_input` until an outside worker reports back; the node's own `requiredEvidence` decides the outcome |
 
 The total definition limit is 500 nodes; each node may declare at most 100
 dependencies. A task budget allows at most 100 steps, 900 seconds, and 10 read
 retries. Mutations are never automatically retried.
 
-Human-input and delegation nodes are not implemented in this alpha.
+A delegate reporting "done" is not evidence. A `delegation` node that declared
+predicates and whose predicates fail is `failed`, exactly as an `operation`
+node would be.
 
 ## Workflow state and events
 
@@ -160,13 +182,18 @@ Workflow statuses are:
 ```text
 draft → planned → running → verified_complete
                   ↘ awaiting_approval
+                  ↘ awaiting_input
+                  ↘ paused        (operator, resumable)
+                  ↘ suspended     (operator, resumable)
                   ↘ recovery_required
                   ↘ failed
                   ↘ cancelled
 ```
 
-The public schema reserves `paused`, `suspended`, and `partially_complete`,
-but this slice does not expose commands that enter those states.
+`paused` and `suspended` are entered by the operator commands `workflow pause`
+and `workflow suspend`, and left by `workflow resume`; an `advance` against
+either is refused rather than queued. The public schema also reserves
+`partially_complete`, which no command enters today.
 
 Implemented event types are:
 
@@ -176,6 +203,9 @@ Implemented event types are:
 - `workflow.checkpoint_saved`;
 - `workflow.recovered`;
 - `workflow.recovery_required`;
+- `workflow.paused`;
+- `workflow.suspended`;
+- `workflow.resumed`;
 - `workflow.cancelled`.
 
 Sequences start at one and increase without gaps per workflow. Event replay
@@ -272,16 +302,62 @@ Success is decided by evidence, never by the adapter's own report. How much a
 piece of evidence is worth depends on where it came from, and MELRA states that
 rather than flattening it into a boolean:
 
-| Level | Source | Example | Shipped |
-|:--:|---|---|:--:|
-| 0 | Execution evidence — the adapter's own report | exit code, no exception | ✓ |
-| 1 | State evidence — MELRA re-reads the target itself | `file_exists`, `file_hash` re-reading the workspace | ✓ |
-| 2 | Independent-channel evidence — a different path to the same fact | provider API confirming a UI action | roadmap |
-| 3 | Semantic evidence — a judgement about meaning | "the summary is accurate" | roadmap, and **probabilistic** |
+| Level | Name | What it is | Example | Shipped |
+|:--:|---|---|---|:--:|
+| 0 | **Execution** | The adapter's own report | exit code `0`, HTTP 200, no exception | ✓ |
+| 1 | **State** | MELRA re-reads the target itself | `file_exists`, `file_hash` re-reading the workspace | ✓ |
+| 2 | **Independent** | A different channel to the same fact | execute via `POST /refund`, verify via `GET /refund/:id` | roadmap |
+| 3 | **Semantic** | A judgement about meaning | "the summary is accurate" | roadmap, and **probabilistic** |
 
-Level 3 will be labelled probabilistic wherever it appears. A verifier that
+Execution evidence is the weakest: it says the call returned, not that the world
+changed. Independent verification is much stronger precisely because the channel
+that performed the effect is not the channel that confirms it.
+
+Semantic verification will be labelled probabilistic wherever it appears, and
+will never be the sole evidence for a destructive effect. A verifier that
 guesses is useful; a verifier that guesses while presenting itself as proof is
 worse than none.
+
+## Execution guarantees
+
+Distributed systems did not become easy because an LLM is calling them. MELRA
+states which guarantee an effect actually carries rather than implying
+exactly-once everywhere:
+
+| Guarantee | Meaning | Where it applies today |
+|---|---|---|
+| `read-only` | No state change; safe to retry | Reads, which are the only retried effects |
+| `at-most-once` | Executed zero or one times; never retried | Every mutation and destructive operation |
+| `at-least-once` | May execute more than once; the effect must tolerate it | Not used |
+| `provider-idempotent` | Exactly-once because the provider accepts an idempotency key | Roadmap, with the HTTP adapter |
+| `reconciliation-required` | Outcome unknown after a crash; must be re-observed | Interrupted mutations without independent file evidence |
+| `compensatable` | Undone by a declared inverse effect | `compensation` workflow nodes |
+
+An interrupted mutation becomes `recovery_required` rather than being repeated,
+because the durable record can say what was in flight but not what the provider
+did with it. Recovery asks *what do the durable facts say happened*, never
+*what did the model probably mean*.
+
+## Deployment modes
+
+| | Developer mode | Enforced mode |
+|---|---|---|
+| Boundary | A policy file the caller can edit | Not reachable by the caller |
+| Harness | Holds credentials, may also hold native tools | Sandboxed, no privileged secrets, no raw production shell |
+| Transport | stdio or loopback HTTP | Authenticated IPC to a privileged local daemon |
+| Status | Shipped | [P2](../ROADMAP.md#p2--hard-capability-boundary) |
+
+Developer mode is the honest default for adoption: MELRA is a governed path, and
+a harness that also has an unrestricted native terminal can simply not use it.
+That is a useful convenience, not a trust boundary, and this repository does not
+claim otherwise.
+
+Enforced mode makes MELRA the only path by taking the alternatives away —
+containers, separate OS users, filesystem ACLs, namespaces, network isolation,
+sandbox profiles, credential isolation, Unix sockets, service identities.
+Those are operating-system primitives; MELRA should use them rather than
+reinvent them. Linux governs access to machine resources. MELRA governs
+autonomous effects performed through those resources.
 
 ## Verification boundary
 

@@ -10,6 +10,22 @@ verify.
 - For security-sensitive work, read [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 - Search existing issues and discussions before opening a new proposal.
 
+### Does this belong in MELRA?
+
+MELRA is the layer below reasoning: the LLM reasons, the harness manages the
+loop, MELRA owns the effect lifecycle. One question settles most scope
+arguments before they start:
+
+> **Would this feature still make sense if the effect request came from
+> ordinary deterministic software rather than an LLM?**
+
+Yes — authorization, capabilities, idempotency, credential isolation, recovery,
+verification, effect history. It belongs here.
+
+No — prompt optimization, model selection, conversation memory, a planner,
+agent personality, subagent reasoning. It belongs to the harness above, and
+adding it here would make MELRA's guarantees depend on a model's judgement.
+
 ## Development setup
 
 ```bash

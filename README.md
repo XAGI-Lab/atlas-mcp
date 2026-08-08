@@ -4,14 +4,17 @@
 
 # MELRA
 
+**M**odular **E**xecution **L**ayer for **R**eliable **A**utonomy
+
 ### The open-source autonomy kernel
 
-### Your agent decides. MELRA owns the effect.
+### The LLM reasons. The harness manages the loop. MELRA owns the effect lifecycle.
 
-An agent-independent execution kernel that turns AI decisions into governed,
-durable, verifiable real-world effects — with capability policy, authorization,
-recovery, independent verification, and hash-linked evidence underneath any
-agent, over MCP, CLI, SDK, or loopback HTTP.
+An agent-independent effect runtime for governed, durable, and verifiable
+autonomous execution. MELRA begins where the tool call leaves the model loop.
+
+**Your models can change. Your agents can change. Your execution foundation
+shouldn't have to.**
 
 <br />
 
@@ -94,18 +97,22 @@ agent, over MCP, CLI, SDK, or loopback HTTP.
 
 ## Why MELRA
 
-An agent decides *what* to do. Something still has to decide whether it is
-allowed, run it exactly once, prove it worked, and survive a crash in the
-middle. Today that machinery is rebuilt inside every agent harness, in a way
-that dies with the harness.
+An LLM decides *what* to do. A harness runs the loop that gets it there.
+Something still has to decide whether the resulting effect is allowed, run it
+exactly once, prove it worked, and survive a crash in the middle. Today that
+machinery is rebuilt inside every agent harness, in a way that dies with the
+harness.
 
 MELRA is that machinery, factored out and made agent-independent:
 
-> **The agent owns reasoning. MELRA owns effects.**
+> **The LLM reasons. The harness manages the loop. MELRA owns the effect
+> lifecycle.**
 
-An **effect** is anything that changes or observes the world outside the
-model — write a file, run a command, click Submit, call an API, deploy a
-service. MELRA does exactly nine things to every one of them, and nothing else:
+An **effect** is a named operation that changes or observes the world outside
+the model — `file.write`, `terminal.execute`, `browser.click`,
+`computer.keyboard`, `http.request`, `database.mutate`, `stripe.refund`,
+`github.merge`. MELRA does exactly nine things to every one of them, and
+nothing else:
 
 | | MELRA does | Which answers |
 |:--:|---|---|
@@ -119,8 +126,21 @@ service. MELRA does exactly nine things to every one of them, and nothing else:
 | 8 | **Verifies** it against declared evidence | *What proves it worked?* |
 | 9 | **Receipts** it, redacted and hash-linked | *What can be audited later?* |
 
-That list is the whole job. Everything upstream of it — what to attempt, in what
-order, and why — stays with the agent.
+That list is the whole job. Everything upstream of it — what to attempt, in
+what order, and why — stays with the model and the harness.
+
+Which is why MELRA never receives a goal. "Fix the production server" requires
+judgement about what is broken and what should change; that is reasoning, and
+it belongs to the model. The model resolves it to a bounded operation, and
+*that* is what arrives:
+
+```json
+{ "effect": "terminal.execute", "command": "systemctl",
+  "args": ["restart", "api"], "environment": "production" }
+```
+
+An interface that accepted the sentence would have to interpret it, and a
+kernel that interprets is a kernel whose guarantees depend on a model.
 
 Most tool servers hand a model a tool and hope. A command runs, a click lands,
 a file is written — and "it returned without an error" is treated as success.
@@ -191,30 +211,58 @@ than a per-tool option. Items marked *target* are designed and on the
 
 ## Where it sits 🧭
 
+Three layers, not two. The reasoning loop is the model and the harness
+together; the effect lifecycle is below both of them.
+
 ```text
-        ┌─────────────────────────────────────────────┐
-        │  AGENT   reasoning · model · planning ·     │
-        │          conversation · skills · subagents  │
-        │  Claude Code · any MCP client · your harness│
-        └──────────────────────┬──────────────────────┘
-                               │  effect request
-                               ▼
-        ╔══════════════════════╧══════════════════════╗
-        ║  MELRA — autonomy kernel                    ║
-        ║                                             ║
-        ║  identity · capability · policy · approval  ║
-        ║  durable state · idempotency · recovery     ║
-        ║  execution · verification · evidence        ║
-        ╚══════════════════════╤══════════════════════╝
-                               │
-                               ▼
-        ┌──────────────────────┴──────────────────────┐
-        │  REFERENCE EFFECT ADAPTERS                  │
-        │  files · terminal · browser · computer      │
-        └──────────────────────┬──────────────────────┘
-                               ▼
-              Linux · macOS · Windows · the web
+            ┌────────────────────────────────────────────┐
+  reasoning │  LLM    Claude · GPT · Gemini · Llama      │
+            │  reasons · decides what should happen      │
+            └────────────────────────────────────────────┘
+                           ▲ tool call   │ tools + context
+                           │             ▼
+            ┌────────────────────────────────────────────┐
+   the loop │  AGENT HARNESS   OpenClaw · Hermes ·       │
+            │  ATLAS · Claude Code · your own            │
+            │  sessions · context · prompts · dispatch   │
+            └────────────────────────────────────────────┘
+                                   │  effect request
+                                   ▼
+            ╔════════════════════════════════════════════╗
+    effects ║  MELRA — autonomy kernel                   ║
+            ║                                            ║
+            ║  identity · capability · policy ·          ║
+            ║  authorization · credential broker ·       ║
+            ║  durable execution · idempotency ·         ║
+            ║  recovery · verification · evidence        ║
+            ╚════════════════════════════════════════════╝
+                                   │
+                                   ▼
+            ┌────────────────────────────────────────────┐
+   adapters │  EFFECT ADAPTERS                           │
+            │  files · terminal · browser · computer     │
+            │  HTTP · database · cloud · SaaS            │
+            └────────────────────────────────────────────┘
+                                   ▼
+             Linux · macOS · Windows · APIs · cloud
 ```
+
+Many harnesses, one execution foundation:
+
+```text
+   OpenClaw ─┐
+   Hermes ───┤
+   ATLAS ────┼──→  MELRA  ──→  your systems
+   Custom ───┘
+```
+
+Who owns what, and this does not move:
+
+| Layer | Owns |
+|---|---|
+| **LLM** | Reasoning · tool selection · planning |
+| **Harness** | Conversation · prompt construction · model routing · semantic memory · agent personality · subagent reasoning |
+| **MELRA** | Effect authorization · effect execution · durable effect state · recovery · verification · evidence · credentials and capabilities |
 
 MCP is *one* way to reach the kernel, not what the kernel is. MCP, CLI, SDK,
 and loopback HTTP all enter the same runtime, take the same policy decision,
@@ -235,12 +283,17 @@ and certificate pipeline — an adapter that skipped it would not be an adapter.
 | 🌐 | **Browser** | Isolated Playwright sessions, semantic DOM targets, bounded artifacts, network policy, popup policy, opt-in profiles, and condition-based post-action settling |
 | 🖥️ | **Computer** | Capability discovery plus governed screenshot, pointer, keyboard, and scroll adapters on macOS and supported Linux/X11 setups |
 
+The diagram above also shows HTTP, database, cloud, and SaaS adapters. Those are
+designed and on the [roadmap](ROADMAP.md) — **not shipped today**. A serious
+amount of autonomous work happens through APIs rather than mouse clicks, and an
+API effect needs the same nine guarantees as a file write.
+
 **Operational memory** is a kernel service rather than an adapter: what MELRA
 knows about its own effects — which operation changed what, which attempt was
 already committed, what a previous run observed. Scoped SQLite storage with
 hybrid lexical ranking, episode context, confidence, freshness, expiry,
 supersession, provenance, and redaction. Semantic memory about the *user* —
-preferences, project context, conversation history — belongs to the agent
+preferences, project context, conversation history — belongs to the harness
 above, not here.
 
 

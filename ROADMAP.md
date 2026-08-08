@@ -1,7 +1,8 @@
 # Roadmap
 
 MELRA is an open-source **autonomy kernel**: the layer an agent asks to change
-the world through. Checked items are implemented on the current alpha branch;
+the world through. The LLM reasons, the harness manages the loop, MELRA owns the
+effect lifecycle. Checked items are implemented on the current alpha branch;
 they are not a promise of stable API compatibility.
 
 Two kinds of work appear below, and the distinction is the point:
@@ -16,7 +17,7 @@ Two kinds of work appear below, and the distinction is the point:
 
 Work that is not one of those nine jobs, or an adapter serving them, does not
 belong on this roadmap — reasoning, planning, model selection, and semantic
-memory stay with the agent above.
+memory stay with the model and the harness above.
 
 ## v0.1 — local execution alpha
 
@@ -153,7 +154,35 @@ memory stay with the agent above.
 ## Kernel direction
 
 The work below is ordered by what unblocks what, not by how interesting it is.
-Nothing here adds reasoning to MELRA.
+Nothing here adds reasoning to MELRA. One question decides whether a proposal
+belongs at all: *would this feature still make sense if the effect request came
+from ordinary deterministic software rather than an LLM?* If no, it belongs to
+the harness above.
+
+### The seventeen systems
+
+Where each part of the kernel stands today. "Partial" means the guarantee holds
+but not in the shape the protocol should eventually name.
+
+| System | Status | Where it is |
+|---|:--:|---|
+| Effect protocol | partial | Strict per-operation schemas; not yet one named Effect Contract ([P0](#p0--define-the-category)) |
+| Principal identity | ✗ | One implicit local principal ([P0](#p0--define-the-category)) |
+| Delegation chain | ✗ | [P0](#p0--define-the-category) |
+| Capability engine | partial | Expressed as policy fields, not issued grants ([P0](#p0--define-the-category)) |
+| Policy engine | ✓ | `@melra/policy-core`, re-evaluated at execution |
+| Authorization | ✓ | Exact, expiring, task-scoped approval phrases |
+| Credential broker | ✗ | Adapters use the ambient environment ([P4](#p4--credentials-and-api-effects)) |
+| Durable effect runtime | ✓ | `@melra/runtime-core` over SQLite |
+| Idempotency | ✓ | `idempotency_commits`, unique per committed attempt |
+| Recovery engine | ✓ | Conservative rules plus explicit `recovery_required` |
+| Verification framework | partial | Execution and state levels ship; independent and semantic do not ([P3](#p3--verification-framework)) |
+| Evidence system | ✓ | Redacted receipts and SHA-256 certificates |
+| Effect adapters | partial | Files, terminal, browser, computer; HTTP, database, cloud, SaaS pending ([P4](#p4--credentials-and-api-effects)) |
+| Harness adapters | ✗ | [P1](#p1--prove-agent-independence) |
+| Sandbox and boundary | ✗ | Developer mode only ([P2](#p2--hard-capability-boundary)) |
+| Workflow engine | ✓ | Nine node types, events, projections, leases |
+| Compatibility suite | ✗ | [P1](#p1--prove-agent-independence) |
 
 ### P0 — define the category
 
@@ -178,40 +207,63 @@ Nothing here adds reasoning to MELRA.
 
 ### P1 — prove agent independence
 
-- [ ] Agent adapter packages so a harness calls `write_file()` and the adapter
-      runs plan → approve → execute → verify → receipt underneath.
+- [ ] Harness adapters that make MELRA mostly invisible. A model should see
+      `read_file`, `write_file`, `run_command`, `browser_click` — not
+      `melra_plan`, `melra_execute`, and `melra_receipt` for every small
+      operation. The adapter translates ordinary tool semantics into Effect
+      Contracts and runs plan → approve → execute → verify → receipt
+      underneath. The goal is boring infrastructure: install the adapter,
+      configure policy, run the agent normally.
 - [ ] At least two reference integrations against different harnesses, with the
       same policy, durable state, and receipts surviving the swap. This is the
       claim that distinguishes a kernel from a server; it is not yet proven.
-- [ ] Agent compatibility suite a harness can run to demonstrate it does not
-      bypass the kernel.
+- [ ] Compatibility suite a harness can run to demonstrate it does not bypass
+      the kernel, and a published conformance level a runtime can claim.
 
 ### P2 — hard capability boundary
 
+The bypass problem is the honest gap in developer mode: a harness holding both
+a MELRA terminal and an unrestricted native terminal makes MELRA optional, and
+an optional boundary is not a trust boundary. Closing it means removing the
+alternative, not asking the harness not to use it.
+
 - [ ] Two deployment modes: developer mode (today's behaviour) and enforced
-      mode, where the boundary is not a policy file the caller can edit.
+      mode, where the harness is sandboxed with no privileged secrets and no
+      raw production shell, talking to MELRA over authenticated IPC.
+- [ ] Use operating-system primitives rather than reinventing them: containers,
+      separate OS users, filesystem ACLs, namespaces, network isolation,
+      sandbox profiles, Unix sockets, service identities, capability tokens.
 - [ ] Rename `--unhinged` to something boring and descriptive
       (`--unsafe-local`), keeping the current flag as a deprecated alias, and
       refuse it outright in enforced mode.
 
 ### P3 — verification framework
 
-- [ ] Verification strength levels 0–3 surfaced on every evidence item, so a
-      caller can tell state evidence from the adapter's own word.
-- [ ] Independent-channel verification (level 2): confirm a UI effect through a
-      provider API rather than through the page that performed it.
+- [ ] Verification strength surfaced by name on every evidence item —
+      **execution**, **state**, **independent**, **semantic** — so a caller can
+      tell a re-read of the target from the adapter's own word.
+- [ ] Independent-channel verification: confirm an effect through a different
+      channel than the one that performed it (execute via `POST /refund`,
+      verify via `GET /refund/:id`), rather than through the page or process
+      that did the work.
 - [ ] Pluggable verifiers — file, process, HTTP, database, browser, cloud,
       SaaS, webhook — behind one predicate interface.
-- [ ] Semantic verification (level 3), labelled probabilistic everywhere it
-      appears, and never the sole evidence for a destructive effect.
+- [ ] Semantic verification, labelled probabilistic everywhere it appears, and
+      never the sole evidence for a destructive effect.
 
 ### P4 — credentials and API effects
 
-- [ ] Credential broker: agents receive capabilities, not secrets. The kernel
-      holds the credential and performs the effect.
-- [ ] HTTP/API effect adapter with per-provider effect semantics —
-      `at-most-once`, `at-least-once`, `exactly-once-where-provider-allows`,
-      `reconciliation-required` — declared rather than assumed.
+- [ ] Credential broker: agents receive capabilities, not credentials. The
+      kernel holds the secret and performs the effect, and refuses operations
+      outside the delegated capability even when the credential could perform
+      them. That is the difference between possessing credentials and
+      possessing authority.
+- [ ] HTTP/API effect adapter. A large share of serious autonomous work happens
+      through APIs rather than mouse clicks, and an API effect needs the same
+      nine guarantees as a file write.
+- [ ] Declared per-effect execution guarantees — `at-most-once`,
+      `at-least-once`, `provider-idempotent`, `reconciliation-required`,
+      `compensatable`, `read-only` — stated rather than assumed.
 - [ ] Reconciliation for effects whose provider cannot promise exactly-once.
 - [ ] Compensation as a first-class saga across providers, not only within one
       workflow.
@@ -224,6 +276,9 @@ Nothing here adds reasoning to MELRA.
 
 ## v0.4 and later
 
+- [ ] MELRA protocol published as an open specification: EffectRequest,
+      Principal, Capability, PolicyDecision, Authorization, ExecutionState,
+      VerificationContract, Evidence, Receipt, RecoveryState.
 - [ ] Extension SDK and compatibility testkit.
 - [ ] Sandboxed WASM or process-isolated third-party adapters.
 - [ ] Additional SDKs selected by contributor and platform demand.

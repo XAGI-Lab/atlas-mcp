@@ -5,9 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 MELRA is an agent-independent **autonomy kernel**: the layer an agent asks to
-change the world through. It owns effects, never reasoning — nothing in
-`packages/` may call a model, and no decision in the execution path may depend
-on model output.
+change the world through. Three layers, and the split is the whole design — the
+LLM reasons, the harness manages the loop, MELRA owns the effect lifecycle.
+MELRA begins where the tool call leaves the model loop. It owns effects, never
+reasoning — nothing in `packages/` may call a model, and no decision in the
+execution path may depend on model output.
+
+**The feature test.** Before adding anything, ask: *would this feature still
+make sense if the effect request came from ordinary deterministic software
+rather than an LLM?* Authorization, idempotency, credential isolation, recovery,
+verification, effect history, capabilities — yes, they belong here. Prompt
+optimization, LLM memory, model selection, a planner, agent personality — no,
+they belong to the harness above.
 
 For every effect it does exactly nine things and nothing else: type it against a
 strict schema, classify it, authorise it against policy, gate it on an exact

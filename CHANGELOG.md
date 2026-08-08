@@ -21,7 +21,31 @@ All notable changes are documented here. The format follows
   ROADMAP, `docs/ARCHITECTURE.md`, `CLAUDE.md`, and the package `description`
   fields were rewritten accordingly; `docs/ARCHITECTURE.md` now also states the
   responsibility boundary, the canonical effect lifecycle, and verification
-  strength levels 0–3 with today's predicates mapped onto them.
+  strength with today's predicates mapped onto it.
+- The responsibility boundary is now stated as **three** layers rather than two:
+  the LLM reasons, the harness manages the loop, MELRA owns the effect
+  lifecycle. MELRA begins where the tool call leaves the model loop, and never
+  receives a goal — "fix the production server" is reasoning, and what reaches
+  the kernel is a bounded operation. README and `docs/ARCHITECTURE.md` carry the
+  ownership table for the three layers; `CONTRIBUTING.md` and `CLAUDE.md` carry
+  the scope test that follows from it (*would this feature still make sense if
+  the effect request came from ordinary deterministic software rather than an
+  LLM?*).
+- Verification strengths are now named rather than numbered — **execution**,
+  **state**, **independent**, **semantic** — and `docs/ARCHITECTURE.md` adds the
+  per-effect execution-guarantee taxonomy (`read-only`, `at-most-once`,
+  `at-least-once`, `provider-idempotent`, `reconciliation-required`,
+  `compensatable`) with what each covers today, plus the developer-mode versus
+  enforced-mode deployment split and the bypass problem developer mode does not
+  solve.
+
+### Fixed
+
+- `docs/ARCHITECTURE.md` no longer claims human-input and delegation nodes are
+  unimplemented or that no command enters `paused`/`suspended`; all four ship.
+  The workflow node table, status diagram, and event-type list now match the
+  code, including `workflow.paused`, `workflow.suspended`, and
+  `workflow.resumed`.
 
 ### Added
 
