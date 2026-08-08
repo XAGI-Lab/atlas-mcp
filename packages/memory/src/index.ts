@@ -15,6 +15,26 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
   [/\bgh[opurs]_[A-Za-z0-9]{20,}\b/g, "[REDACTED_GITHUB_TOKEN]"],
 ];
 
+/**
+ * How long an unreachable memory row survives before compaction reclaims it,
+ * and an optional ceiling on live memories per scope.
+ *
+ * Expired and superseded rows are already filtered out of every read path, so
+ * removing them changes nothing a caller can observe — it only stops the file
+ * growing forever. `maxPerScope` is the opposite: it deletes memories that can
+ * still be read, so `0` (no ceiling) is the default and an operator opts in.
+ */
+export interface MemoryRetention {
+  maxAgeDays: number;
+  maxPerScope: number;
+}
+
+export const DEFAULT_MEMORY_RETENTION: MemoryRetention = {
+  maxAgeDays: 30,
+  maxPerScope: 0,
+};
+
+
 export function redactMemoryValue(value: string): {
   value: string;
   redactions: string[];
@@ -302,7 +322,10 @@ export function rankMemories(
 }
 
 export class LocalMemory {
-  constructor(private readonly store: SqliteStore) {}
+  constructor(
+    private readonly store: SqliteStore,
+    private readonly retention: MemoryRetention = DEFAULT_MEMORY_RETENTION,
+  ) {}
 
   execute(operation: MemoryOperation): Record<string, unknown> {
     switch (operation.action) {
@@ -380,6 +403,14 @@ export class LocalMemory {
           this.store.deleteMemory(memory.id, memory.scope);
           throw new Error("memory_supersedes_target_invalid");
         }
+        // Compact on the write path rather than on a timer: a scope only grows
+        // when something is put into it, so this is the one moment reclaiming
+        // is worth doing, and a local store is small enough that the cost is a
+        // few deletes against an indexed column.
+        const compacted = this.store.compactMemories(
+          memory.scope,
+          this.retention,
+        );
         return {
           stored: true,
           id: memory.id,
@@ -398,6 +429,7 @@ export class LocalMemory {
               ...(redactedEpisodeId?.redactions ?? []),
             ]),
           ],
+          compacted,
         };
       }
       case "search": {

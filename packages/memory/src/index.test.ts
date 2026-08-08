@@ -370,4 +370,45 @@ describe("LocalMemory", () => {
       ),
     ).toThrow("memory_scope_mismatch");
   });
+
+  it("reclaims unreachable records on the next write", () => {
+    store = new SqliteStore(":memory:");
+    const memory = new LocalMemory(store, { maxAgeDays: 0, maxPerScope: 0 });
+    store.putMemory({
+      id: "00000000-0000-4000-8000-0000000000e1",
+      scope: "workspace",
+      key: "stale",
+      value: "already expired",
+      source: "test",
+      confidence: 0.5,
+      tags: [],
+      expiresAt: "2000-01-01T00:00:00.000Z",
+      createdAt: "2000-01-01T00:00:00.000Z",
+      updatedAt: "2000-01-01T00:00:00.000Z",
+    });
+    // Nothing reads it, but until a write happens nothing removes it either.
+    expect(store.listMemories("workspace", 10)).toHaveLength(0);
+    expect(
+      store.getMemory("00000000-0000-4000-8000-0000000000e1"),
+    ).toBeDefined();
+
+    const result = memory.execute(
+      MemoryOperationSchema.parse({
+        kind: "memory",
+        action: "put",
+        scope: "workspace",
+        key: "fresh",
+        value: "still here",
+      }),
+    );
+    expect(result.compacted).toEqual({
+      expired: 1,
+      superseded: 0,
+      evicted: 0,
+    });
+    expect(
+      store.getMemory("00000000-0000-4000-8000-0000000000e1"),
+    ).toBeUndefined();
+    expect(store.listMemories("workspace", 10)).toHaveLength(1);
+  });
 });

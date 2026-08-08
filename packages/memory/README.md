@@ -38,6 +38,18 @@ pasted into a memory entry is not preserved in the database.
 Reads and deletes are scope-aware: a scope only sees its own entries, so one
 task cannot read what another stored by guessing a key.
 
+Expired and superseded records are already invisible to every read path;
+`LocalMemory` reclaims them on the next write to that scope, after
+`MemoryRetention.maxAgeDays` (default 30). Pass `maxPerScope` to also cap live
+memories — that one deletes records you can still read, so it defaults to `0`
+(no ceiling).
+
+```ts
+import { LocalMemory } from "@melra/memory";
+
+const bounded = new LocalMemory(store, { maxAgeDays: 7, maxPerScope: 5_000 });
+```
+
 Requires Node.js 22 or newer. Full documentation:
 [github.com/XAGI-Lab/melra](https://github.com/XAGI-Lab/melra)
 

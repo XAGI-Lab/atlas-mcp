@@ -195,7 +195,7 @@ export async function createMelraRuntime(
       ? {}
       : { recordHarPath: options.browserHarPath }),
   });
-  const memory = new LocalMemory(store);
+  const memory = new LocalMemory(store, policy.memoryRetention);
   const computer = new ComputerRuntime({
     artifactDirectory: join(dataDirectory, "artifacts"),
   });

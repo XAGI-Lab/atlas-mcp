@@ -159,6 +159,21 @@ Mutations default to `"confirm"`: every non-read operation returns a
 task-scoped approval phrase that must be echoed back before it runs. Set
 `"mutations": "deny"` for a read-only install.
 
+Memories are reclaimed on the next `melra_execute` that writes to the same
+scope. `memoryRetention.maxAgeDays` (default `30`) is how long an expired or
+superseded record is kept after it stops being readable — no search or list can
+return one, so removing it changes nothing you can observe, it only stops the
+database growing forever. A superseded record survives while a live record still
+supersedes it, so `supersedesId` never dangles.
+
+`memoryRetention.maxPerScope` is a hard ceiling on *live* memories per scope and
+defaults to `0`, meaning none. It is different in kind: it deletes records you
+stored and can still read, oldest first, so it is opt-in.
+
+```json
+{ "memoryRetention": { "maxAgeDays": 30, "maxPerScope": 5000 } }
+```
+
 ## HTTP server and console
 
 `melra serve` speaks stdio, which is what MCP clients spawn. `melra serve --http`

@@ -6,6 +6,18 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Memory retention and compaction. Expired and superseded records were already
+  invisible to every read path but nothing ever deleted them, so a long-lived
+  install grew forever while the searchable set stayed the same size.
+  `LocalMemory` now reclaims them on the next write to that scope, governed by
+  `memoryRetention.maxAgeDays` in `policy.json` (default 30). A superseded
+  record is kept while a live record still supersedes it, so `supersedesId`
+  never dangles. `memoryRetention.maxPerScope` additionally caps live memories
+  per scope, oldest first — that one deletes data you can still read, so it
+  defaults to `0`, meaning no ceiling.
+
 ### Fixed
 
 - Windows checkouts no longer produce CRLF source. Git for Windows converts on
@@ -14,6 +26,11 @@ All notable changes are documented here. The format follows
   `.gitattributes` normalizes every text file to LF on all platforms, and the
   checker tolerates CRLF regardless so an older clone still gets its examples
   typechecked.
+- Unhinged mode no longer fails to start on Windows. `FileRuntime.create`
+  unconditionally created its own root, and unhinged mode roots it at the drive
+  root, which Windows answers with `EPERM` instead of the no-op POSIX gives for
+  a directory that already exists. It now only creates a root that is missing.
+
 
 ## [0.3.0-alpha.5] - 2026-08-08
 

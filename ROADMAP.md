@@ -46,7 +46,7 @@ promise of stable API compatibility.
 - [x] Hybrid lexical ranking, freshness, confidence, and head diversity.
 - [x] Explicit episode-order expansion and query-aware speaker matching.
 - [x] Public LoCoMo objective-retrieval harness and result artifact.
-- [ ] Configurable retention policies and automatic compaction.
+- [x] Configurable retention policies and automatic compaction.
 - [ ] Semantic embeddings and hybrid retrieval.
 - [ ] Freshness, conflict resolution, and consolidation.
 - [ ] Prompt-injection and memory-poisoning classifiers.

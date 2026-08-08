@@ -1030,6 +1030,73 @@ export class SqliteStore {
     return Number(result.changes);
   }
 
+  /**
+   * Reclaim memory rows that no read path can return.
+   *
+   * `listMemories` and `memoryCandidates` both filter out expired rows, and
+   * filter out superseded ones unless asked for them, but nothing ever deleted
+   * either — so a long-lived install grew forever while the searchable set
+   * stayed the same size. This deletes what is already unreachable.
+   *
+   * `maxPerScope` is different in kind and defaults to off: it evicts *live*
+   * memories, which is data the caller stored and can still read. An operator
+   * who wants a hard ceiling opts into one.
+   *
+   * A superseded row is only dropped once nothing live points at it, so
+   * `supersedes_id` never dangles and a chain is removed from its tail
+   * inwards across successive compactions.
+   */
+  compactMemories(
+    scope: MemoryScope,
+    retention: { maxAgeDays: number; maxPerScope: number },
+    now = new Date(),
+  ): { expired: number; superseded: number; evicted: number } {
+    const nowIso = now.toISOString();
+    const cutoff = new Date(
+      now.getTime() - retention.maxAgeDays * 86_400_000,
+    ).toISOString();
+    return this.transaction(() => {
+      const expired = Number(
+        this.database
+          .prepare(
+            "DELETE FROM memories WHERE scope = ? AND expires_at IS NOT NULL AND expires_at <= ?",
+          )
+          .run(scope, nowIso).changes,
+      );
+      const superseded = Number(
+        this.database
+          .prepare(`
+            DELETE FROM memories
+            WHERE scope = ?
+              AND superseded_by IS NOT NULL
+              AND updated_at <= ?
+              AND id NOT IN (
+                SELECT supersedes_id FROM memories
+                WHERE scope = ? AND supersedes_id IS NOT NULL AND superseded_by IS NULL
+              )
+          `)
+          .run(scope, cutoff, scope).changes,
+      );
+      const evicted =
+        retention.maxPerScope <= 0
+          ? 0
+          : Number(
+              this.database
+                .prepare(`
+                  DELETE FROM memories
+                  WHERE scope = ? AND superseded_by IS NULL AND id NOT IN (
+                    SELECT id FROM memories
+                    WHERE scope = ? AND superseded_by IS NULL
+                    ORDER BY updated_at DESC, id DESC
+                    LIMIT ?
+                  )
+                `)
+                .run(scope, scope, retention.maxPerScope).changes,
+            );
+      return { expired, superseded, evicted };
+    });
+  }
+
   close(): void {
     this.database.close();
   }

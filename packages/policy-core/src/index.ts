@@ -25,6 +25,16 @@ export interface LocalPolicy {
   approvalTtlMs: number;
   maxFileBytes: number;
   /**
+   * How long unreachable memory rows are kept before compaction reclaims them,
+   * and an optional hard ceiling on live memories per scope.
+   *
+   * `maxPerScope: 0` means no ceiling, which is the default: evicting a live
+   * memory throws away something the caller stored and can still read, so it
+   * is opt-in. Expired and superseded rows are reclaimed regardless — no read
+   * path can return them.
+   */
+  memoryRetention: { maxAgeDays: number; maxPerScope: number };
+  /**
    * Switches off every guardrail this policy exists to apply: allowlists,
    * evidence requirements, approval challenges, and — through the runtimes
    * constructed from this policy — workspace confinement and the browser's
@@ -130,6 +140,7 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
     mutations: "confirm",
     approvalTtlMs: 5 * 60_000,
     maxFileBytes: 10 * 1024 * 1024,
+    memoryRetention: { maxAgeDays: 30, maxPerScope: 0 },
     unhinged: false,
   };
 }
@@ -147,6 +158,9 @@ export async function loadPolicy(
     workspaceRoot: resolve(parsed.workspaceRoot ?? workspaceRoot),
     allowedCommands: parsed.allowedCommands ?? defaults.allowedCommands,
     allowedDomains: parsed.allowedDomains ?? defaults.allowedDomains,
+    // Spread, not replace: a file naming only `maxPerScope` should not silently
+    // drop `maxAgeDays` to `undefined` and make compaction delete everything.
+    memoryRetention: { ...defaults.memoryRetention, ...parsed.memoryRetention },
   };
 }
 

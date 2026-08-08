@@ -141,6 +141,103 @@ describe("SqliteStore", () => {
     expect(store.listMemories("user", 5)).toHaveLength(0);
   });
 
+  it("compacts only memories no read path can return", () => {
+    store = new SqliteStore(":memory:");
+    const now = new Date("2026-08-08T12:00:00.000Z");
+    const old = new Date("2026-01-01T00:00:00.000Z").toISOString();
+    const base = {
+      scope: "workspace" as const,
+      source: "test",
+      confidence: 0.9,
+      tags: [],
+      createdAt: old,
+    };
+    // Expired: filtered out of every query already, so nothing can miss it.
+    store.putMemory({
+      ...base,
+      id: "11111111-1111-4111-8111-111111111111",
+      key: "expired",
+      value: "gone",
+      expiresAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: old,
+    });
+    // A superseded chain: `stale` -> `middle` -> `head`, `head` still live.
+    store.putMemory({
+      ...base,
+      id: "22222222-2222-4222-8222-222222222222",
+      key: "stale",
+      value: "v1",
+      updatedAt: old,
+    });
+    store.putMemory({
+      ...base,
+      id: "33333333-3333-4333-8333-333333333333",
+      key: "middle",
+      value: "v2",
+      supersedesId: "22222222-2222-4222-8222-222222222222",
+      updatedAt: old,
+    });
+    store.putMemory({
+      ...base,
+      id: "44444444-4444-4444-8444-444444444444",
+      key: "head",
+      value: "v3",
+      supersedesId: "33333333-3333-4333-8333-333333333333",
+      updatedAt: old,
+    });
+    store.supersedeMemory(
+      "22222222-2222-4222-8222-222222222222",
+      "workspace",
+      "33333333-3333-4333-8333-333333333333",
+    );
+    store.supersedeMemory(
+      "33333333-3333-4333-8333-333333333333",
+      "workspace",
+      "44444444-4444-4444-8444-444444444444",
+    );
+    // Live and untouched by compaction at the default ceiling of none.
+    store.putMemory({
+      ...base,
+      id: "55555555-5555-4555-8555-555555555555",
+      key: "live",
+      value: "keep me",
+      updatedAt: old,
+    });
+
+    // `supersedeMemory` stamps `updated_at`, so the chain is only as old as the
+    // supersession — measure age from now rather than from the seeded dates.
+    const compacted = store.compactMemories(
+      "workspace",
+      { maxAgeDays: 0, maxPerScope: 0 },
+      now,
+    );
+    expect(compacted.expired).toBe(1);
+    // `stale` goes; `middle` stays because live `head` still points at it, so
+    // `supersedesId` never dangles.
+    expect(compacted.superseded).toBe(1);
+    expect(compacted.evicted).toBe(0);
+    expect(
+      store.getMemory("22222222-2222-4222-8222-222222222222"),
+    ).toBeUndefined();
+    expect(
+      store.getMemory("33333333-3333-4333-8333-333333333333"),
+    ).toBeDefined();
+    expect(store.listMemories("workspace", 10).map((row) => row.key)).toEqual([
+      "head",
+      "live",
+    ]);
+
+    // An opt-in ceiling evicts live memories, oldest first.
+    expect(
+      store.compactMemories(
+        "workspace",
+        { maxAgeDays: 30, maxPerScope: 1 },
+        now,
+      ).evicted,
+    ).toBe(1);
+    expect(store.listMemories("workspace", 10)).toHaveLength(1);
+  });
+
   it("migrates existing memory tables before persisting episode metadata", () => {
     tempDirectory = mkdtempSync(join(tmpdir(), "melra-memory-migration-"));
     const databasePath = join(tempDirectory, "melra.sqlite");
