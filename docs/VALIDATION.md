@@ -18,7 +18,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 |---|---|
 | Package-version consistency | all 16 workspace manifests, protocol constant, and Python distribution match |
 | TypeScript build and strict typecheck | passed across 15 packages/apps |
-| JavaScript/Vitest cases | 227 passed |
+| JavaScript/Vitest cases | 266 passed |
 | Python lint and SDK tests | ruff passed; 2 tests passed |
 | Safety/execution evaluation | 28 of 28 passed |
 | Durable Core evaluation | 8 valid, 0 invalid |
@@ -26,7 +26,7 @@ Host exercised locally: macOS arm64, Node.js 24.10.0, Python 3.11.14
 | Duplicate-execution rate | `0.0` |
 | False-success rate | `0.0` |
 | Event-consistency rate | `1.0` |
-| Real MCP stdio E2E | 12 cases passed |
+| Real MCP stdio E2E | 13 cases passed |
 | CLI package dry run | `melra-cli-0.3.0-alpha.1.tgz` produced |
 | Hardened container MCP smoke | all 11 tools discovered; verified certificate produced |
 | Shipped Node and Python dependency audit | no known vulnerabilities |
@@ -96,9 +96,9 @@ Host exercised locally: macOS arm64 (Darwin 25.5.0), Node.js 24, Python 3.11.14
 | Gate | Result |
 |---|---|
 | `pnpm check` | passed (versions, strict typecheck, tests, Python) |
-| TypeScript/Vitest cases | 227 passed |
+| TypeScript/Vitest cases | 266 passed |
 | `pnpm evals` | 28 of 28 scenarios passed, 0 failed |
-| `pnpm e2e` | 12 end-to-end cases passed over real stdio |
+| `pnpm e2e` | 13 end-to-end cases passed over real stdio |
 | `pnpm pack:check` | passed |
 | `pnpm security:audit` | no known vulnerabilities, Node and Python |
 | `pnpm benchmark:browser:check` | ruff clean, 28 pytest cases passed |
@@ -268,7 +268,9 @@ findings.
 
 ## Known alpha limitations
 
-- Stdio is the only transport.
+- Stdio and loopback HTTP are the transports. The HTTP surface is guarded by a
+  bearer token, not by OAuth or per-client identity; treat the token as equal to
+  shell access on the host.
 - One task contains one typed operation; workflows are the bounded composition
   layer.
 - Only filesystem predicates can currently reconcile an interrupted mutation

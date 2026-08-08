@@ -6,6 +6,8 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-alpha.5] - 2026-08-08
+
 ### Added
 
 - A local HTTP front door. `melra serve --http` opens the same runtime the stdio
@@ -22,7 +24,6 @@ All notable changes are documented here. The format follows
   self-contained page, no build step and no external requests, showing the posture
   you are running under (including the unhinged banner), every workflow run, each
   node's status, and a live event tail.
-
 - Every published package now carries its own README, so the npm page explains
   what the package is, how to install it, and the invariants that are not obvious
   from the type signatures. `pnpm readme:check` (part of `pnpm check`) typechecks
@@ -557,7 +558,8 @@ All notable changes are documented here. The format follows
 - Cross-scope memory overwrite and deletion protection.
 - Patched transitive HTTP adapter enforced through a package override.
 
-[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.4...HEAD
+[Unreleased]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.5...HEAD
+[0.3.0-alpha.5]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.4...v0.3.0-alpha.5
 [0.3.0-alpha.4]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.3...v0.3.0-alpha.4
 [0.3.0-alpha.3]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.2...v0.3.0-alpha.3
 [0.3.0-alpha.2]: https://github.com/XAGI-Lab/melra/compare/v0.3.0-alpha.1...v0.3.0-alpha.2

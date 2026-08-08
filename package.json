@@ -1,6 +1,6 @@
 {
   "name": "melra",
-  "version": "0.3.0-alpha.4",
+  "version": "0.3.0-alpha.5",
   "private": true,
   "description": "Modular Execution Layer for Reliable Autonomy: durable, policy-governed execution with independently verified outcomes.",
   "license": "Apache-2.0",
@@ -35,6 +35,7 @@
     "test:peak-rss": "node scripts/peak-rss.mjs -- pnpm test",
     "typecheck": "pnpm build && pnpm -r typecheck",
     "versions:check": "node scripts/check-versions.mjs",
+    "versions:set": "node scripts/set-version.mjs",
     "check": "pnpm versions:check && pnpm typecheck && node scripts/check-readme-examples.mjs && pnpm test && pnpm python:check",
     "pack:check": "pnpm build && pnpm --dir apps/cli pack:check",
     "readme:check": "pnpm build && node scripts/check-readme-examples.mjs"

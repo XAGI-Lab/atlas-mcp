@@ -22,8 +22,8 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 
 <!-- Evidence -->
 <img src="https://img.shields.io/badge/evals-28_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="28 deterministic evaluation scenarios passing" />
-<img src="https://img.shields.io/badge/tests-229_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="229 JavaScript tests passing" />
-<img src="https://img.shields.io/badge/MCP_E2E-12_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="12 real MCP end-to-end cases passing" />
+<img src="https://img.shields.io/badge/tests-266_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="266 JavaScript tests passing" />
+<img src="https://img.shields.io/badge/MCP_E2E-13_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="13 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />
 
 <br />
@@ -43,7 +43,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 <img src="https://img.shields.io/badge/macOS-supported-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS supported" />
 <img src="https://img.shields.io/badge/Linux-supported-FCC624?style=flat-square&logo=linux&logoColor=black" alt="Linux supported" />
 <img src="https://img.shields.io/badge/Windows-supported-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Windows supported" />
-<img src="https://img.shields.io/badge/transport-stdio-475569?style=flat-square" alt="Local stdio transport" />
+<img src="https://img.shields.io/badge/transport-stdio_%2B_local_HTTP-475569?style=flat-square" alt="Local stdio and loopback HTTP transports" />
 <img src="https://img.shields.io/badge/telemetry-off-0f172a?style=flat-square" alt="Telemetry off" />
 
 <br />
@@ -67,7 +67,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 > end, but APIs may change before `1.0`. Use an isolated workspace, keep domain
 > and command allowlists narrow, and review every consequential approval.
 
-### Durable Core Alpha — `0.3.0-alpha.4`
+### Durable Core Alpha — `0.3.0-alpha.5`
 
 | Shipped in this source release | Evidence |
 |---|---|
@@ -75,6 +75,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 | Encrypted exact task, workflow, and result payloads | AES-256-GCM storage plus plaintext-leak checks across SQLite/WAL and public projections |
 | Eleven MCP tools for tasks and workflows | Container and stdio discovery checks require the exact tool set |
 | Recovery without silent mutation replay | 8/8 deterministic recovery scenarios, zero duplicates, zero false success |
+| Loopback HTTP transport, event stream, and read-only console | Same runtime as stdio, token on every route, `405` on any non-`GET` to the JSON API |
 
 ---
 
@@ -444,7 +445,7 @@ pairs *and* its sanitized artifact passes the publication gate.
 
 | | Default |
 |:--:|---|
-| 🏠 | Local-only stdio transport; no account or hosted service required |
+| 🏠 | Local-only transports — stdio, or loopback HTTP behind a token; no account or hosted service required |
 | 📴 | Telemetry is **off** |
 | 🚫 | Shell interpreters, privilege escalation, and arbitrary desktop key names are denied |
 | 📁 | Paths and terminal working directories stay inside the configured root |

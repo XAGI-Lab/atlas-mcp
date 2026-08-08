@@ -1,6 +1,6 @@
 # Capabilities and limits
 
-This document describes `0.3.0-alpha.4`.
+This document describes `0.3.0-alpha.5`.
 
 ## MCP tools
 
@@ -209,6 +209,9 @@ Mutations and destructive operations have one execution attempt.
 
 ## Transport and deployment
 
-- Supported: local stdio.
+- Supported: local stdio, and loopback Streamable HTTP (`melra serve --http`)
+  guarded by a bearer token, alongside a read-only JSON API, an SSE workflow
+  event stream, and the Community console.
 - Packaged: source, portable Node artifact, Python SDK artifact, Docker image.
-- Not supported in `0.3`: remote HTTP transport, OAuth, multi-tenant hosting.
+- Not supported in `0.3`: transports bound to a non-loopback interface, OAuth,
+  per-client identity, multi-tenant hosting.

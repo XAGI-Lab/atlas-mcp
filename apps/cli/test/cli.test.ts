@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import { PRODUCT_VERSION } from "@melra/protocol";
 import { parseCliEnvironment, serverLaunch } from "../src/environment.js";
 
 const execute = promisify(execFile);
@@ -119,7 +120,10 @@ describe("melra CLI", () => {
 
   it("prints the product version", async () => {
     const result = await execute(process.execPath, [entry, "version"]);
-    expect(result.stdout.trim()).toBe("0.3.0-alpha.4");
+    // Against the constant, not a literal: a literal here is an eighteenth
+    // place a release has to remember, and `check-versions.mjs` does not know
+    // about it.
+    expect(result.stdout.trim()).toBe(PRODUCT_VERSION);
   });
 
   it("reports local readiness through doctor", async () => {

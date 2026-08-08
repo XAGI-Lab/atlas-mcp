@@ -2,7 +2,7 @@
 
 ## Version status
 
-`0.3.0-alpha.4` is pre-stable. Alpha minor releases may change MCP schemas,
+`0.3.0-alpha.5` is pre-stable. Alpha minor releases may change MCP schemas,
 CLI JSON, SDK methods, package exports, and SQLite data. Patch releases should
 remain backward compatible unless a documented security correction requires a
 break.
@@ -23,7 +23,7 @@ migration commitments, and stable receipt verification behavior.
 | Python SDK | CPython 3.11+ | Local Python 3.11 tests |
 | Container | Linux OCI, AMD64 and ARM64 build targets | Docker workflow; release-candidate smoke required |
 | Browser | Installed Chrome, Chromium, or Edge | Installed Chrome verified locally on macOS arm64 |
-| MCP transport | stdio | Real child-process MCP suite |
+| MCP transport | stdio; loopback Streamable HTTP | Real child-process MCP suite; HTTP suite drives the official SDK client against a live server |
 
 A workflow definition in CI is not clean-machine certification. The current
 host evidence and unverified claims are listed in [VALIDATION.md](VALIDATION.md).

@@ -1,0 +1,50 @@
+// Copyright 2026 XAGI Labs Private Limited
+// SPDX-License-Identifier: Apache-2.0
+
+// Versions move in lockstep across every manifest, the protocol constant, and
+// the Python project. `check-versions.mjs` already knows where they all are;
+// this writes the same set rather than making a release edit seventeen files by
+// hand and discover the one it missed in CI.
+
+import { glob, readFile, writeFile } from "node:fs/promises";
+
+const next = process.argv[2];
+if (next === undefined || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(next)) {
+  process.stderr.write("usage: node scripts/set-version.mjs <semver>\n");
+  process.exit(1);
+}
+
+const written = [];
+
+async function edit(path, replace) {
+  const before = await readFile(path, "utf8");
+  const after = replace(before);
+  if (after !== before) {
+    await writeFile(path, after, "utf8");
+    written.push(path);
+  }
+}
+
+// Only the manifest's own top-level `version` moves. Workspace dependencies use
+// `workspace:*` and published ranges belong to whoever set them.
+const setManifestVersion = (text) =>
+  text.replace(/^(\s*"version":\s*)"[^"]*"/m, `$1"${next}"`);
+
+await edit("package.json", setManifestVersion);
+for await (const path of glob("{apps,packages}/*/package.json")) {
+  await edit(path, setManifestVersion);
+}
+await edit("packages/protocol/src/index.ts", (text) =>
+  text.replace(
+    /PRODUCT_VERSION = "[^"]*"/,
+    `PRODUCT_VERSION = "${next}"`,
+  ),
+);
+await edit("sdk-py/pyproject.toml", (text) =>
+  text.replace(
+    /^version = "[^"]*"/m,
+    `version = "${next.replace("-alpha.", "a")}"`,
+  ),
+);
+
+process.stdout.write(`${next}\n${written.map((p) => `  ${p}`).join("\n")}\n`);

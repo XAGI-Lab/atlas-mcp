@@ -1,6 +1,6 @@
 {
   "name": "@melra/file-runtime",
-  "version": "0.3.0-alpha.4",
+  "version": "0.3.0-alpha.5",
   "description": "Workspace-confined file execution runtime for MELRA.",
   "license": "Apache-2.0",
   "repository": {
