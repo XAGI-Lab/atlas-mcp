@@ -8,6 +8,19 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- A circuit breaker shared across related tasks. `budget.maxRetries` covers a
+  blip inside one task and nothing carried further, so a workflow whose node kept
+  failing against the same unreachable host spent every remaining step
+  rediscovering that. After `circuitBreaker.threshold` consecutive failures
+  against one target — a path, a host, a command — the next task touching it
+  fails immediately with `circuit_open:<target>` instead of reaching the adapter,
+  until `circuitBreaker.cooldownMs` has passed; the first task after the cooldown
+  is the trial, one success clears the count, another failure re-opens at once.
+  The refusal still produces a receipt and a certificate, because it is a
+  governed outcome like any other. Other targets are unaffected, a `partial`
+  counts as reaching the target, and a cancellation counts neither way.
+  `threshold: 0` switches it off, and unhinged mode does the same. State is
+  per process: a restart starts every target closed.
 - Interactive terminal input. A background job's stdin was ignored, so any
   command that stopped to ask something — a scaffolder's prompt, a confirmation
   — hung until its timeout with no way to answer it. `start` now takes

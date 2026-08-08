@@ -18,7 +18,7 @@ promise of stable API compatibility.
 - [x] Local SQLite task, receipt, certificate, and memory storage.
 - [x] AES-256-GCM executable task payload persistence across restart.
 - [x] Conservative recovery rules for interrupted reads and mutations.
-- [ ] Circuit breakers shared across related tasks.
+- [x] Circuit breakers shared across related tasks.
 
 ### File, terminal, and browser
 

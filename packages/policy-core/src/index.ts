@@ -47,6 +47,18 @@ export interface LocalPolicy {
    */
   deniedTraits: CapabilityTrait[];
   /**
+   * Stops a task from re-running an operation whose target keeps failing.
+   *
+   * A retry inside one task only covers a transient blip; nothing carried the
+   * knowledge that the last three tasks against this same file, host, or command
+   * all failed, so a workflow would keep spending its budget rediscovering it.
+   * After `threshold` consecutive failures against one target, the next task
+   * touching it fails immediately with `circuit_open:<target>` until
+   * `cooldownMs` has passed; the first task after the cooldown is the trial, and
+   * one success clears the count. `threshold: 0` switches it off.
+   */
+  circuitBreaker: { threshold: number; cooldownMs: number };
+  /**
    * Switches off every guardrail this policy exists to apply: allowlists,
    * evidence requirements, approval challenges, and — through the runtimes
    * constructed from this policy — workspace confinement and the browser's
@@ -353,6 +365,7 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
     maxFileBytes: 10 * 1024 * 1024,
     memoryRetention: { maxAgeDays: 30, maxPerScope: 0 },
     deniedTraits: [],
+    circuitBreaker: { threshold: 3, cooldownMs: 60_000 },
     unhinged: false,
   };
 }
@@ -373,6 +386,7 @@ export async function loadPolicy(
     // Spread, not replace: a file naming only `maxPerScope` should not silently
     // drop `maxAgeDays` to `undefined` and make compaction delete everything.
     memoryRetention: { ...defaults.memoryRetention, ...parsed.memoryRetention },
+    circuitBreaker: { ...defaults.circuitBreaker, ...parsed.circuitBreaker },
     deniedTraits: parsed.deniedTraits ?? defaults.deniedTraits,
   };
 }

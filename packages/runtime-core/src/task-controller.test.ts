@@ -12,6 +12,7 @@ import {
 import { createDefaultPolicy } from "@melra/policy-core";
 import { SqliteStore } from "@melra/storage-sqlite";
 import { Verifier } from "@melra/verifier-core";
+import { CircuitBreaker } from "./circuit-breaker.js";
 import { PayloadCipher } from "./payload-cipher.js";
 import { TaskController } from "./task-controller.js";
 
@@ -438,6 +439,48 @@ describe("TaskController", () => {
     // the mutation-requires-evidence guarantee still holds.
     expect(task.status).toBe("policy_blocked");
     expect(task.policyDecision.reason).toBe("mutation_requires_evidence");
+  });
+
+  it("stops calling an adapter that keeps failing, and still receipts the refusal", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-controller-breaker-"));
+    roots.push(root);
+    const store = new SqliteStore(":memory:");
+    stores.push(store);
+    let calls = 0;
+    const controller = new TaskController(
+      store,
+      createDefaultPolicy(root),
+      {
+        async execute() {
+          calls += 1;
+          throw new Error("target_unreachable");
+        },
+      },
+      await Verifier.create(root),
+      new PayloadCipher(Buffer.alloc(32, 9)),
+      new CircuitBreaker({ threshold: 2, cooldownMs: 60_000 }),
+    );
+    const run = async () => {
+      const task = controller.plan(
+        TaskRequestSchema.parse({
+          goal: "Ask an unreachable target",
+          operation: { kind: "system", action: "info" },
+          budget: { maxSteps: 1, maxDurationMs: 5_000, maxRetries: 0 },
+        }),
+      );
+      return (await controller.execute(task.id)).task;
+    };
+
+    expect((await run()).status).toBe("failed");
+    expect((await run()).status).toBe("failed");
+    const refused = await run();
+    // The point of the breaker: the third task never reaches the adapter.
+    expect(calls).toBe(2);
+    expect(refused.status).toBe("failed");
+    expect(refused.error).toContain("circuit_open:local-system");
+    // A refusal is still a governed outcome, so it owes the caller the same
+    // receipt and certificate any other terminal task produces.
+    expect(controller.receipts({ taskId: refused.id }).receipts).toHaveLength(1);
   });
 
   it("retries bounded read failures but never loops indefinitely", async () => {

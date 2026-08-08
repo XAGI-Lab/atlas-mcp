@@ -200,6 +200,23 @@ stored and can still read, oldest first, so it is opt-in.
 { "memoryRetention": { "maxAgeDays": 30, "maxPerScope": 5000 } }
 ```
 
+`budget.maxRetries` covers a blip inside one task and stops there, so a workflow
+whose node keeps failing against the same host would spend every step
+rediscovering that. After `circuitBreaker.threshold` consecutive failures
+against one target — a path, a host, a command — the next task touching it fails
+immediately with `circuit_open:<target>` instead of running, until
+`circuitBreaker.cooldownMs` has passed. The first task after the cooldown is the
+trial: one success clears the count, another failure re-opens at once. Other
+targets are unaffected, a `partial` counts as reaching the target, and a
+cancellation counts neither way. `threshold: 0` switches it off, which is also
+what unhinged mode does.
+
+```json
+{ "circuitBreaker": { "threshold": 3, "cooldownMs": 60000 } }
+```
+
+The state is per process, so restarting the server starts every target closed.
+
 ## Commands that ask a question
 
 A command that stops to prompt would otherwise sit there until its timeout, with

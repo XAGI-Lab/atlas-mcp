@@ -30,6 +30,7 @@ import {
 } from "@melra/receipt-schema";
 import { SqliteStore } from "@melra/storage-sqlite";
 import { Verifier } from "@melra/verifier-core";
+import { CircuitBreaker } from "./circuit-breaker.js";
 import { PayloadCipher } from "./payload-cipher.js";
 
 export interface OperationExecutor {
@@ -95,13 +96,25 @@ function withDefaultEvidence(request: TaskRequest): TaskRequest {
 export class TaskController {
   private readonly active = new Map<string, AbortController>();
 
+  private readonly breaker: CircuitBreaker;
+
   constructor(
     private readonly store: SqliteStore,
     private readonly policy: LocalPolicy,
     private readonly executor: OperationExecutor,
     private readonly verifier: Verifier,
     private readonly payloadCipher: PayloadCipher,
-  ) {}
+    breaker?: CircuitBreaker,
+  ) {
+    // Unhinged means nothing MELRA judges gets to refuse a call, and a tripped
+    // breaker refusing to run is exactly that. `threshold: 0` switches it off at
+    // the one place that owns the behaviour rather than branching at each use.
+    this.breaker =
+      breaker ??
+      new CircuitBreaker(
+        policy.unhinged ? { threshold: 0, cooldownMs: 0 } : policy.circuitBreaker,
+      );
+  }
 
   plan(
     request: TaskRequest,
@@ -241,7 +254,15 @@ export class TaskController {
     const classified = classifyOperation(request.operation);
     let timeout: NodeJS.Timeout | undefined;
     let budgetExhausted = false;
+    let shortCircuited = false;
     try {
+      const opened = this.breaker.check(classified.target);
+      if (opened !== undefined) {
+        // Thrown rather than returned early so the refusal still produces the
+        // receipt and certificate every other terminal outcome produces.
+        shortCircuited = true;
+        throw new Error(opened);
+      }
       timeout = setTimeout(
         () => {
           budgetExhausted = true;
@@ -271,6 +292,8 @@ export class TaskController {
       );
       const actionSucceeded =
         result.success === undefined || result.success === true;
+      if (actionSucceeded) this.breaker.recordSuccess(classified.target);
+      else this.breaker.recordFailure(classified.target);
       const evidence: EvidenceItem[] =
         request.requiredEvidence.length === 0
           ? [
@@ -328,6 +351,12 @@ export class TaskController {
       const rawMessage = error instanceof Error ? error.message : String(error);
       const message = redactStructuredValue(rawMessage).value as string;
       const aborted = controller.signal.aborted;
+      // A refusal by the breaker is not fresh evidence about the target, and an
+      // operator's cancellation is not evidence about it at all. A budget that
+      // ran out is: the target did not answer in time.
+      if (!shortCircuited && (!aborted || budgetExhausted)) {
+        this.breaker.recordFailure(classified.target);
+      }
       task.status = aborted
         ? budgetExhausted
           ? "budget_exhausted"
