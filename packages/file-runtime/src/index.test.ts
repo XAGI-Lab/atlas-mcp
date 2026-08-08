@@ -1,9 +1,9 @@
 // Copyright 2026 XAGI Labs Private Limited
 // SPDX-License-Identifier: Apache-2.0
 
-import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, parse } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { FileOperationSchema } from "@melra/protocol";
 import { FileRuntime } from "./index.js";
@@ -57,5 +57,23 @@ describe("FileRuntime", () => {
         }),
       ),
     ).rejects.toThrow("path_outside_workspace");
+  });
+
+  it("creates a missing root but accepts one it cannot create", async () => {
+    // A workspace the user has not made yet is created for them.
+    const parent = await mkdtemp(join(tmpdir(), "melra-file-"));
+    roots.push(parent);
+    const nested = join(parent, "workspace", "inner");
+    expect((await FileRuntime.create({ root: nested })).root).toBe(
+      await realpath(nested),
+    );
+
+    // Unhinged mode roots this runtime at the filesystem root. That directory
+    // always exists, but Windows answers `mkdir C:\` with EPERM instead of the
+    // no-op POSIX gives for an existing directory, so `create` must not ask.
+    const driveRoot = parse(tmpdir()).root;
+    expect((await FileRuntime.create({ root: driveRoot })).root).toBe(
+      await realpath(driveRoot),
+    );
   });
 });

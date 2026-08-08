@@ -39,7 +39,15 @@ export class FileRuntime {
   }
 
   static async create(options: FileRuntimeOptions): Promise<FileRuntime> {
-    await mkdir(options.root, { recursive: true });
+    // A workspace that does not exist yet is created for the caller. A drive
+    // root already exists, and Windows answers `mkdir C:\` with EPERM instead
+    // of the no-op POSIX gives for an existing directory — which is exactly
+    // where unhinged mode roots this runtime. Only create what is missing.
+    const exists = await stat(options.root).then(
+      (entry) => entry.isDirectory(),
+      () => false,
+    );
+    if (!exists) await mkdir(options.root, { recursive: true });
     return new FileRuntime(options, await realpath(options.root));
   }
 
