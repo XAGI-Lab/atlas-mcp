@@ -280,6 +280,10 @@ findings.
   duplicate effects.
 - Browser sessions are isolated and, unless `MELRA_BROWSER_PROFILE` names a
   directory to keep, thrown away when the run ends.
+- Browser requests are routed through a loopback proxy so a destination connects
+  to the address it was validated against. Attaching to a running browser over
+  CDP (`MELRA_BROWSER_CDP`) cannot use it, so that path stays open to DNS
+  rebinding.
 - Computer screenshot and input adapters are alpha; OCR/visual targeting,
   accessibility targeting, focus verification, interactive PTY, semantic
   embeddings, and extension loading remain roadmap items.

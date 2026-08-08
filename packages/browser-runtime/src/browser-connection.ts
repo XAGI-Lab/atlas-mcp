@@ -33,6 +33,13 @@ export interface BrowserConnectionOptions {
   cdpContextIndex?: number;
   recordHarPath?: string;
   userDataDir?: string;
+  /**
+   * Loopback proxy every non-local request is routed through, so the address a
+   * destination was checked against is the address the socket opens to. From
+   * `startPinningProxy`; absent means the browser resolves names itself and the
+   * DNS-rebinding window between check and connect stays open.
+   */
+  proxyServer?: string;
 }
 
 export interface BrowserConnection {
@@ -105,24 +112,27 @@ export async function connectBrowser(
           },
         }),
   };
+  const launchOptions = {
+    executablePath,
+    headless: options.headless,
+    ...(options.proxyServer === undefined
+      ? {}
+      : { proxy: { server: options.proxyServer } }),
+  };
   if (options.userDataDir !== undefined) {
     // A persistent profile is a browser, not a context inside one: Chromium
     // locks the directory, so the only way to keep cookies across runs is to
     // launch against it directly. `context.browser()` is what the rest of the
     // runtime closes, and it is the same process either way.
     const context = await chromium.launchPersistentContext(options.userDataDir, {
-      executablePath,
-      headless: options.headless,
+      ...launchOptions,
       ...contextOptions,
     });
     const browser = context.browser();
     if (browser === null) throw new Error("browser_persistent_profile_unavailable");
     return { browser, context, ownsBrowser: true, ownsContext: true };
   }
-  const browser = await chromium.launch({
-    executablePath,
-    headless: options.headless,
-  });
+  const browser = await chromium.launch(launchOptions);
   const context = await browser.newContext(contextOptions);
   return {
     browser,

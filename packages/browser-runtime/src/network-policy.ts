@@ -98,14 +98,29 @@ function domainAllowed(host: string, allowed: string[]): boolean {
   );
 }
 
-export async function assertSafeUrl(
+/**
+ * A destination that passed policy, together with the address it resolved to.
+ *
+ * The address matters because checking a name and then letting something else
+ * resolve it again is not a check: between the two lookups a hostile DNS server
+ * can answer public once and private the second time. Whatever connects has to
+ * connect to `address`, not to `url.hostname`.
+ */
+export interface SafeDestination {
+  url: URL;
+  /** The literal address to open the socket to: the host itself when it was
+   * already an IP, otherwise the resolver answer this check accepted. */
+  address: string;
+}
+
+export async function assertSafeDestination(
   rawUrl: string,
   policy: NetworkPolicy,
-): Promise<URL> {
+): Promise<SafeDestination> {
   const url = new URL(rawUrl);
   // Unhinged mode still parses the URL — a value the browser cannot navigate to
   // is a bug either way — but asserts nothing about where it points.
-  if (policy.unhinged) return url;
+  if (policy.unhinged) return { url, address: url.hostname };
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("browser_protocol_not_allowed");
   }
@@ -127,7 +142,7 @@ export async function assertSafeUrl(
     ) {
       throw new Error("browser_private_destination_blocked");
     }
-    return url;
+    return { url, address: host };
   }
   const addresses = await lookup(host, { all: true, verbatim: true });
   if (
@@ -140,5 +155,14 @@ export async function assertSafeUrl(
   ) {
     throw new Error("browser_private_destination_blocked");
   }
-  return url;
+  // Every answer passed, so any of them is safe to pin; the first is the one the
+  // resolver preferred.
+  return { url, address: addresses[0]!.address };
+}
+
+export async function assertSafeUrl(
+  rawUrl: string,
+  policy: NetworkPolicy,
+): Promise<URL> {
+  return (await assertSafeDestination(rawUrl, policy)).url;
 }

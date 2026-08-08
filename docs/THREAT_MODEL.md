@@ -1,6 +1,6 @@
 # Threat model
 
-Status: reviewed for `0.3.0-alpha.6`; independent review pending.
+Status: reviewed for `0.3.0-alpha.7`; independent review pending.
 
 ## Assets
 
@@ -47,7 +47,7 @@ process running unhinged. See
 | Shell injection | direct process spawn; shell and privilege commands denied | an allowed executable can interpret dangerous arguments |
 | Process escape | cwd confinement, environment allowlist, time/output bounds | processes are not OS-sandboxed outside the container profile |
 | SSRF and metadata access | URL validation, DNS resolution, per-request interception | malicious public endpoints remain reachable when domains allow them |
-| DNS rebinding | repeated resolved-address validation | a resolver change between validation and browser connection remains possible |
+| DNS rebinding | the checked answer is pinned: requests go through a loopback proxy that connects to the address validation accepted | an attached CDP browser and unhinged mode resolve names themselves, so the window stays open there |
 | Malicious downloads/uploads | path confinement and artifact hashes | file content is not malware-scanned |
 | Unintended computer input | typed actions, named-key allowlist, high-risk approval | focus can change between approval and action |
 | Desktop observation leakage | local-only screenshot artifact with explicit invocation | screenshots may contain sensitive on-screen data |

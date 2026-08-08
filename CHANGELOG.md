@@ -6,8 +6,27 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-alpha.7] - 2026-08-08
+
+### Security
+
+- **Browser destinations are pinned to the address they were checked against.**
+  `assertSafeDestination` resolved a hostname and validated every answer, then
+  Chromium resolved the same name again through its own stack — a hostile
+  resolver only had to answer public once and private the second time for the
+  check to describe a different host than the socket opened to. Requests now go
+  through a loopback proxy (`startPinningProxy`) that connects to the address the
+  check accepted. CONNECT is tunnelled, not intercepted, so TLS validation is
+  untouched. Unhinged mode and an attached CDP browser keep the old path: the
+  first asserts nothing about destinations, and the second is already running and
+  cannot be told to start proxying.
+
 ### Fixed
 
+- The container image builds with `pnpm build`, which now routes through
+  `scripts/run-recursive.mjs`, but the Dockerfile never copied `scripts/` — so the
+  `v0.3.0-alpha.6` image build failed with `Cannot find module`. npm packages and
+  the GitHub release for that tag published normally; only that image is missing.
 - `pnpm build` and `pnpm typecheck` no longer fan out unbounded. Only `pnpm test`
   was capped; the other two ran at pnpm's default four packages in flight, and a
   `tsc` process holds a whole program graph, so `pnpm check` could take several

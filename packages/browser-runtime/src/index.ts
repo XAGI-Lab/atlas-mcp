@@ -21,6 +21,7 @@ import {
   assertSafeUrl,
   type NetworkPolicy,
 } from "./network-policy.js";
+import { startPinningProxy, type PinningProxy } from "./pinning-proxy.js";
 import { buildSelector } from "./selector.js";
 import { waitForStableDom } from "./stable-dom.js";
 
@@ -215,6 +216,7 @@ export class BrowserRuntime {
   private context: BrowserContext | undefined;
   private activePage: Page | undefined;
   private connection: BrowserConnection | undefined;
+  private proxy: PinningProxy | undefined;
   private routeHandler: ((route: Route) => Promise<void>) | undefined;
   /**
    * Dialogs raised by the action currently running, cleared by `execute`.
@@ -272,6 +274,15 @@ export class BrowserRuntime {
     if (this.options.recordHarPath !== undefined) {
       await mkdir(dirname(this.options.recordHarPath), { recursive: true });
     }
+    // Unhinged mode asserts nothing about destinations, so pinning one would be
+    // theatre. An attached CDP browser is already running and cannot be told to
+    // start proxying, so the rebinding window stays open there and the option is
+    // documented as the weaker path rather than silently equivalent.
+    const proxy =
+      this.options.unhinged === true || this.options.cdpEndpoint !== undefined
+        ? undefined
+        : await startPinningProxy(this.options);
+    this.proxy = proxy;
     const connection = await connectBrowser({
       ...(this.options.executablePath === undefined
         ? {}
@@ -289,6 +300,7 @@ export class BrowserRuntime {
       ...(this.options.userDataDir === undefined
         ? {}
         : { userDataDir: this.options.userDataDir }),
+      ...(proxy === undefined ? {} : { proxyServer: proxy.server }),
     });
     this.connection = connection;
     this.browser = connection.browser;
@@ -1005,6 +1017,9 @@ export class BrowserRuntime {
     if (connection?.ownsBrowser === true) {
       await connection.browser.close().catch(() => undefined);
     }
+    // After the browser, so a request in flight is not left without a proxy.
+    await this.proxy?.close().catch(() => undefined);
+    this.proxy = undefined;
     this.activePage = undefined;
     this.context = undefined;
     this.browser = undefined;
@@ -1014,6 +1029,7 @@ export class BrowserRuntime {
 }
 
 export * from "./network-policy.js";
+export * from "./pinning-proxy.js";
 export * from "./selector.js";
 export * from "./stable-dom.js";
 export * from "./browser-connection.js";

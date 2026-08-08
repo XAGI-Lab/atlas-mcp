@@ -46,7 +46,7 @@ memory stay with the model and the harness above.
 - [x] Typed navigation, DOM inspection, forms, keyboard, scroll, and tabs.
 - [x] Screenshots, uploads, downloads, and artifact hashing.
 - [x] SSRF, cloud-metadata, redirect, and repeated DNS-address checks.
-- [ ] Resolver pinning or a browser proxy for complete DNS-rebinding defense.
+- [x] Resolver pinning or a browser proxy for complete DNS-rebinding defense.
 - [x] Persistent opt-in browser profiles (`MELRA_BROWSER_PROFILE`).
 - [ ] Deterministic browser recording and replay.
 - [x] Opt-in Chrome DevTools Protocol attachment for shared benchmark sessions.

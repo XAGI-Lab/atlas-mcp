@@ -11,6 +11,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json .npmrc .
 COPY apps ./apps
 COPY packages ./packages
 COPY evals ./evals
+# `pnpm build` goes through scripts/run-recursive.mjs, so the image needs it too.
+COPY scripts ./scripts
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 RUN pnpm deploy --filter @melra/cli --prod /release
