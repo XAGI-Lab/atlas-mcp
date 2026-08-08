@@ -25,7 +25,7 @@ shouldn't have to.**
 <a href="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml/badge.svg" alt="Container build status" /></a>
 
 <!-- Evidence -->
-<img src="https://img.shields.io/badge/evals-31_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="31 deterministic evaluation scenarios passing" />
+<img src="https://img.shields.io/badge/evals-33_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="33 deterministic evaluation scenarios passing" />
 <img src="https://img.shields.io/badge/tests-287_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="287 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-13_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="13 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />

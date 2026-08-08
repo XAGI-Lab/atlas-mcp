@@ -576,6 +576,52 @@ export const scenarios: EvaluationScenario[] = [
     expectedFinal: "verified_success",
   },
   {
+    // Observing the desktop changes nothing, so it has to plan straight through
+    // with no approval and no declared evidence. No `expectedFinal`: whether a
+    // frontmost window exists is a property of the machine, and the point here
+    // is the classification, which is not.
+    id: "computer-inspect-read-only",
+    category: "computer",
+    request: {
+      goal: "Observe the focused window before acting on it",
+      operation: {
+        kind: "computer",
+        action: "inspect",
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "planned",
+  },
+  {
+    // A drag moves something. Classifying it as anything but a mutation would
+    // plan it straight through; as a mutation it has to stop for an exact
+    // approval phrase first. Cancelled rather than approved so the suite never
+    // takes hold of the mouse on the machine running it.
+    id: "computer-drag-requires-approval",
+    category: "computer",
+    request: {
+      goal: "Drag a file onto a folder",
+      operation: {
+        kind: "computer",
+        action: "drag",
+        x: 0.2,
+        y: 0.3,
+        toX: 0.6,
+        toY: 0.7,
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 5_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "awaiting_approval",
+    cancel: true,
+    expectedFinal: "cancelled",
+  },
+  {
     id: "pending-task-cancellation",
     category: "policy",
     request: {

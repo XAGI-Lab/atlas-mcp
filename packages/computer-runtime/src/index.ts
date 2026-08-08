@@ -19,8 +19,99 @@ export interface ComputerCapabilities {
   pointer: boolean;
   keyboard: boolean;
   scroll: boolean;
+  /** `inspect` can report the focused window and display geometry. */
+  inspect: boolean;
+  /** `drag` can hold the button down between two points. */
+  drag: boolean;
   coordinateSpaces: Array<"normalized" | "pixel">;
   limitations: string[];
+}
+
+/**
+ * What the desktop looked like at a moment in time. `inspect` returns this, and
+ * a caller can hold a task to it with `result_equals` — "the frontmost
+ * application is Safari" is a post-condition an adapter cannot fake by
+ * returning `success: true`.
+ *
+ * Every field is optional because the platforms degrade differently: macOS
+ * needs Accessibility permission to name a window at all, X11 needs a window
+ * manager that sets `_NET_ACTIVE_WINDOW`, and a headless session has no
+ * frontmost anything. A missing field is "not observable here", never "empty".
+ */
+export interface DesktopObservation {
+  application?: string;
+  windowTitle?: string;
+  displayWidth?: number;
+  displayHeight?: number;
+  /**
+   * The OS has given one process exclusive keyboard access — a password field
+   * is focused, or a lock screen is up. Synthetic keystrokes do not reach it.
+   */
+  secureInput?: boolean;
+}
+
+/**
+ * Reads an adapter helper's JSON into a `DesktopObservation`, keeping only the
+ * declared fields and only when they carry a usable value. A helper that reports
+ * an empty window title or a zero display is reporting "I could not see it", and
+ * that has to arrive as an absent field: a caller verifying `windowTitle` with
+ * `result_equals` must not be handed `""` as though it were observed.
+ */
+function observationFrom(json: string): DesktopObservation {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json.trim());
+  } catch {
+    throw new Error("computer_inspect_unparseable");
+  }
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new Error("computer_inspect_unparseable");
+  }
+  const record = parsed as Record<string, unknown>;
+  const text = (key: string): string | undefined => {
+    const value = record[key];
+    return typeof value === "string" && value.trim() !== "" ? value : undefined;
+  };
+  const size = (key: string): number | undefined => {
+    const value = record[key];
+    return typeof value === "number" && Number.isFinite(value) && value > 0
+      ? Math.round(value)
+      : undefined;
+  };
+  const application = text("application");
+  const windowTitle = text("windowTitle");
+  const displayWidth = size("displayWidth");
+  const displayHeight = size("displayHeight");
+  return {
+    ...(application === undefined ? {} : { application }),
+    ...(windowTitle === undefined ? {} : { windowTitle }),
+    ...(displayWidth === undefined ? {} : { displayWidth }),
+    ...(displayHeight === undefined ? {} : { displayHeight }),
+  };
+}
+
+/**
+ * Validates a positional action's coordinates and hands them back already
+ * narrowed, so callers work with numbers instead of re-asserting the optionals
+ * the schema has to leave open for the actions that carry no position.
+ */
+function requirePoints(operation: ComputerOperation): {
+  x: number;
+  y: number;
+  to?: { x: number; y: number };
+} {
+  if (operation.x === undefined || operation.y === undefined) {
+    throw new Error(`computer_${operation.action}_requires_coordinates`);
+  }
+  if (operation.action !== "drag") return { x: operation.x, y: operation.y };
+  if (operation.toX === undefined || operation.toY === undefined) {
+    throw new Error("computer_drag_requires_destination");
+  }
+  return {
+    x: operation.x,
+    y: operation.y,
+    to: { x: operation.toX, y: operation.toY },
+  };
 }
 
 export interface ComputerAdapter {
@@ -116,24 +207,103 @@ async function run(
 }
 
 function coordinateScript(operation: ComputerOperation): string {
-  const x = operation.x ?? 0;
-  const y = operation.y ?? 0;
   const normalized = operation.coordinateSpace === "normalized";
+  const axis = (value: number, side: "width" | "height"): string =>
+    normalized ? `frame.size.${side} * ${value}` : String(value);
   return `
 ObjC.import("AppKit");
 ObjC.import("CoreGraphics");
 const frame = $.NSScreen.mainScreen.frame;
-const x = ${normalized ? `frame.size.width * ${x}` : x};
-const y = ${normalized ? `frame.size.height * ${y}` : y};
+const x = ${axis(operation.x ?? 0, "width")};
+const y = ${axis(operation.y ?? 0, "height")};
 const point = $.CGPointMake(x, y);
-const move = $.CGEventCreateMouseEvent(null, $.kCGEventMouseMoved, point, $.kCGMouseButtonLeft);
-$.CGEventPost($.kCGHIDEventTap, move);
+function post(type, at) {
+  $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, at, $.kCGMouseButtonLeft));
+}
+post($.kCGEventMouseMoved, point);
 ${operation.action === "click" ? `
-const down = $.CGEventCreateMouseEvent(null, $.kCGEventLeftMouseDown, point, $.kCGMouseButtonLeft);
-const up = $.CGEventCreateMouseEvent(null, $.kCGEventLeftMouseUp, point, $.kCGMouseButtonLeft);
-$.CGEventPost($.kCGHIDEventTap, down);
-$.CGEventPost($.kCGHIDEventTap, up);` : ""}
+post($.kCGEventLeftMouseDown, point);
+post($.kCGEventLeftMouseUp, point);` : ""}
+${operation.action === "drag" ? `
+const toX = ${axis(operation.toX ?? 0, "width")};
+const toY = ${axis(operation.toY ?? 0, "height")};
+post($.kCGEventLeftMouseDown, point);
+// A single jump from press to release is not a drag to most views — they track
+// the intermediate motion and a lone dragged event reads as a click that moved.
+for (let step = 1; step <= ${MACOS_DRAG_STEPS}; step += 1) {
+  const ratio = step / ${MACOS_DRAG_STEPS};
+  post($.kCGEventLeftMouseDragged, $.CGPointMake(x + (toX - x) * ratio, y + (toY - y) * ratio));
+}
+post($.kCGEventLeftMouseUp, $.CGPointMake(toX, toY));` : ""}
 `;
+}
+
+/** Intermediate motion events synthesised between a drag's press and release. */
+const MACOS_DRAG_STEPS = 10;
+
+const MACOS_INSPECT_SCRIPT = `
+ObjC.import("AppKit");
+const frame = $.NSScreen.mainScreen.frame;
+const out = {
+  displayWidth: Math.round(frame.size.width),
+  displayHeight: Math.round(frame.size.height),
+};
+// Naming the frontmost application needs Accessibility permission and naming
+// its window needs the application to expose one. Either can be missing on a
+// working machine, so each degrades to an absent field instead of an error.
+try {
+  const frontmost = Application("System Events")
+    .applicationProcesses.whose({ frontmost: true })[0];
+  out.application = frontmost.name();
+  try {
+    out.windowTitle = frontmost.windows[0].name();
+  } catch (error) {}
+} catch (error) {}
+JSON.stringify(out);
+`;
+
+/**
+ * Reads secure-input state out of an `ioreg` dump of the console-session
+ * dictionary. `undefined` means the dump held no session at all, which is "not
+ * observable here" rather than "off".
+ *
+ * Exported for the test: the negative case is the one a developer machine
+ * naturally produces, so the positive case — a real password field taking the
+ * keyboard — can only be exercised against captured output.
+ */
+export function parseSecureInput(stdout: string): boolean | undefined {
+  // Absence of the secure-input key only means "off" if a session was reported.
+  if (!stdout.includes("kCGSSessionOnConsoleKey")) return undefined;
+  const match = /"kCGSSessionSecureInputPID"=(-?\d+)/.exec(stdout);
+  // The key is written with the holding process's pid and cleared to 0, so a
+  // present-but-zero value is still "off".
+  return match !== null && Number(match[1]) !== 0;
+}
+
+/**
+ * Whether some process holds a secure keyboard entry session — a password field
+ * is focused, or the screen is locked. While it does, synthetic keystrokes are
+ * dropped by the window server, so `type` and `key` would report success while
+ * typing into nothing.
+ *
+ * The state lives in the console-session dictionary on `IOResources`. `-d 1`
+ * keeps this to a few kilobytes rather than dumping the whole registry.
+ */
+async function macSecureInput(
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<boolean | undefined> {
+  try {
+    const { stdout } = await run(
+      "/usr/sbin/ioreg",
+      ["-l", "-d", "1", "-w", "0", "-r", "-c", "IOResources"],
+      Math.min(timeoutMs, 5_000),
+      signal,
+    );
+    return parseSecureInput(stdout);
+  } catch {
+    return undefined;
+  }
 }
 
 class MacOsAdapter implements ComputerAdapter {
@@ -148,13 +318,35 @@ class MacOsAdapter implements ComputerAdapter {
       pointer: osascript,
       keyboard: osascript,
       scroll: osascript,
+      inspect: osascript,
+      drag: osascript,
       coordinateSpaces: ["normalized", "pixel"],
       limitations: [
         "macOS Screen Recording permission is required for screenshots",
         "macOS Accessibility permission is required for input actions",
         "normalized coordinates currently target the main display",
+        "inspect omits application and windowTitle without Accessibility permission",
       ],
     };
+  }
+
+  /**
+   * Refuses to send keystrokes while secure input is held. `osascript` exits 0
+   * either way, so without this the task verifies as a success that typed
+   * nothing into a focused password field.
+   *
+   * Unconditional, and deliberately not a policy rule: it is not a restriction
+   * MELRA imposes on the caller but a fact about where the events go, so
+   * unhinged mode has nothing to lift here. An unobservable state is allowed
+   * through — only a positive reading blocks.
+   */
+  private async assertInputLands(
+    operation: ComputerOperation,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    if ((await macSecureInput(operation.timeoutMs, signal)) === true) {
+      throw new Error("computer_secure_input_active");
+    }
   }
 
   async execute(
@@ -186,8 +378,25 @@ class MacOsAdapter implements ComputerAdapter {
           sha256: createHash("sha256").update(bytes).digest("hex"),
         };
       }
+      case "inspect": {
+        const { stdout } = await run(
+          "/usr/bin/osascript",
+          ["-l", "JavaScript", "-e", MACOS_INSPECT_SCRIPT],
+          operation.timeoutMs,
+          signal,
+        );
+        const secureInput = await macSecureInput(operation.timeoutMs, signal);
+        return {
+          success: true,
+          action: "inspect",
+          ...observationFrom(stdout),
+          ...(secureInput === undefined ? {} : { secureInput }),
+        };
+      }
       case "click":
       case "move":
+      case "drag":
+        requirePoints(operation);
         await run(
           "/usr/bin/osascript",
           ["-l", "JavaScript", "-e", coordinateScript(operation)],
@@ -200,11 +409,15 @@ class MacOsAdapter implements ComputerAdapter {
           coordinateSpace: operation.coordinateSpace,
           x: operation.x,
           y: operation.y,
+          ...(operation.action === "drag"
+            ? { toX: operation.toX, toY: operation.toY }
+            : {}),
         };
       case "type": {
         if (operation.text === undefined) {
           throw new Error("computer_type_requires_text");
         }
+        await this.assertInputLands(operation, signal);
         await run(
           "/usr/bin/osascript",
           [
@@ -226,6 +439,7 @@ class MacOsAdapter implements ComputerAdapter {
         const key = operation.key?.toLocaleUpperCase();
         const keyCode = key === undefined ? undefined : ALLOWED_KEYS[key];
         if (keyCode === undefined) throw new Error("computer_key_not_allowed");
+        await this.assertInputLands(operation, signal);
         await run(
           "/usr/bin/osascript",
           [
@@ -278,13 +492,26 @@ class LinuxXdotoolAdapter implements ComputerAdapter {
       pointer: xdotool !== undefined,
       keyboard: xdotool !== undefined,
       scroll: xdotool !== undefined,
+      inspect: xdotool !== undefined,
+      drag: xdotool !== undefined,
       coordinateSpaces: ["normalized", "pixel"],
       limitations: [
         "input actions require xdotool and an X11 session",
         "Wayland compositors may deny synthetic input",
         "normalized coordinates target the current display size reported by xdotool",
+        "inspect cannot report secure input; X11 has no equivalent state",
       ],
     };
+  }
+
+  private async xdotoolOutput(
+    args: string[],
+    operation: ComputerOperation,
+    signal?: AbortSignal,
+  ): Promise<{ stdout: string; stderr: string }> {
+    const executablePath = await this.command("xdotool");
+    if (executablePath === undefined) throw new Error("computer_input_unavailable");
+    return await run(executablePath, args, operation.timeoutMs, signal);
   }
 
   private async xdotool(
@@ -292,37 +519,49 @@ class LinuxXdotoolAdapter implements ComputerAdapter {
     operation: ComputerOperation,
     signal?: AbortSignal,
   ): Promise<void> {
-    const executablePath = await this.command("xdotool");
-    if (executablePath === undefined) throw new Error("computer_input_unavailable");
-    await run(executablePath, args, operation.timeoutMs, signal);
+    await this.xdotoolOutput(args, operation, signal);
+  }
+
+  private async geometry(
+    operation: ComputerOperation,
+    signal?: AbortSignal,
+  ): Promise<{ width: number; height: number }> {
+    const { stdout } = await this.xdotoolOutput(
+      ["getdisplaygeometry"],
+      operation,
+      signal,
+    );
+    const [width, height] = stdout.trim().split(/\s+/).map(Number);
+    if (
+      width === undefined ||
+      height === undefined ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height)
+    ) {
+      throw new Error("computer_display_geometry_unavailable");
+    }
+    return { width, height };
+  }
+
+  private async toPixels(
+    operation: ComputerOperation,
+    x: number,
+    y: number,
+    signal?: AbortSignal,
+  ): Promise<{ x: number; y: number }> {
+    if (operation.coordinateSpace === "pixel") {
+      return { x: Math.round(x), y: Math.round(y) };
+    }
+    const { width, height } = await this.geometry(operation, signal);
+    return { x: Math.round(width * x), y: Math.round(height * y) };
   }
 
   private async coordinates(
     operation: ComputerOperation,
     signal?: AbortSignal,
   ): Promise<{ x: number; y: number }> {
-    if (operation.x === undefined || operation.y === undefined) {
-      throw new Error(`computer_${operation.action}_requires_coordinates`);
-    }
-    if (operation.coordinateSpace === "pixel") {
-      return { x: Math.round(operation.x), y: Math.round(operation.y) };
-    }
-    const executablePath = await this.command("xdotool");
-    if (executablePath === undefined) throw new Error("computer_input_unavailable");
-    const { stdout } = await run(
-      executablePath,
-      ["getdisplaygeometry"],
-      operation.timeoutMs,
-      signal,
-    );
-    const [width, height] = stdout.trim().split(/\s+/).map(Number);
-    if (!Number.isFinite(width) || !Number.isFinite(height)) {
-      throw new Error("computer_display_geometry_unavailable");
-    }
-    return {
-      x: Math.round(width! * operation.x),
-      y: Math.round(height! * operation.y),
-    };
+    const point = requirePoints(operation);
+    return await this.toPixels(operation, point.x, point.y, signal);
   }
 
   async execute(
@@ -357,6 +596,42 @@ class LinuxXdotoolAdapter implements ComputerAdapter {
           sha256: createHash("sha256").update(bytes).digest("hex"),
         };
       }
+      case "inspect": {
+        const { width, height } = await this.geometry(operation, signal);
+        const observation: DesktopObservation = {
+          displayWidth: width,
+          displayHeight: height,
+        };
+        // No active window is an ordinary state on a bare X session, and
+        // `xdotool` exits non-zero for it, so a failure here means "nothing is
+        // focused" rather than "inspect failed".
+        try {
+          const { stdout } = await this.xdotoolOutput(
+            ["getactivewindow", "getwindowname"],
+            operation,
+            signal,
+          );
+          const title = stdout.trim();
+          if (title !== "") observation.windowTitle = title;
+        } catch {
+          /* no focused window */
+        }
+        try {
+          const { stdout } = await this.xdotoolOutput(
+            ["getactivewindow", "getwindowpid"],
+            operation,
+            signal,
+          );
+          const pid = Number(stdout.trim());
+          if (Number.isInteger(pid) && pid > 0) {
+            const command = await readFile(`/proc/${pid}/comm`, "utf8");
+            if (command.trim() !== "") observation.application = command.trim();
+          }
+        } catch {
+          /* window belongs to a remote or exited process */
+        }
+        return { success: true, action: "inspect", ...observation };
+      }
       case "click":
       case "move": {
         const point = await this.coordinates(operation, signal);
@@ -364,6 +639,45 @@ class LinuxXdotoolAdapter implements ComputerAdapter {
         if (operation.action === "click") args.push("click", "1");
         await this.xdotool(args, operation, signal);
         return { success: true, action: operation.action, ...point };
+      }
+      case "drag": {
+        const points = requirePoints(operation);
+        // `requirePoints` guarantees this for a drag; repeated so the compiler
+        // sees it too, and so a future caller cannot reach here without one.
+        if (points.to === undefined) {
+          throw new Error("computer_drag_requires_destination");
+        }
+        const from = await this.toPixels(operation, points.x, points.y, signal);
+        const to = await this.toPixels(
+          operation,
+          points.to.x,
+          points.to.y,
+          signal,
+        );
+        await this.xdotool(
+          [
+            "mousemove",
+            String(from.x),
+            String(from.y),
+            "mousedown",
+            "1",
+            "mousemove",
+            String(to.x),
+            String(to.y),
+            "mouseup",
+            "1",
+          ],
+          operation,
+          signal,
+        );
+        return {
+          success: true,
+          action: "drag",
+          x: from.x,
+          y: from.y,
+          toX: to.x,
+          toY: to.y,
+        };
       }
       case "type":
         if (operation.text === undefined) throw new Error("computer_type_requires_text");
@@ -471,10 +785,68 @@ if ($env:MELRA_CLICK -eq '1') {
   [MelraInput]::mouse_event(0x0002, 0, 0, 0, [IntPtr]::Zero)
   [MelraInput]::mouse_event(0x0004, 0, 0, 0, [IntPtr]::Zero)
 }
+if ($env:MELRA_DRAG -eq '1') {
+  if ($env:MELRA_NORMALIZED -eq '1') {
+    $tx = [int][Math]::Round($bounds.X + $bounds.Width * [double]$env:MELRA_TO_X)
+    $ty = [int][Math]::Round($bounds.Y + $bounds.Height * [double]$env:MELRA_TO_Y)
+  } else {
+    $tx = [int][Math]::Round([double]$env:MELRA_TO_X)
+    $ty = [int][Math]::Round([double]$env:MELRA_TO_Y)
+  }
+  [MelraInput]::mouse_event(0x0002, 0, 0, 0, [IntPtr]::Zero)
+  # Controls track the motion between press and release; jumping straight to the
+  # destination reads as a click, not a drag.
+  for ($step = 1; $step -le 10; $step++) {
+    [void][MelraInput]::SetCursorPos(
+      [int][Math]::Round($x + ($tx - $x) * $step / 10),
+      [int][Math]::Round($y + ($ty - $y) * $step / 10))
+    Start-Sleep -Milliseconds 10
+  }
+  [MelraInput]::mouse_event(0x0004, 0, 0, 0, [IntPtr]::Zero)
+}
 if ($env:MELRA_WHEEL -ne $null -and $env:MELRA_WHEEL -ne '') {
   [MelraInput]::mouse_event(0x0800, 0, 0, [uint32][int]$env:MELRA_WHEEL, [IntPtr]::Zero)
 }
-Write-Output "$x $y"
+# The press point, and for a drag the release point after it. Both come from
+# here because only this script has seen the virtual desktop the caller's
+# normalized coordinates resolve against.
+Write-Output "$x $y $tx $ty".Trim()
+`;
+
+/**
+ * Foreground window, its owning process, and the virtual desktop size, as JSON.
+ *
+ * `ConvertTo-Json` is given an ordered hashtable so the shape is fixed, and
+ * `-Compress` keeps it to the single line the caller parses.
+ */
+const WINDOWS_INSPECT_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class MelraWindow {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr handle, StringBuilder text, int count);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
+}
+'@
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+$out = [ordered]@{ displayWidth = $bounds.Width; displayHeight = $bounds.Height }
+$window = [MelraWindow]::GetForegroundWindow()
+if ($window -ne [IntPtr]::Zero) {
+  $buffer = New-Object System.Text.StringBuilder 512
+  [void][MelraWindow]::GetWindowTextW($window, $buffer, $buffer.Capacity)
+  $out.windowTitle = $buffer.ToString()
+  $processId = 0
+  [void][MelraWindow]::GetWindowThreadProcessId($window, [ref]$processId)
+  # The owning process can exit between the two calls, and a protected process
+  # cannot be opened at all; either way the window is still worth reporting.
+  $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+  if ($process -ne $null) { $out.application = $process.ProcessName }
+}
+Write-Output ($out | ConvertTo-Json -Compress)
 `;
 
 const WINDOWS_SCREENSHOT_SCRIPT = `
@@ -534,6 +906,8 @@ class WindowsAdapter implements ComputerAdapter {
       pointer: available,
       keyboard: available,
       scroll: available,
+      inspect: available,
+      drag: available,
       coordinateSpaces: ["normalized", "pixel"],
       limitations: [
         ...(available
@@ -543,6 +917,7 @@ class WindowsAdapter implements ComputerAdapter {
         "SendKeys cannot type into a window running elevated unless this process is elevated too",
         "normalized coordinates span the whole virtual desktop, not one display",
         "per-monitor DPI scaling is not compensated for",
+        "inspect cannot report secure input; Windows exposes no equivalent state",
         "every action pays PowerShell startup, and pointer/scroll additionally compile a P/Invoke shim, so raise timeoutMs above its 10s default on a slow or loaded machine",
       ],
     };
@@ -600,29 +975,54 @@ class WindowsAdapter implements ComputerAdapter {
           sha256: createHash("sha256").update(bytes).digest("hex"),
         };
       }
+      case "inspect": {
+        const stdout = await this.powershellScript(
+          WINDOWS_INSPECT_SCRIPT,
+          operation,
+          {},
+          signal,
+        );
+        return { success: true, action: "inspect", ...observationFrom(stdout) };
+      }
       case "click":
-      case "move": {
-        if (operation.x === undefined || operation.y === undefined) {
-          throw new Error(`computer_${operation.action}_requires_coordinates`);
-        }
+      case "move":
+      case "drag": {
+        const points = requirePoints(operation);
         const stdout = await this.powershellScript(
           WINDOWS_POINTER_SCRIPT,
           operation,
           {
-            MELRA_X: String(operation.x),
-            MELRA_Y: String(operation.y),
+            MELRA_X: String(points.x),
+            MELRA_Y: String(points.y),
             MELRA_NORMALIZED: operation.coordinateSpace === "normalized" ? "1" : "0",
             MELRA_MOVE: "1",
             MELRA_CLICK: operation.action === "click" ? "1" : "0",
+            MELRA_DRAG: points.to === undefined ? "0" : "1",
+            MELRA_TO_X: String(points.to?.x ?? 0),
+            MELRA_TO_Y: String(points.to?.y ?? 0),
             MELRA_WHEEL: "",
           },
           signal,
         );
         // The script resolves normalized coordinates against the virtual
-        // desktop, so the pixel point it actually used is reported back rather
+        // desktop, so the pixel points it actually used are reported back rather
         // than recomputed here from a display size this process never saw.
-        const [x, y] = stdout.trim().split(/\s+/).map(Number);
-        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        const [x, y, toX, toY] = stdout.trim().split(/\s+/).map(Number);
+        if (
+          x === undefined ||
+          y === undefined ||
+          !Number.isFinite(x) ||
+          !Number.isFinite(y)
+        ) {
+          throw new Error("computer_display_geometry_unavailable");
+        }
+        if (
+          points.to !== undefined &&
+          (toX === undefined ||
+            toY === undefined ||
+            !Number.isFinite(toX) ||
+            !Number.isFinite(toY))
+        ) {
           throw new Error("computer_display_geometry_unavailable");
         }
         return {
@@ -631,6 +1031,7 @@ class WindowsAdapter implements ComputerAdapter {
           coordinateSpace: operation.coordinateSpace,
           x,
           y,
+          ...(points.to === undefined ? {} : { toX, toY }),
         };
       }
       case "type": {
@@ -696,6 +1097,8 @@ class UnavailableAdapter implements ComputerAdapter {
       pointer: false,
       keyboard: false,
       scroll: false,
+      inspect: false,
+      drag: false,
       coordinateSpaces: ["normalized", "pixel"],
       limitations: ["no supported local computer-use adapter was detected"],
     };
@@ -738,30 +1141,38 @@ export class ComputerRuntime {
     const requiredCapability =
       operation.action === "screenshot"
         ? "screenshot"
-        : operation.action === "click" || operation.action === "move"
-          ? "pointer"
-          : operation.action === "type" || operation.action === "key"
-            ? "keyboard"
-            : operation.action === "scroll"
-              ? "scroll"
-              : undefined;
+        : operation.action === "inspect"
+          ? "inspect"
+          : operation.action === "drag"
+            ? "drag"
+            : operation.action === "click" || operation.action === "move"
+              ? "pointer"
+              : operation.action === "type" || operation.action === "key"
+                ? "keyboard"
+                : operation.action === "scroll"
+                  ? "scroll"
+                  : undefined;
     if (
       requiredCapability !== undefined &&
       !capabilities[requiredCapability]
     ) {
       throw new Error(`computer_${requiredCapability}_unavailable`);
     }
-    if (
-      ["click", "move"].includes(operation.action) &&
-      (operation.x === undefined || operation.y === undefined)
-    ) {
-      throw new Error(`computer_${operation.action}_requires_coordinates`);
+    if (["click", "move", "drag"].includes(operation.action)) {
+      requirePoints(operation);
     }
-    if (
-      operation.coordinateSpace === "normalized" &&
-      ((operation.x ?? 0) > 1 || (operation.y ?? 0) > 1)
-    ) {
-      throw new Error("computer_normalized_coordinates_out_of_range");
+    if (operation.coordinateSpace === "normalized") {
+      // Every positional field shares one space, so the bound applies to the
+      // drag destination as much as to the press point.
+      const outOfRange = [
+        operation.x,
+        operation.y,
+        operation.toX,
+        operation.toY,
+      ].some((value) => value !== undefined && value > 1);
+      if (outOfRange) {
+        throw new Error("computer_normalized_coordinates_out_of_range");
+      }
     }
     return await this.adapter.execute(
       operation,

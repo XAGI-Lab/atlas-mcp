@@ -168,9 +168,11 @@ export const ComputerOperationSchema = z
     kind: z.literal("computer"),
     action: z.enum([
       "capabilities",
+      "inspect",
       "screenshot",
       "click",
       "move",
+      "drag",
       "type",
       "key",
       "scroll",
@@ -178,6 +180,11 @@ export const ComputerOperationSchema = z
     coordinateSpace: z.enum(["normalized", "pixel"]).default("normalized"),
     x: z.number().min(0).max(100_000).optional(),
     y: z.number().min(0).max(100_000).optional(),
+    // `drag` only: where the press is released. Kept as separate fields rather
+    // than a nested point so `x`/`y` keep meaning "where the action starts" for
+    // every action that has a position.
+    toX: z.number().min(0).max(100_000).optional(),
+    toY: z.number().min(0).max(100_000).optional(),
     text: z.string().max(100_000).optional(),
     key: z
       .enum([

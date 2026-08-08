@@ -6,6 +6,20 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Computer use gained two actions. `inspect` is a read that reports what the
+  desktop actually looks like — frontmost application, window title, display
+  geometry, and whether another process holds secure keyboard input — so a task
+  can be held to an observed post-condition with `result_equals` instead of
+  trusting an adapter's `success: true`. `drag` holds the button down between two
+  points and is classified as a high-risk mutation, so it stops for an exact
+  approval phrase like every other consequential effect. Both are implemented on
+  macOS, Linux/X11, and Windows; where a platform cannot observe a field it is
+  reported absent rather than guessed. macOS now refuses `type` and `key` while
+  secure input is held, because synthetic keystrokes are dropped by the window
+  server and would otherwise report success while typing into nothing.
+
 ### Changed
 
 - MELRA is now described as an agent-independent **autonomy kernel** rather than

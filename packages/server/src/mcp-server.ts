@@ -71,9 +71,11 @@ export function capabilitiesPayload(runtime: MelraRuntime): unknown {
           memory: ["put", "search", "list", "delete", "clear"],
           computer: [
             "capabilities",
+            "inspect",
             "screenshot",
             "click",
             "move",
+            "drag",
             "type",
             "key",
             "scroll",

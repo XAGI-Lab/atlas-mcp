@@ -90,13 +90,18 @@ memory stay with the model and the harness above.
 - [x] Governed screenshot, pointer, text, named-key, and scroll operations.
 - [x] macOS native adapter with permission-aware capability reporting.
 - [x] Linux/X11 adapter using detected screenshot tools and `xdotool`.
-- [ ] Accessibility-tree inspection and semantic element targeting.
+- [ ] Accessibility-tree inspection and semantic element targeting. `inspect`
+  reports the frontmost application, window title, and display geometry today;
+  addressing an element by name rather than by coordinate is still open.
 - [ ] Screenshot and OCR inspection fallback.
-- [ ] Drag and window-management actions.
-- [ ] Active-window, display, focus, and secure-input safety checks.
+- [x] Drag and window-management actions.
+- [x] Active-window, display, focus, and secure-input safety checks. macOS
+  refuses `type` and `key` while another process holds secure input, rather than
+  reporting a success that typed into nothing.
 - [x] Consequential-action approvals through the common policy gate.
-- [ ] Post-action desktop observation and task-specific verification.
-- [ ] Windows input adapter.
+- [x] Post-action desktop observation and task-specific verification. `inspect`
+  returns observed fields a task can be held to with `result_equals`.
+- [x] Windows input adapter.
 - [ ] Replayable computer-use safety evaluations.
 - [ ] Official OSWorld-MCP subset with released traces and evaluator output.
 

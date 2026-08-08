@@ -189,9 +189,11 @@ describe("MELRA over real stdio transport", () => {
       (capabilities.operations as Record<string, unknown>).computer,
     ).toEqual([
       "capabilities",
+      "inspect",
       "screenshot",
       "click",
       "move",
+      "drag",
       "type",
       "key",
       "scroll",

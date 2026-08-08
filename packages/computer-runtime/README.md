@@ -1,8 +1,8 @@
 # @melra/computer-runtime
 
 Screen and input control for [MELRA](https://github.com/XAGI-Lab/melra):
-capabilities, screenshot, click, move, type, key, and scroll, driven through the
-host's own automation tooling.
+capabilities, inspect, screenshot, click, move, drag, type, key, and scroll,
+driven through the host's own automation tooling.
 
 ```bash
 npm install @melra/computer-runtime
@@ -28,6 +28,19 @@ with `computer_use_unavailable` when the host cannot support it.
 Coordinates are validated against the reported screen bounds before an event is
 synthesised, and typed text is escaped for the underlying tool rather than
 concatenated into a script — `escapeSendKeys` is exported for that reason.
+
+`inspect` is the read that makes the mutations checkable. It reports the
+frontmost application, the focused window's title, and the display geometry, so
+a task can declare "the frontmost application is Safari" as a post-condition
+with `result_equals` rather than accepting an adapter's `success: true`. Fields
+the platform cannot observe — a window title without macOS Accessibility
+permission, an application on a bare X session — come back absent rather than
+empty, because an empty string would verify as an observation.
+
+On macOS `inspect` also reports `secureInput`, and `type` and `key` are refused
+while it is held. Secure keyboard entry means the window server is dropping
+synthetic keystrokes, so the alternative is a task that verifies as a success
+having typed nothing into a focused password field.
 
 This is the widest-blast-radius capability in MELRA: it drives the same input
 devices the human is using, and it is not confined to a workspace the way files
