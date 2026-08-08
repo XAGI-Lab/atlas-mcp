@@ -21,7 +21,7 @@ CLI, and SDK interfaces plus inspectable, hash-linked evidence records.
 <a href="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml"><img src="https://github.com/XAGI-Lab/melra/actions/workflows/container.yml/badge.svg" alt="Container build status" /></a>
 
 <!-- Evidence -->
-<img src="https://img.shields.io/badge/evals-28_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="28 deterministic evaluation scenarios passing" />
+<img src="https://img.shields.io/badge/evals-31_scenarios_passing-22c55e?style=flat-square&logo=checkmarx&logoColor=white" alt="31 deterministic evaluation scenarios passing" />
 <img src="https://img.shields.io/badge/tests-266_passing-22c55e?style=flat-square&logo=vitest&logoColor=white" alt="266 JavaScript tests passing" />
 <img src="https://img.shields.io/badge/MCP_E2E-13_passing-22c55e?style=flat-square&logo=testcafe&logoColor=white" alt="13 real MCP end-to-end cases passing" />
 <img src="https://img.shields.io/badge/runtime_vulnerabilities-0_known-22c55e?style=flat-square&logo=snyk&logoColor=white" alt="No known production runtime vulnerabilities" />

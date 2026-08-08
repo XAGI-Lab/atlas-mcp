@@ -16,6 +16,11 @@ export interface EvaluationScenario {
     | "verification";
   request: TaskRequestInput;
   fixtures?: Array<{ path: string; content: string }>;
+  /**
+   * Policy fields written to a `policy.json` the runtime is pointed at, for
+   * scenarios about a posture the shipped defaults do not have.
+   */
+  policy?: Record<string, unknown>;
   expectedPlan: TaskStatus;
   expectedFinal?: TaskStatus;
   approve?: boolean;
@@ -310,6 +315,53 @@ export const scenarios: EvaluationScenario[] = [
     expectedPlan: "policy_blocked",
   },
   {
+    // `npm` is on the default allowlist, and the name alone used to make every
+    // one of its subcommands a high-risk mutation. A subcommand that only reads
+    // must plan straight through with no approval and no declared evidence.
+    id: "terminal-package-manager-read",
+    category: "policy",
+    request: {
+      goal: "List installed packages",
+      operation: {
+        kind: "terminal",
+        action: "run",
+        command: "npm",
+        args: ["ls", "--depth", "0"],
+        timeoutMs: 5_000,
+        maxOutputChars: 10_000,
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 10_000, maxRetries: 0 },
+      requiredEvidence: [],
+    },
+    expectedPlan: "planned",
+  },
+  {
+    // The same allowlisted command, refused for what it reaches rather than for
+    // what it is called — `allowedCommands` matches basenames and cannot say
+    // this.
+    id: "terminal-install-trait-denied",
+    category: "policy",
+    policy: { deniedTraits: ["package-install"] },
+    request: {
+      goal: "Install a package from the registry",
+      operation: {
+        kind: "terminal",
+        action: "run",
+        command: "npm",
+        args: ["install", "left-pad"],
+        timeoutMs: 5_000,
+        maxOutputChars: 10_000,
+      },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 10_000, maxRetries: 0 },
+      requiredEvidence: [{ type: "exit_code", value: 0 }],
+    },
+    expectedPlan: "policy_blocked",
+  },
+  {
     id: "terminal-command-not-allowlisted",
     category: "policy",
     request: {
@@ -326,6 +378,21 @@ export const scenarios: EvaluationScenario[] = [
       forbiddenEffects: [],
       budget: { maxSteps: 2, maxDurationMs: 10_000, maxRetries: 0 },
       requiredEvidence: [{ type: "exit_code", value: 0 }],
+    },
+    expectedPlan: "policy_blocked",
+  },
+  {
+    // `send` carries no command, so it is gated on the job id it writes to
+    // instead of on the allowlist. Without a job there is nothing to authorise.
+    id: "terminal-send-without-job-blocked",
+    category: "policy",
+    request: {
+      goal: "Answer a prompt on no particular job",
+      operation: { kind: "terminal", action: "send", input: "y" },
+      constraints: [],
+      forbiddenEffects: [],
+      budget: { maxSteps: 2, maxDurationMs: 10_000, maxRetries: 0 },
+      requiredEvidence: [{ type: "result_equals", path: "sent", value: true }],
     },
     expectedPlan: "policy_blocked",
   },

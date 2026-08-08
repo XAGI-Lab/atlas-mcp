@@ -111,6 +111,7 @@ function task(status: TaskRecord["status"] = "verifying"): TaskRecord {
       risk: "low",
       reason: "read_only_operation",
       policyVersion: "1",
+      traits: [],
     },
     receiptIds: [],
     createdAt: now,

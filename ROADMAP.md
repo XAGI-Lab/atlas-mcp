@@ -56,7 +56,7 @@ promise of stable API compatibility.
 - [x] CLI doctor, init, serve, run, inspect, export, and policy test.
 - [x] TypeScript and Python client SDKs.
 - [x] Docker image and hardened Compose configuration.
-- [x] Twenty-two deterministic safety/execution scenarios plus eight durable
+- [x] Thirty deterministic safety/execution scenarios plus eight durable
       crash, recovery, and concurrency scenarios.
 - [x] Real MCP stdio, browser, container, and Python interoperability tests.
 - [x] Linux, macOS, and Windows CI definitions.
@@ -90,8 +90,10 @@ promise of stable API compatibility.
 - [x] Mutation-driven stable-DOM quiet-window with timeout evidence.
 - [ ] Visual targeting fallback with explicit confidence.
 - [ ] Popup and multi-window policy.
-- [ ] Interactive terminal and pseudo-TTY support.
-- [ ] Package-installation and network-effect classifiers.
+- [x] Interactive terminal input (`interactive` + `send`). A real pseudo-TTY is
+  still open: stdin is piped, so a program that checks `isatty` and refuses
+  unless it owns a terminal is out of reach without a native PTY dependency.
+- [x] Package-installation and network-effect classifiers.
 - [x] Local fixed-wait versus condition-wait correctness/latency benchmark.
 - [x] Pinned MiniWoB-125 development and WebArena-Verified Hard-30 harnesses.
 - [ ] Completed representative BrowserGym reliability and token-cost result.

@@ -33,12 +33,26 @@ export const FileOperationSchema = z
 export const TerminalOperationSchema = z
   .object({
     kind: z.literal("terminal"),
-    action: z.enum(["run", "start", "status", "output", "stop"]),
+    action: z.enum(["run", "start", "status", "output", "stop", "send"]),
     command: z.string().min(1).max(512).optional(),
     args: z.array(z.string().max(4096)).max(100).default([]),
     jobId: z.string().uuid().optional(),
     cwd: boundedPath.optional(),
     env: z.record(z.string(), z.string().max(8192)).optional(),
+    /**
+     * Hold `start`'s stdin open so `send` can answer a prompt. Off by default
+     * because it changes what the program sees: with stdin ignored a read gets
+     * EOF at once, while an open pipe makes the same program wait for input
+     * that may never come.
+     */
+    interactive: z.boolean().default(false),
+    /** What `send` writes to the job's stdin. */
+    input: z.string().max(8_192).optional(),
+    /**
+     * Append a newline to `input`. A prompt waits for the line to end, so the
+     * common case is the default; turn it off to send a bare keystroke.
+     */
+    appendNewline: z.boolean().default(true),
     timeoutMs: z.number().int().min(100).max(120_000).default(30_000),
     maxOutputChars: z.number().int().min(1_000).max(1_000_000).default(100_000),
   })
@@ -331,6 +345,14 @@ export const EffectSchema = z.enum(["read", "mutate", "destructive"]);
 export const RiskSchema = z.enum(["low", "medium", "high", "critical"]);
 export const PolicyOutcomeSchema = z.enum(["allow", "deny", "confirm"]);
 
+/**
+ * What an operation reaches for, as opposed to what it is named. `npm ls` and
+ * `npm install` are the same allowlisted command; only the second one installs
+ * a package and talks to a registry. Traits are what `policy.deniedTraits`
+ * matches on and what a caller sees before it echoes an approval phrase.
+ */
+export const CapabilityTraitSchema = z.enum(["package-install", "network"]);
+
 export const PolicyDecisionSchema = z
   .object({
     outcome: PolicyOutcomeSchema,
@@ -338,10 +360,18 @@ export const PolicyDecisionSchema = z
     risk: RiskSchema,
     reason: z.string(),
     policyVersion: z.string(),
+    traits: z
+      .array(CapabilityTraitSchema)
+      .max(8)
+      .default([])
+      .describe(
+        "What the operation reaches for beyond the local workspace. Denied by policy.deniedTraits; shown so an approver knows a command installs packages or contacts another host before approving it.",
+      ),
   })
   .strict();
 
 export type PolicyDecision = z.infer<typeof PolicyDecisionSchema>;
+export type CapabilityTrait = z.infer<typeof CapabilityTraitSchema>;
 export type Effect = z.infer<typeof EffectSchema>;
 export type Risk = z.infer<typeof RiskSchema>;
 

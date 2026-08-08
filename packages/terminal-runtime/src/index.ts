@@ -49,6 +49,8 @@ interface PreparedCommand {
   environment: NodeJS.ProcessEnv;
   timeoutMs: number;
   maxOutputChars: number;
+  /** Whether the child keeps a writable stdin for `send`. */
+  interactive: boolean;
 }
 
 /**
@@ -150,6 +152,7 @@ export class TerminalRuntime {
       environment,
       timeoutMs: operation.timeoutMs,
       maxOutputChars: operation.maxOutputChars,
+      interactive: operation.interactive,
     };
   }
 
@@ -226,7 +229,7 @@ export class TerminalRuntime {
       shell: false,
       windowsHide: true,
       windowsVerbatimArguments: prepared.windowsVerbatimArguments,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [prepared.interactive ? "pipe" : "ignore", "pipe", "pipe"],
     });
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
@@ -292,6 +295,44 @@ export class TerminalRuntime {
       command: prepared.command,
       executable: prepared.executable,
       cwd: relative(this.root, prepared.cwd) || ".",
+      interactive: prepared.interactive,
+    };
+  }
+
+  /**
+   * Answers a prompt on a running job's stdin.
+   *
+   * This is a pipe, not a terminal. A program that asks `isatty` still sees a
+   * non-interactive session and may keep its non-interactive behaviour — reading
+   * a password without echo is the usual one, and it will not work here. A real
+   * PTY needs a native addon; this covers the case that does not.
+   *
+   * ponytail: pipe-only. Add `node-pty` behind an optional dependency if a task
+   * genuinely needs a program that refuses to run without a tty.
+   */
+  private sendInput(operation: TerminalOperation): Record<string, unknown> {
+    const job = this.job(operation);
+    if (operation.input === undefined) {
+      throw new Error("terminal_send_requires_input");
+    }
+    if (job.endedAt !== undefined) throw new Error("terminal_job_not_running");
+    const stdin = job.child.stdin;
+    // `start` without `interactive: true` gets an ignored stdin, and writing to
+    // a closed one throws EPIPE asynchronously — which would surface as an
+    // unhandled error rather than a failed task.
+    if (stdin === null || stdin.destroyed || !stdin.writable) {
+      throw new Error("terminal_job_not_interactive");
+    }
+    const payload =
+      operation.appendNewline && !operation.input.endsWith("\n")
+        ? `${operation.input}\n`
+        : operation.input;
+    stdin.write(payload);
+    return {
+      success: true,
+      sent: true,
+      bytes: Buffer.byteLength(payload),
+      ...this.jobResult(job, false),
     };
   }
 
@@ -340,6 +381,8 @@ export class TerminalRuntime {
         return this.jobResult(this.job(operation), false);
       case "output":
         return this.jobResult(this.job(operation), true);
+      case "send":
+        return this.sendInput(operation);
       case "stop": {
         const job = this.job(operation);
         if (job.endedAt === undefined) job.child.kill("SIGTERM");

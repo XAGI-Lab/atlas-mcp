@@ -36,9 +36,15 @@ export interface EvaluationReport {
 async function runScenario(scenario: EvaluationScenario): Promise<EvaluationResult> {
   const started = performance.now();
   const root = await mkdtemp(join(tmpdir(), `melra-eval-${scenario.id}-`));
+  let policyPath: string | undefined;
+  if (scenario.policy !== undefined) {
+    policyPath = join(root, "policy.json");
+    await writeFile(policyPath, JSON.stringify(scenario.policy));
+  }
   const runtime = await createMelraRuntime({
     workspaceRoot: root,
     dataDirectory: join(root, ".melra"),
+    ...(policyPath === undefined ? {} : { policyPath }),
   });
   try {
     for (const fixture of scenario.fixtures ?? []) {

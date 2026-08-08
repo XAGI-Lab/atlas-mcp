@@ -46,7 +46,7 @@ export function capabilitiesPayload(runtime: MelraRuntime): unknown {
         tools: TOOL_NAMES,
         operations: {
           file: ["list", "read", "stat", "hash", "write", "move", "delete", "mkdir"],
-          terminal: ["run", "start", "status", "output", "stop"],
+          terminal: ["run", "start", "status", "output", "send", "stop"],
           browser: [
             "navigate",
             "back",
@@ -108,6 +108,10 @@ export function capabilitiesPayload(runtime: MelraRuntime): unknown {
             : {}),
           mutations: runtime.policy.mutations,
           allowedCommands: runtime.policy.allowedCommands,
+          // Named here because `allowedCommands` alone reads as the whole
+          // terminal posture, and it is not: `npm` on the allowlist with
+          // `package-install` denied permits `npm test` and refuses `npm i`.
+          deniedTraits: runtime.policy.deniedTraits,
           allowedDomains: runtime.policy.allowedDomains,
           allowLocalhost: runtime.policy.allowLocalhost,
           telemetry: "off",

@@ -159,6 +159,32 @@ Mutations default to `"confirm"`: every non-read operation returns a
 task-scoped approval phrase that must be echoed back before it runs. Set
 `"mutations": "deny"` for a read-only install.
 
+`allowedCommands` matches on the program's basename, so it cannot tell `npm
+test` from `npm install left-pad`. `deniedTraits` is the axis that can. MELRA
+classifies what a command *reaches for* and refuses a request carrying a denied
+trait before the allowlist is consulted:
+
+| Trait | Meaning | Examples |
+|---|---|---|
+| `package-install` | Resolves and installs third-party code — the one terminal action that adds executable content nobody reviewed. | `npm i`, `pnpm add`, `pip install`, `cargo add`, `npx`, `uvx` |
+| `network` | Contacts a host outside this machine. | `curl`, `wget`, `ssh`, `git push`, `git clone`, every browser navigation |
+
+```json
+{ "deniedTraits": ["package-install"] }
+```
+
+That policy keeps `npm` usable for `npm test` and `npm run build` while refusing
+`npm install`, with the reason `trait_denied:package-install`. Denying
+`"network"` also stops browser navigation, because browsing is a network act.
+The traits are reported on every plan, so an approver sees them before echoing
+the phrase back, and `melra policy test` prints them for a request without
+running it:
+
+```bash
+echo '{"goal":"install","operation":{"kind":"terminal","action":"run","command":"npm","args":["install","left-pad"]},"requiredEvidence":[{"type":"exit_code","value":0}]}' \
+  | melra policy test
+```
+
 Memories are reclaimed on the next `melra_execute` that writes to the same
 scope. `memoryRetention.maxAgeDays` (default `30`) is how long an expired or
 superseded record is kept after it stops being readable — no search or list can
@@ -173,6 +199,28 @@ stored and can still read, oldest first, so it is opt-in.
 ```json
 { "memoryRetention": { "maxAgeDays": 30, "maxPerScope": 5000 } }
 ```
+
+## Commands that ask a question
+
+A command that stops to prompt would otherwise sit there until its timeout, with
+no way to answer. Start it with `interactive: true` so its stdin stays open, read
+the prompt back with `output`, then answer it with `send`:
+
+```json
+{ "kind": "terminal", "action": "start", "command": "npm", "args": ["init"], "interactive": true }
+{ "kind": "terminal", "action": "output", "jobId": "<from start>" }
+{ "kind": "terminal", "action": "send", "jobId": "<from start>", "input": "y" }
+```
+
+`send` appends a newline unless you pass `appendNewline: false`. It carries no
+command of its own, so policy authorises it on the job id it targets — the
+allowlist was already checked when that job started, and a `send` with no job id
+is refused. Sending to a job that was not started interactively is refused as
+`terminal_job_not_interactive` rather than breaking later as a dead pipe.
+
+Stdin is piped, not a terminal. A program that checks whether it owns a TTY and
+refuses otherwise — `sudo`'s password prompt, a full-screen TUI — will not work
+this way, and `sudo` is denied by policy regardless.
 
 ## HTTP server and console
 

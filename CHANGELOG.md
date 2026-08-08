@@ -8,6 +8,28 @@ All notable changes are documented here. The format follows
 
 ### Added
 
+- Interactive terminal input. A background job's stdin was ignored, so any
+  command that stopped to ask something — a scaffolder's prompt, a confirmation
+  — hung until its timeout with no way to answer it. `start` now takes
+  `interactive: true` to keep stdin open, and a new `send` action writes a line
+  to a running job (`appendNewline` defaults to true). `send` carries no
+  command, so it is authorised on the job id it targets; the allowlist check
+  already happened when that job started. Sending to a job that was not started
+  interactively is refused by name (`terminal_job_not_interactive`) rather than
+  failing later as a broken pipe. Programs that demand a real terminal rather
+  than readable stdin still do not work — that needs a native PTY.
+- Package-installation and network effect classifiers. `allowedCommands`
+  matches on a program's basename, so it could not tell `npm test` from `npm
+  install left-pad` — allowing the command allowed both, and every `npm`
+  subcommand was classified as a high-risk mutation, including `npm ls`, which
+  only reads. Operations now also carry *traits* describing what they reach
+  for: `package-install` (resolves and installs third-party code) and `network`
+  (contacts another host). `deniedTraits` in `policy.json` refuses a request
+  carrying one before the allowlist is consulted, so a policy can keep `npm`
+  for its scripts and refuse it for fetching code. Traits are reported on every
+  plan and by `melra policy test`, so an approver sees them before echoing an
+  approval phrase back. Browser navigation carries `network` too, because it is
+  true: denying `network` denies browsing as well.
 - Memory retention and compaction. Expired and superseded records were already
   invisible to every read path but nothing ever deleted them, so a long-lived
   install grew forever while the searchable set stayed the same size.
@@ -20,6 +42,13 @@ All notable changes are documented here. The format follows
 
 ### Fixed
 
+- `melra policy test` previewed the wrong policy. It built its decision from the
+  shipped defaults and ignored `MELRA_POLICY` and `~/.melra/policy.json`, which
+  `melra serve` does read — so a dry run could disagree with the server it was
+  previewing. It now loads the same policy the server would.
+- A command's subcommand is found past argument-consuming flags. `git -c
+  core.pager=cat push` read `core.pager=cat` as the subcommand and was
+  classified as a local operation rather than one that contacts a remote.
 - Windows checkouts no longer produce CRLF source. Git for Windows converts on
   checkout by default, and `pnpm check` failed the whole Windows job because the
   README example checker matches fenced blocks on `\n` and found none. A

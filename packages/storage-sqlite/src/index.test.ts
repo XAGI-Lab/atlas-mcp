@@ -117,6 +117,7 @@ describe("SqliteStore", () => {
         risk: "low",
         reason: "read_only_operation",
         policyVersion: "1",
+        traits: [],
       },
       receiptIds: [],
       createdAt: now,
@@ -284,5 +285,76 @@ describe("SqliteStore", () => {
       episodeId: "conversation-a",
       sequence: 11,
     });
+  });
+
+  it("keeps a superseded record while something live still points at it", () => {
+    store = new SqliteStore(":memory:");
+    const old = "5f1c1c30-0f3a-4a70-8f52-1b0a3d5d9c01";
+    const ancient = "2000-01-01T00:00:00.000Z";
+    store.putMemory({
+      id: old,
+      scope: "workspace",
+      key: "city",
+      value: "Chennai",
+      source: "test",
+      confidence: 1,
+      tags: [],
+      supersededBy: "5f1c1c30-0f3a-4a70-8f52-1b0a3d5d9c02",
+      createdAt: ancient,
+      updatedAt: ancient,
+    });
+    store.putMemory({
+      id: "5f1c1c30-0f3a-4a70-8f52-1b0a3d5d9c02",
+      scope: "workspace",
+      key: "city",
+      value: "Bengaluru",
+      source: "test",
+      confidence: 1,
+      tags: [],
+      supersedesId: old,
+      createdAt: ancient,
+      updatedAt: ancient,
+    });
+
+    // Deleting the old row here would leave the live record's `supersedesId`
+    // pointing at nothing, so the history it claims to have could not be read.
+    expect(
+      store.compactMemories("workspace", { maxAgeDays: 0, maxPerScope: 0 }),
+    ).toMatchObject({ superseded: 0 });
+    expect(store.getMemory(old)).toBeDefined();
+  });
+
+  it("evicts the oldest live memories only once a ceiling is set", () => {
+    store = new SqliteStore(":memory:");
+    const ids = ["a", "b", "c"].map(
+      (suffix, index) => `6d2e0000-0000-4000-8000-00000000000${index}${suffix}`,
+    );
+    ids.forEach((id, index) => {
+      const stamp = new Date(1_700_000_000_000 + index * 1_000).toISOString();
+      store!.putMemory({
+        id,
+        scope: "workspace",
+        key: `k${index}`,
+        value: "v",
+        source: "test",
+        confidence: 1,
+        tags: [],
+        createdAt: stamp,
+        updatedAt: stamp,
+      });
+    });
+
+    // `maxPerScope` deletes records that are still readable, so the default of
+    // 0 has to mean "no ceiling" rather than "keep nothing".
+    expect(
+      store.compactMemories("workspace", { maxAgeDays: 30, maxPerScope: 0 }),
+    ).toMatchObject({ evicted: 0 });
+    expect(store.listMemories("workspace", 10)).toHaveLength(3);
+
+    expect(
+      store.compactMemories("workspace", { maxAgeDays: 30, maxPerScope: 2 }),
+    ).toMatchObject({ evicted: 1 });
+    expect(store.getMemory(ids[0]!)).toBeUndefined();
+    expect(store.getMemory(ids[2]!)).toBeDefined();
   });
 });

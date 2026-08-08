@@ -28,7 +28,12 @@ import {
 } from "@melra/server";
 import { detectBrowserExecutable } from "@melra/browser-runtime";
 import { createSystemComputerAdapter } from "@melra/computer-runtime";
-import { createDefaultPolicy, evaluatePolicy } from "@melra/policy-core";
+import {
+  classifyOperation,
+  createDefaultPolicy,
+  evaluatePolicy,
+  loadPolicy,
+} from "@melra/policy-core";
 import {
   type CliEnvironment,
   parseCliEnvironment,
@@ -552,13 +557,23 @@ async function inspectTask(args: string[], env: CliEnvironment): Promise<void> {
 async function policyTest(args: string[], env: CliEnvironment): Promise<void> {
   const request = await readTaskRequest(args);
   // Reports what this process would actually decide, unhinged mode included —
-  // a dry run that disagreed with the server it is previewing is worse than none.
+  // a dry run that disagreed with the server it is previewing is worse than
+  // none. That is also why the operator's own `policy.json` is loaded rather
+  // than the defaults: `serve` reads it, so a preview that ignored it would
+  // answer for a policy nobody is running.
   const policy = {
-    ...createDefaultPolicy(env.workspaceRoot),
+    ...(await loadPolicy(await existingPolicyPath(env), env.workspaceRoot)),
     unhinged: env.unhinged,
   };
   const taskId = "00000000-0000-4000-8000-000000000000";
-  output(evaluatePolicy(taskId, request, policy));
+  // The decision carries effect, risk, and traits; the classification adds the
+  // capability and target it was made against, so a surprising verdict can be
+  // traced to what MELRA thought the request was touching.
+  const { capability, target } = classifyOperation(request.operation);
+  output({
+    ...evaluatePolicy(taskId, request, policy),
+    classified: { capability, target },
+  });
 }
 
 function help(): void {

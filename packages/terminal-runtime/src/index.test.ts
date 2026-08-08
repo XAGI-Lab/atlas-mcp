@@ -93,6 +93,68 @@ describe("TerminalRuntime", () => {
     runtime.close();
   }, 30_000);
 
+  it("answers a running job's prompt and refuses one that cannot be answered", async () => {
+    const root = await mkdtemp(join(tmpdir(), "melra-terminal-"));
+    roots.push(root);
+    const runtime = await TerminalRuntime.create({ root });
+    const script =
+      "process.stdout.write('name? ');" +
+      "process.stdin.once('data', (d) => { process.stdout.write('hello ' + String(d).trim()); process.exit(0); })";
+    const start = (interactive: boolean) =>
+      runtime.execute(
+        TerminalOperationSchema.parse({
+          kind: "terminal",
+          action: "start",
+          command: process.execPath,
+          args: ["-e", script],
+          interactive,
+          timeoutMs: 5_000,
+        }),
+      );
+
+    const interactive = await start(true);
+    const sent = await runtime.execute(
+      TerminalOperationSchema.parse({
+        kind: "terminal",
+        action: "send",
+        jobId: interactive.jobId,
+        input: "melra",
+      }),
+    );
+    expect(sent.sent).toBe(true);
+    const deadline = Date.now() + 10_000;
+    const readOutput = async (jobId: unknown) =>
+      runtime.execute(
+        TerminalOperationSchema.parse({
+          kind: "terminal",
+          action: "output",
+          jobId,
+        }),
+      );
+    let output = await readOutput(interactive.jobId);
+    while (output.running === true && Date.now() < deadline) {
+      await new Promise((done) => setTimeout(done, 25));
+      output = await readOutput(interactive.jobId);
+    }
+    expect(output.stdout).toContain("hello melra");
+
+    // Without `interactive`, stdin is ignored rather than piped. Writing to it
+    // would throw EPIPE asynchronously and surface as an unhandled error, so
+    // the refusal has to come first and name the reason.
+    const plain = await start(false);
+    await expect(
+      runtime.execute(
+        TerminalOperationSchema.parse({
+          kind: "terminal",
+          action: "send",
+          jobId: plain.jobId,
+          input: "melra",
+        }),
+      ),
+    ).rejects.toThrow("terminal_job_not_interactive");
+    runtime.close();
+  }, 30_000);
+
   it("names a missing program instead of surfacing a bare ENOENT", async () => {
     const root = await mkdtemp(join(tmpdir(), "melra-terminal-"));
     roots.push(root);

@@ -4,6 +4,8 @@
 import { describe, expect, it } from "vitest";
 import { TaskRequestSchema } from "@melra/protocol";
 import {
+  classifyCommand,
+  classifyOperation,
   createDefaultPolicy,
   defaultEvidenceFor,
   evaluatePolicy,
@@ -242,6 +244,8 @@ describe("default evidence", () => {
         action: "run",
         command: "npm",
         args: ["run", "build"],
+        interactive: false,
+        appendNewline: true,
         timeoutMs: 30_000,
         maxOutputChars: 100_000,
       }),
@@ -361,6 +365,52 @@ describe("Windows command spellings", () => {
   });
 });
 
+describe("interactive terminal input", () => {
+  const send = (jobId?: string) =>
+    evaluatePolicy(
+      "00000000-0000-4000-8000-000000000000",
+      TaskRequestSchema.parse({
+        goal: "Answer a prompt",
+        operation: {
+          kind: "terminal",
+          action: "send",
+          ...(jobId === undefined ? {} : { jobId }),
+          input: "y",
+        },
+        // What `defaultEvidenceFor` supplies on the controller's path; spelled
+        // out here because `evaluatePolicy` does not derive it.
+        requiredEvidence: [{ type: "result_equals", path: "sent", value: true }],
+      }),
+      createDefaultPolicy(root),
+    );
+
+  it("gates on the job id, since the command was allowlisted at start", () => {
+    // `send` carries no command, so the allowlist has nothing to match. Falling
+    // through to the command branch would deny every prompt answer outright.
+    expect(send().decision.reason).toBe("command_not_allowlisted");
+    const decision = send("d1a4c4de-1b0e-4e17-9f4d-2f5c9b6a71e2").decision;
+    expect(decision.outcome).toBe("confirm");
+    expect(decision.effect).toBe("mutate");
+  });
+
+  it("derives the post-condition the runtime actually reports", () => {
+    // Without this, a `send` with no declared evidence is denied for missing
+    // evidence and interactive commands are unusable through the default path.
+    expect(
+      defaultEvidenceFor({
+        kind: "terminal",
+        action: "send",
+        jobId: "d1a4c4de-1b0e-4e17-9f4d-2f5c9b6a71e2",
+        input: "y",
+        interactive: false,
+        appendNewline: true,
+        timeoutMs: 30_000,
+        maxOutputChars: 100_000,
+      } as never),
+    ).toEqual([{ type: "result_equals", path: "sent", value: true }]);
+  });
+});
+
 describe("unhinged mode", () => {
   const unhinged = { ...createDefaultPolicy(root), unhinged: true };
   const plan = (request: unknown, policy = unhinged) =>
@@ -430,5 +480,103 @@ describe("unhinged mode", () => {
         createDefaultPolicy(root),
       ).decision.reason,
     ).toBe("command_not_allowlisted");
+  });
+});
+
+describe("capability traits", () => {
+  const terminal = (command: string, args: string[] = []) =>
+    classifyOperation({
+      kind: "terminal",
+      action: "run",
+      command,
+      args,
+      env: {},
+      timeoutMs: 30_000,
+      maxOutputChars: 10_000,
+    } as never);
+
+  it("tells a package manager's subcommands apart", () => {
+    // The old rule was the command's name alone, so all three of these were
+    // high-risk mutations — including the one that only reads.
+    expect(terminal("npm", ["ls"]).effect).toBe("read");
+    expect(terminal("npm", ["run", "build"])).toMatchObject({
+      effect: "mutate",
+      risk: "medium",
+      traits: [],
+    });
+    expect(terminal("npm", ["install", "left-pad"])).toMatchObject({
+      effect: "mutate",
+      risk: "high",
+      traits: ["package-install", "network"],
+    });
+  });
+
+  it("reads past flags to find the subcommand", () => {
+    expect(classifyCommand("npm", ["--silent", "install"]).traits).toContain(
+      "package-install",
+    );
+    expect(classifyCommand("git", ["-c", "core.pager=cat", "push"])).toEqual({
+      read: false,
+      traits: ["network"],
+    });
+  });
+
+  it("marks commands that reach another host", () => {
+    expect(classifyCommand("curl", ["https://example.com"]).traits).toEqual([
+      "network",
+    ]);
+    expect(classifyCommand("git", ["status"])).toEqual({
+      read: true,
+      traits: [],
+    });
+    expect(classifyCommand("npx", ["cowsay"]).traits).toEqual([
+      "package-install",
+      "network",
+    ]);
+    // Browsing is a network act too, so denying `network` denies it as well.
+    expect(
+      classifyOperation({
+        kind: "browser",
+        action: "navigate",
+        url: "https://example.com",
+      } as never).traits,
+    ).toEqual(["network"]);
+  });
+
+  it("refuses a denied trait before the allowlist is consulted", () => {
+    const policy = createDefaultPolicy(root);
+    policy.deniedTraits = ["package-install"];
+    const run = (args: string[]) =>
+      evaluatePolicy(
+        "4c5a0130-71a5-4c48-b22d-c7901f12688f",
+        TaskRequestSchema.parse({
+          goal: "Use npm",
+          operation: { kind: "terminal", action: "run", command: "npm", args },
+          requiredEvidence: [{ type: "exit_code", value: 0 }],
+        }),
+        policy,
+      ).decision;
+
+    // `allowedCommands` matches on the basename, so it cannot express this.
+    expect(run(["install", "left-pad"])).toMatchObject({
+      outcome: "deny",
+      reason: "trait_denied:package-install",
+    });
+    expect(run(["run", "test"]).outcome).toBe("confirm");
+  });
+
+  it("allows a denied trait when there are no guardrails at all", () => {
+    const policy = { ...createDefaultPolicy(root), unhinged: true };
+    policy.deniedTraits = ["network"];
+    expect(
+      evaluatePolicy(
+        "4c5a0130-71a5-4c48-b22d-c7901f12688f",
+        TaskRequestSchema.parse({
+          goal: "Fetch a page",
+          operation: { kind: "browser", action: "navigate", url: "https://example.com" },
+        }),
+        policy,
+      ).decision.reason,
+    ).toBe("unhinged_mode_no_guardrails");
   });
 });

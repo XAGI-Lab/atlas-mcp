@@ -7,6 +7,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type {
   ApprovalChallenge,
   ApprovalResponse,
+  CapabilityTrait,
   Effect,
   EvidencePredicate,
   Operation,
@@ -34,6 +35,17 @@ export interface LocalPolicy {
    * path can return them.
    */
   memoryRetention: { maxAgeDays: number; maxPerScope: number };
+  /**
+   * Traits an operation may not carry. Empty by default — the shipped policy
+   * still confirms every mutation, so nothing runs unattended, and denying
+   * installs or the network outright is a choice only some installs want.
+   *
+   * `["package-install"]` lets a task run `npm test` but not `npm install`,
+   * which `allowedCommands` cannot express because it matches on the basename.
+   * `["network"]` refuses anything that reaches another host, browsing
+   * included.
+   */
+  deniedTraits: CapabilityTrait[];
   /**
    * Switches off every guardrail this policy exists to apply: allowlists,
    * evidence requirements, approval challenges, and — through the runtimes
@@ -109,6 +121,205 @@ export function normalizeCommandName(command: string): string {
   return suffix === undefined ? name : name.slice(0, -suffix.length);
 }
 
+/**
+ * What an operation does beyond changing local state, named so a policy can
+ * refuse it.
+ *
+ * `effect` answers "does this write" and `risk` answers "how badly could it
+ * go", but neither distinguishes `npm test` from `npm install left-pad`, and
+ * `allowedCommands` matches on the basename so it cannot either. An operator
+ * who wants a package manager for its scripts but not for fetching code from
+ * a registry had no way to say so. Traits are that missing axis.
+ *
+ * - `package-install` — resolves and installs third-party code, which is the
+ *   one terminal action that can add executable content the operator never
+ *   reviewed.
+ * - `network` — reaches a host outside this machine. Browser navigation
+ *   carries it too, because it is true: `deniedTraits: ["network"]` means no
+ *   network at all, not "no network except the browser".
+ */
+export type { CapabilityTrait } from "@melra/protocol";
+
+/**
+ * Subcommands that install, per package manager, and the ones that only read.
+ *
+ * Anything unlisted falls in between: a mutation, but not an install — `npm
+ * run build` writes to the workspace and reaches nothing.
+ */
+const PACKAGE_MANAGERS: Record<
+  string,
+  { install: Set<string>; read: Set<string> }
+> = {
+  npm: {
+    install: new Set(["install", "i", "add", "ci", "update", "up", "publish"]),
+    read: new Set(["ls", "list", "view", "info", "outdated", "why", "config"]),
+  },
+  pnpm: {
+    install: new Set(["install", "i", "add", "update", "up", "publish", "dlx"]),
+    read: new Set(["ls", "list", "view", "info", "outdated", "why", "licenses"]),
+  },
+  yarn: {
+    install: new Set(["install", "add", "up", "upgrade", "publish", "dlx"]),
+    read: new Set(["info", "why", "list", "outdated"]),
+  },
+  pip: {
+    install: new Set(["install", "download", "wheel"]),
+    read: new Set(["list", "show", "freeze", "check"]),
+  },
+  pip3: {
+    install: new Set(["install", "download", "wheel"]),
+    read: new Set(["list", "show", "freeze", "check"]),
+  },
+  uv: {
+    install: new Set(["add", "sync", "install", "pip", "tool", "publish"]),
+    read: new Set(["tree", "lock", "version"]),
+  },
+  cargo: {
+    install: new Set(["install", "add", "update", "publish", "fetch"]),
+    read: new Set(["tree", "metadata", "search"]),
+  },
+  gem: {
+    install: new Set(["install", "update", "push"]),
+    read: new Set(["list", "info", "which"]),
+  },
+  brew: {
+    install: new Set(["install", "upgrade", "reinstall", "tap"]),
+    read: new Set(["list", "info", "search", "outdated"]),
+  },
+  apt: {
+    install: new Set(["install", "upgrade", "full-upgrade", "update"]),
+    read: new Set(["list", "show", "search", "policy"]),
+  },
+  "apt-get": {
+    install: new Set(["install", "upgrade", "dist-upgrade", "update"]),
+    read: new Set(["show", "download"]),
+  },
+  go: {
+    install: new Set(["install", "get", "mod"]),
+    read: new Set(["list", "version", "env", "vet"]),
+  },
+};
+
+/** `npx`/`pnpx` fetch and execute a package by name; there is no read form. */
+const ALWAYS_INSTALLING = new Set(["npx", "pnpx", "uvx", "pipx"]);
+
+/** Programs whose whole purpose is to talk to another host. */
+const NETWORK_COMMANDS = new Set([
+  "curl",
+  "wget",
+  "scp",
+  "sftp",
+  "ssh",
+  "rsync",
+  "nc",
+  "ncat",
+  "telnet",
+  "ftp",
+]);
+
+/** `git` subcommands that contact a remote. */
+const NETWORK_GIT_ACTIONS = new Set([
+  "clone",
+  "fetch",
+  "pull",
+  "push",
+  "submodule",
+  "ls-remote",
+]);
+
+/**
+ * Flags that take their value as the next argument, so that argument is not
+ * the subcommand. `git -c core.pager=cat push` pushes; a naive "first
+ * non-flag" scan reads `core.pager=cat` as the subcommand and calls it local.
+ *
+ * The list is short on purpose: it covers the value-taking flags of the
+ * commands this module classifies. An unlisted one costs an unrecognised
+ * subcommand, which falls back to `mutate`/`medium` — the cautious answer.
+ */
+const VALUE_TAKING_FLAGS = new Set([
+  "-c",
+  "-C",
+  "--config",
+  "--cwd",
+  "--dir",
+  "--prefix",
+  "--workspace",
+  "-w",
+  "--filter",
+  "--registry",
+]);
+
+function subcommandOf(args: readonly string[]): string | undefined {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]!;
+    if (VALUE_TAKING_FLAGS.has(arg)) {
+      index += 1;
+      continue;
+    }
+    // `--filter=foo` carries its value inline, so nothing is skipped.
+    if (arg.startsWith("-")) continue;
+    return arg.toLowerCase();
+  }
+  return undefined;
+}
+
+/**
+ * Classify a terminal command by what it does, not just by its name.
+ *
+ * Exported because the accurate answer is worth having outside policy — the
+ * CLI's `policy test` prints it, and it is the only place `npm ls` and `npm
+ * install` are told apart.
+ */
+export function classifyCommand(
+  command: string,
+  args: readonly string[],
+): { read: boolean; traits: CapabilityTrait[] } {
+  const name = normalizeCommandName(command);
+  const subcommand = subcommandOf(args);
+  const traits = new Set<CapabilityTrait>();
+
+  if (NETWORK_COMMANDS.has(name)) traits.add("network");
+  if (name === "git" && subcommand !== undefined && NETWORK_GIT_ACTIONS.has(subcommand)) {
+    traits.add("network");
+  }
+  if (ALWAYS_INSTALLING.has(name)) {
+    traits.add("package-install");
+    traits.add("network");
+  }
+
+  const manager = PACKAGE_MANAGERS[name];
+  if (manager !== undefined && subcommand !== undefined) {
+    if (manager.install.has(subcommand)) {
+      traits.add("package-install");
+      traits.add("network");
+    }
+    if (manager.read.has(subcommand)) {
+      // A read subcommand of a package manager still queries the registry in
+      // the general case, so it keeps `network` while dropping the mutation.
+      return { read: true, traits: [...traits, "network"] };
+    }
+  }
+
+  const READ_COMMANDS = new Set([
+    "cat",
+    "findstr",
+    "head",
+    "ls",
+    "pwd",
+    "rg",
+    "tail",
+    "tasklist",
+    "wc",
+    "where",
+  ]);
+  const read =
+    READ_COMMANDS.has(name) ||
+    (name === "git" &&
+      subcommand !== undefined &&
+      READ_ONLY_GIT_ACTIONS.has(subcommand));
+  return { read, traits: [...traits] };
+}
+
 export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
   return {
     version: "1",
@@ -141,6 +352,7 @@ export function createDefaultPolicy(workspaceRoot: string): LocalPolicy {
     approvalTtlMs: 5 * 60_000,
     maxFileBytes: 10 * 1024 * 1024,
     memoryRetention: { maxAgeDays: 30, maxPerScope: 0 },
+    deniedTraits: [],
     unhinged: false,
   };
 }
@@ -161,6 +373,7 @@ export async function loadPolicy(
     // Spread, not replace: a file naming only `maxPerScope` should not silently
     // drop `maxAgeDays` to `undefined` and make compaction delete everything.
     memoryRetention: { ...defaults.memoryRetention, ...parsed.memoryRetention },
+    deniedTraits: parsed.deniedTraits ?? defaults.deniedTraits,
   };
 }
 
@@ -169,6 +382,7 @@ export function classifyOperation(operation: Operation): {
   risk: Risk;
   capability: string;
   target: string;
+  traits: CapabilityTrait[];
 } {
   switch (operation.kind) {
     case "file": {
@@ -179,6 +393,7 @@ export function classifyOperation(operation: Operation): {
         risk: destructive ? "high" : read ? "low" : "medium",
         capability: `file.${operation.action}`,
         target: operation.path,
+        traits: [],
       };
     }
     case "terminal": {
@@ -188,36 +403,42 @@ export function classifyOperation(operation: Operation): {
           risk: "low",
           capability: `terminal.${operation.action}`,
           target: `job:${operation.jobId ?? "unknown"}`,
+          traits: [],
+        };
+      }
+      // `send` writes to a running process's stdin. It carries no command of
+      // its own, so it cannot be classified by one: whatever the input does is
+      // the already-approved job's doing, and answering a prompt is a mutation.
+      if (operation.action === "send") {
+        return {
+          effect: "mutate",
+          risk: "medium",
+          capability: "terminal.send",
+          target: `job:${operation.jobId ?? "unknown"}`,
+          traits: [],
         };
       }
       const command = normalizeCommandName(operation.command ?? "");
-      const gitRead =
-        operation.action === "run" &&
-        command === "git" &&
-        operation.args.length > 0 &&
-        READ_ONLY_GIT_ACTIONS.has(operation.args[0] ?? "");
-      const readCommands = new Set([
-        "cat",
-        "findstr",
-        "head",
-        "ls",
-        "pwd",
-        "rg",
-        "tail",
-        "tasklist",
-        "wc",
-        "where",
-      ]);
-      const read = readCommands.has(command) || gitRead;
-      const packageMutation = new Set(["npm", "npx", "pnpm"]).has(command);
+      const { read, traits } = classifyCommand(
+        operation.command ?? "",
+        operation.args,
+      );
       return {
         effect: read ? "read" : "mutate",
-        risk: packageMutation ? "high" : read ? "low" : "medium",
+        // Installing third-party code is the high-risk case, not the package
+        // manager's name: `npm run build` is an ordinary mutation and `npm ls`
+        // is a read, which the old blanket rule called high-risk alongside it.
+        risk: traits.includes("package-install")
+          ? "high"
+          : read
+            ? "low"
+            : "medium",
         capability: `terminal.${operation.action}`,
         target:
           operation.action === "stop"
             ? `job:${operation.jobId ?? "unknown"}`
             : `command:${command}`,
+        traits,
       };
     }
     case "browser": {
@@ -255,6 +476,9 @@ export function classifyOperation(operation: Operation): {
                 target.hash = "";
                 return target.toString();
               })(),
+        // Driving a page is a network act whether or not the caller named a
+        // URL: a click can fetch, and a stale tab is still a live connection.
+        traits: ["network"],
       };
     }
     case "memory": {
@@ -267,6 +491,7 @@ export function classifyOperation(operation: Operation): {
         target: `${operation.scope}:${operation.action}:${
           operation.id ?? operation.key ?? "*"
         }`,
+        traits: [],
       };
     }
     case "computer": {
@@ -281,6 +506,7 @@ export function classifyOperation(operation: Operation): {
           operation.action === "click" || operation.action === "move"
             ? `${operation.coordinateSpace}:${operation.x ?? "?"},${operation.y ?? "?"}`
             : "active-desktop",
+        traits: [],
       };
     }
     case "system":
@@ -289,6 +515,7 @@ export function classifyOperation(operation: Operation): {
         risk: "low",
         capability: "system.info",
         target: "local-system",
+        traits: [],
       };
   }
 }
@@ -348,13 +575,17 @@ export function defaultEvidenceFor(
       // These adapters report an explicit `success` flag; hold the task to it
       // rather than letting a silent no-op pass as a completed action.
       return [{ type: "result_equals", path: "success", value: true }];
+    case "terminal":
+      // `run`/`start` say nothing about what the command should leave behind,
+      // so there is no honest post-condition. `send` does: the runtime reports
+      // whether the bytes reached a job that was still running and accepting
+      // input, and a write to a dead or non-interactive job throws instead.
+      return operation.action === "send"
+        ? [{ type: "result_equals", path: "sent", value: true }]
+        : [];
     default:
       return [];
   }
-}
-
-function deny(effect: Effect, risk: Risk, reason: string, version: string): PolicyDecision {
-  return { outcome: "deny", effect, risk, reason, policyVersion: version };
 }
 
 function isCommandAllowed(operation: Operation, policy: LocalPolicy): boolean {
@@ -362,7 +593,11 @@ function isCommandAllowed(operation: Operation, policy: LocalPolicy): boolean {
   if (operation.action === "status" || operation.action === "output") {
     return operation.jobId !== undefined;
   }
-  if (operation.action === "stop") return operation.jobId !== undefined;
+  // `stop` and `send` act on a job the allowlist already cleared when it
+  // started, so the job id is the whole gate — there is no command to match.
+  if (operation.action === "stop" || operation.action === "send") {
+    return operation.jobId !== undefined;
+  }
   if (operation.command === undefined) return false;
   const command = normalizeCommandName(operation.command);
   // Normalized on both sides so `powershell.exe` cannot slip past a deny entry
@@ -393,27 +628,30 @@ export function evaluatePolicy(
   policy: LocalPolicy,
 ): PolicyEvaluation {
   const classified = classifyOperation(request.operation);
+  // Every decision reports the same classification it was made from, including
+  // the traits, so an approver reading a `confirm` sees that the command
+  // installs packages and reaches a registry before echoing the phrase back.
+  const decide = (
+    outcome: PolicyDecision["outcome"],
+    reason: string,
+    risk: Risk = classified.risk,
+  ): PolicyDecision => ({
+    outcome,
+    effect: classified.effect,
+    risk,
+    reason,
+    policyVersion: policy.version,
+    traits: classified.traits,
+  });
 
   if (request.constraints.length > 0) {
     return {
-      decision: deny(
-        classified.effect,
-        classified.risk,
-        "freeform_constraints_not_enforceable",
-        policy.version,
-      ),
+      decision: decide("deny", "freeform_constraints_not_enforceable"),
     };
   }
 
   if (request.forbiddenEffects.includes(classified.effect)) {
-    return {
-      decision: deny(
-        classified.effect,
-        classified.risk,
-        "effect_forbidden_by_request",
-        policy.version,
-      ),
-    };
+    return { decision: decide("deny", "effect_forbidden_by_request") };
   }
 
   // Unhinged mode allows everything the operator did not forbid in this very
@@ -423,84 +661,45 @@ export function evaluatePolicy(
   // none. Everything below — allowlists, evidence, approval — is MELRA's own
   // judgement, and unhinged mode is the operator saying they do not want it.
   if (policy.unhinged) {
-    return {
-      decision: {
-        outcome: "allow",
-        effect: classified.effect,
-        risk: classified.risk,
-        reason: "unhinged_mode_no_guardrails",
-        policyVersion: policy.version,
-      },
-    };
+    return { decision: decide("allow", "unhinged_mode_no_guardrails") };
+  }
+
+  const deniedTrait = classified.traits.find((trait) =>
+    policy.deniedTraits.includes(trait),
+  );
+  if (deniedTrait !== undefined) {
+    return { decision: decide("deny", `trait_denied:${deniedTrait}`) };
   }
 
   if (!isCommandAllowed(request.operation, policy)) {
     return {
-      decision: deny(
-        classified.effect,
-        "critical",
-        "command_not_allowlisted",
-        policy.version,
-      ),
+      decision: decide("deny", "command_not_allowlisted", "critical"),
     };
   }
 
   if (!domainAllowed(request.operation, policy)) {
     return {
-      decision: deny(
-        classified.effect,
-        "high",
-        "browser_domain_not_allowed",
-        policy.version,
-      ),
+      decision: decide("deny", "browser_domain_not_allowed", "high"),
     };
   }
 
   if (classified.effect !== "read" && request.requiredEvidence.length === 0) {
-    return {
-      decision: deny(
-        classified.effect,
-        classified.risk,
-        "mutation_requires_evidence",
-        policy.version,
-      ),
-    };
+    return { decision: decide("deny", "mutation_requires_evidence") };
   }
 
   if (classified.effect === "read") {
-    return {
-      decision: {
-        outcome: "allow",
-        effect: classified.effect,
-        risk: classified.risk,
-        reason: "read_only_operation",
-        policyVersion: policy.version,
-      },
-    };
+    return { decision: decide("allow", "read_only_operation") };
   }
 
   if (policy.mutations === "deny") {
-    return {
-      decision: deny(
-        classified.effect,
-        classified.risk,
-        "mutations_disabled",
-        policy.version,
-      ),
-    };
+    return { decision: decide("deny", "mutations_disabled") };
   }
 
   const digest = digestOperation(taskId, request.operation);
   const approvalId = randomUUID();
   const phrase = `APPROVE ${digest.slice(0, 12)}`;
   return {
-    decision: {
-      outcome: "confirm",
-      effect: classified.effect,
-      risk: classified.risk,
-      reason: "explicit_approval_required",
-      policyVersion: policy.version,
-    },
+    decision: decide("confirm", "explicit_approval_required"),
     challenge: {
       approvalId,
       taskId,
